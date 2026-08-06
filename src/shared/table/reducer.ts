@@ -83,7 +83,15 @@ export type TableAction =
   | { type: 'linkRow'; actionId: string; winningChord?: Chord | null }
   | { type: 'unlinkRow'; actionId: string }
   | { type: 'discardPending' }
-  | { type: 'markSaved' }
+  /**
+   * Folds pending edits into the saved store after a write.
+   *
+   * `apps` names the apps that were actually written. A save that reached VSCode
+   * but failed on Ghostty must not mark the Ghostty edits saved — they never
+   * reached disk, and silently clearing them would lose the user's work with no
+   * indication. Omit `apps` to fold everything (a fully successful save).
+   */
+  | { type: 'markSaved'; apps?: readonly AppId[] }
   | { type: 'importBindings'; payload: ImportPayload }
   /**
    * Replaces the saved store with one loaded from disk. Pending edits are
@@ -282,10 +290,12 @@ export function tableReducer(
       return {
         store: {
           ...state.store,
-          chords: foldPending(state.store.chords, state.pending),
+          chords: foldPending(state.store.chords, state.pending, action.apps),
           linkedActions: foldPendingLinks(state.store.linkedActions, state.pendingLinks)
         },
-        pending: {},
+        // Edits for apps that were not written stay pending, so the table keeps
+        // showing them as unsaved and the next save retries them.
+        pending: retainUnwritten(state.pending, action.apps),
         pendingLinks: {}
       }
 
@@ -474,12 +484,34 @@ function setLinked(state: TableState, actionId: string, linked: boolean): TableS
   return { ...state, pendingLinks }
 }
 
-function foldPending(saved: ChordTable, pending: ChordTable): ChordTable {
+function foldPending(saved: ChordTable, pending: ChordTable, apps?: readonly AppId[]): ChordTable {
   const chords: ChordTable = { ...saved }
   for (const [actionId, row] of Object.entries(pending)) {
-    chords[actionId] = { ...chords[actionId], ...row }
+    const accepted = apps === undefined ? row : pickApps(row, apps)
+    if (Object.keys(accepted).length === 0) continue
+    chords[actionId] = { ...chords[actionId], ...accepted }
   }
   return chords
+}
+
+/** The pending cells for apps that were *not* written, which stay pending. */
+function retainUnwritten(pending: ChordTable, apps?: readonly AppId[]): ChordTable {
+  if (apps === undefined) return {}
+  const kept: ChordTable = {}
+  for (const [actionId, row] of Object.entries(pending)) {
+    const remaining = Object.fromEntries(
+      Object.entries(row).filter(([app]) => !apps.includes(app as AppId))
+    )
+    if (Object.keys(remaining).length > 0) kept[actionId] = remaining
+  }
+  return kept
+}
+
+function pickApps(
+  row: Partial<Record<AppId, StoredChord>>,
+  apps: readonly AppId[]
+): Partial<Record<AppId, StoredChord>> {
+  return Object.fromEntries(Object.entries(row).filter(([app]) => apps.includes(app as AppId)))
 }
 
 function foldPendingLinks(saved: readonly string[], pendingLinks: PendingLinks): string[] {

@@ -294,6 +294,41 @@ describe('linking', () => {
     expect(canonicalOf(next, 'file.save', 'cursor')).toBeUndefined()
   })
 
+  it('marks only the apps that were actually written, keeping the rest pending', () => {
+    const edited = run(
+      createTableState(),
+      { type: 'setChord', actionId: 'file.save', app: 'vscode', chord: save },
+      { type: 'setChord', actionId: 'file.save', app: 'ghostty', chord: saveAll }
+    )
+
+    // VSCode took the write; Ghostty failed.
+    const afterPartial = run(edited, { type: 'markSaved', apps: ['vscode'] })
+
+    expect(afterPartial.store.chords['file.save']?.vscode?.chord).toBe('cmd+s')
+    // Ghostty's edit never reached disk, so it must still read as pending
+    // rather than being silently folded in as if it had been saved.
+    expect(afterPartial.store.chords['file.save']?.ghostty).toBeUndefined()
+    expect(afterPartial.pending['file.save']?.ghostty?.chord).toBe('alt+cmd+s')
+    expect(hasPendingChanges(afterPartial)).toBe(true)
+
+    // Retrying the failed app then clears it.
+    const afterRetry = run(afterPartial, { type: 'markSaved', apps: ['ghostty'] })
+    expect(afterRetry.store.chords['file.save']?.ghostty?.chord).toBe('alt+cmd+s')
+    expect(hasPendingChanges(afterRetry)).toBe(false)
+  })
+
+  it('folds every pending edit when markSaved names no apps', () => {
+    const edited = run(
+      createTableState(),
+      { type: 'setChord', actionId: 'file.save', app: 'vscode', chord: save },
+      { type: 'setChord', actionId: 'file.save', app: 'ghostty', chord: saveAll },
+      { type: 'markSaved' }
+    )
+    expect(hasPendingChanges(edited)).toBe(false)
+    expect(edited.store.chords['file.save']?.vscode?.chord).toBe('cmd+s')
+    expect(edited.store.chords['file.save']?.ghostty?.chord).toBe('alt+cmd+s')
+  })
+
   it('hydrates a store loaded from disk, dropping edits made against the old one', () => {
     const dirty = run(createTableState(), {
       type: 'setChord',

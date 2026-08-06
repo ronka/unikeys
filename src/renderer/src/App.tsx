@@ -149,9 +149,12 @@ function App(): React.JSX.Element {
         state.store
       )
       setWriteResult(result)
-      // Pending edits are folded in only for apps that actually took them;
-      // if nothing was written the table must keep showing them as pending.
-      if (result.written.length > 0) dispatch({ type: 'markSaved' })
+      // Only the apps that were actually written are marked saved. Edits for an
+      // app that failed stay pending, so a partial save never silently discards
+      // work that never reached disk.
+      if (result.written.length > 0) {
+        dispatch({ type: 'markSaved', apps: result.written.map((app) => app.app) })
+      }
       setOverlay('write-report')
     } catch (cause) {
       setError(`Save failed: ${(cause as Error).message}`)
