@@ -128,11 +128,29 @@ export interface SkippedBinding {
   reason: string
 }
 
+/**
+ * A binding unikeys never attempted to write, and why. Distinct from `skipped`:
+ * these never reached an adapter at all. Reporting them matters because a
+ * silently dropped edit stays pending forever with nothing to explain it.
+ */
+export interface DroppedBinding {
+  app: AppId
+  actionId: string
+  reason: string
+  /**
+   * True when unikeys dropped this deliberately and retrying cannot help — the
+   * app is turned off, or the catalogue maps no command for it. The renderer
+   * treats these as settled rather than leaving them pending forever.
+   */
+  deliberate: boolean
+}
+
 export interface WriteResult {
   written: WrittenApp[]
   /** Named precisely, so the user is never guessing about the state of their machine. */
   failed: FailedApp[]
   skipped: SkippedBinding[]
+  dropped: DroppedBinding[]
   backupDirectory: string
 }
 
@@ -142,6 +160,7 @@ export interface WriteResult {
 
 export const IPC = {
   load: 'unikeys:load',
+  refreshStatuses: 'unikeys:refresh-statuses',
   importBindings: 'unikeys:import',
   persistStore: 'unikeys:persist-store',
   write: 'unikeys:write',
@@ -162,6 +181,12 @@ export interface UnikeysApi {
    * persists state but does not hold the working copy.
    */
   importBindings(store: Store): Promise<ImportResult>
+  /**
+   * Re-reads every app's health without importing. Needed after the user
+   * toggles an app or points unikeys at a different config, so the settings
+   * panel is not left describing the previous configuration.
+   */
+  refreshStatuses(apps: Store['apps']): Promise<AppStatus[]>
   persistStore(store: Store): Promise<void>
   write(request: WriteRequest, store: Store): Promise<WriteResult>
   /** Opens a file picker so a non-standard install does not block the user. */

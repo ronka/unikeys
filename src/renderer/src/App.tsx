@@ -4,11 +4,13 @@ import { CATALOGUE, actionById } from '@shared/catalogue'
 import type { AppId } from '@shared/apps'
 import { parseCanonical, type Chord } from '@shared/chord'
 import type { AppStatus, ImportResult, WriteResult } from '@shared/ipc'
+import type { CellRef } from '@shared/table/reducer'
 import {
   canLinkWithoutWinner,
   createTableReducer,
   createTableState,
   effectiveLinked,
+  hasPendingChanges,
   linkCandidates,
   pendingChanges,
   pendingLinkChanges,
@@ -46,15 +48,22 @@ function App(): React.JSX.Element {
   const loaded = useRef(false)
 
   useEffect(() => {
+    // StrictMode double-invokes effects, and a second startup landing after the
+    // first would drop any pending edits via `hydrate`. The flag makes the
+    // later run a no-op rather than a rerun.
+    let cancelled = false
+
     void (async () => {
       try {
         const result = await window.unikeys.load()
+        if (cancelled) return
         setStatuses(result.statuses)
         setBackupDirectory(result.backupDirectory)
         dispatch({ type: 'hydrate', store: result.store })
 
         if (!result.store.firstRunCompleted) {
           const imported = await window.unikeys.importBindings(result.store)
+          if (cancelled) return
           setStatuses(imported.statuses)
           setImportResult(imported)
           dispatch({
@@ -86,6 +95,10 @@ function App(): React.JSX.Element {
         loaded.current = true
       }
     })()
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   // Linked rows and app configuration are part of the saved store, so they are
@@ -98,9 +111,27 @@ function App(): React.JSX.Element {
     })
   }, [state.store])
 
+  // App health depends on the app configuration, so it is re-read whenever that
+  // changes — otherwise the settings panel keeps describing the previous setup.
+  useEffect(() => {
+    if (!loaded.current) return
+    void window.unikeys
+      .refreshStatuses(state.store.apps)
+      .then(setStatuses)
+      .catch(() => {
+        // A failed refresh leaves the previous statuses on screen, which is
+        // better than blanking the panel; the next change retries.
+      })
+  }, [state.store.apps])
+
   const view = useMemo(() => buildTableView(state, CATALOGUE, { search }), [state, search])
   const changes = useMemo(() => pendingChanges(state, CATALOGUE), [state])
   const linkChanges = useMemo(() => pendingLinkChanges(state, CATALOGUE), [state])
+
+  // Link changes count too: a row that was only linked still needs saving, and
+  // gating on chord edits alone made linking impossible to persist.
+  const dirty = hasPendingChanges(state)
+  const pendingCount = changes.length + linkChanges.length
 
   const targetsFor = useCallback((actionId: string): AppId[] => {
     const action = actionById(actionId)
@@ -135,26 +166,28 @@ function App(): React.JSX.Element {
   }
 
   const handleSave = async (): Promise<void> => {
+    // Linking is unikeys' own state, so a row that was only linked or unlinked
+    // has nothing to write. Without this it could never be saved at all, and
+    // the link would be lost on restart.
+    if (changes.length === 0) {
+      if (linkChanges.length > 0) dispatch({ type: 'markSaved', cells: [] })
+      return
+    }
+
     setSaving(true)
     setError(null)
+    // Captured now: an edit the user makes while the write is in flight is not
+    // part of this request and must not be marked saved by it.
+    const sent = changes.map((change) => ({
+      actionId: change.actionId,
+      app: change.app,
+      chord: change.next.chord
+    }))
+
     try {
-      const result = await window.unikeys.write(
-        {
-          bindings: changes.map((change) => ({
-            actionId: change.actionId,
-            app: change.app,
-            chord: change.next.chord
-          }))
-        },
-        state.store
-      )
+      const result = await window.unikeys.write({ bindings: sent }, state.store)
       setWriteResult(result)
-      // Only the apps that were actually written are marked saved. Edits for an
-      // app that failed stay pending, so a partial save never silently discards
-      // work that never reached disk.
-      if (result.written.length > 0) {
-        dispatch({ type: 'markSaved', apps: result.written.map((app) => app.app) })
-      }
+      dispatch({ type: 'markSaved', cells: savedCells(sent, result) })
       setOverlay('write-report')
     } catch (cause) {
       setError(`Save failed: ${(cause as Error).message}`)
@@ -179,16 +212,11 @@ function App(): React.JSX.Element {
           {view.rowCount} rows · {view.divergentCount} diverging
         </span>
         <span className="spacer" />
-        {changes.length > 0 && <span className="pending-count">{changes.length} pending</span>}
+        {pendingCount > 0 && <span className="pending-count">{pendingCount} pending</span>}
         <button type="button" onClick={() => setOverlay('pending')}>
           Review changes
         </button>
-        <button
-          type="button"
-          className="primary"
-          onClick={handleSave}
-          disabled={saving || changes.length === 0}
-        >
+        <button type="button" className="primary" onClick={handleSave} disabled={saving || !dirty}>
           {saving ? 'Saving…' : 'Save'}
         </button>
         <button type="button" onClick={() => setOverlay('settings')}>
@@ -280,6 +308,27 @@ function App(): React.JSX.Element {
         />
       )}
     </div>
+  )
+}
+
+/**
+ * Exactly the cells that reached disk.
+ *
+ * A cell counts as saved when its app was written and the adapter did not skip
+ * its chord, or when unikeys deliberately declined to write it (the app is off,
+ * or the catalogue maps no command). Everything else — a failed app, an
+ * inexpressible chord, an unreadable stored chord — stays pending so the user
+ * can see it and retry.
+ */
+function savedCells(sent: readonly CellRef[], result: WriteResult): CellRef[] {
+  const writtenApps = new Set(result.written.map((app) => app.app))
+  const key = (ref: CellRef): string => `${ref.actionId}\u0000${ref.app}`
+
+  const settled = new Set(result.dropped.filter((drop) => drop.deliberate).map((drop) => key(drop)))
+  const unexpressible = new Set(result.skipped.map((skip) => key(skip)))
+
+  return sent.filter(
+    (cell) => (writtenApps.has(cell.app) && !unexpressible.has(key(cell))) || settled.has(key(cell))
   )
 }
 

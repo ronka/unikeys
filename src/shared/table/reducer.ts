@@ -86,12 +86,16 @@ export type TableAction =
   /**
    * Folds pending edits into the saved store after a write.
    *
-   * `apps` names the apps that were actually written. A save that reached VSCode
-   * but failed on Ghostty must not mark the Ghostty edits saved — they never
-   * reached disk, and silently clearing them would lose the user's work with no
-   * indication. Omit `apps` to fold everything (a fully successful save).
+   * `cells` names exactly the cells that reached disk. Anything omitted stays
+   * pending, which is what stops three separate failures from silently eating a
+   * user's work: an app whose write failed, a chord the app's format could not
+   * express, and an edit made while the save was already in flight. Omit
+   * `cells` entirely to fold everything.
+   *
+   * Pending link changes are always folded — linking is unikeys' own state, not
+   * something a config file can reject.
    */
-  | { type: 'markSaved'; apps?: readonly AppId[] }
+  | { type: 'markSaved'; cells?: readonly CellRef[] }
   | { type: 'importBindings'; payload: ImportPayload }
   /**
    * Replaces the saved store with one loaded from disk. Pending edits are
@@ -183,6 +187,16 @@ export function canLinkWithoutWinner(state: TableState, action: CatalogueAction)
 // ---------------------------------------------------------------------------
 // The pending-changes view
 // ---------------------------------------------------------------------------
+
+/** One cell of the table, identified independently of any state. */
+export interface CellRef {
+  actionId: string
+  app: AppId
+}
+
+function cellKey(ref: CellRef): string {
+  return `${ref.actionId}\u0000${ref.app}`
+}
 
 export interface PendingChange {
   actionId: string
@@ -286,18 +300,20 @@ export function tableReducer(
     case 'discardPending':
       return { store: state.store, pending: {}, pendingLinks: {} }
 
-    case 'markSaved':
+    case 'markSaved': {
+      const saved = action.cells === undefined ? null : new Set(action.cells.map(cellKey))
       return {
         store: {
           ...state.store,
-          chords: foldPending(state.store.chords, state.pending, action.apps),
+          chords: foldPending(state.store.chords, state.pending, saved),
           linkedActions: foldPendingLinks(state.store.linkedActions, state.pendingLinks)
         },
-        // Edits for apps that were not written stay pending, so the table keeps
-        // showing them as unsaved and the next save retries them.
-        pending: retainUnwritten(state.pending, action.apps),
+        // Anything that did not reach disk stays pending, so the table keeps
+        // showing it as unsaved and the next save retries it.
+        pending: retainUnsaved(state.pending, saved),
         pendingLinks: {}
       }
+    }
 
     case 'hydrate':
       return { store: action.store, pending: {}, pendingLinks: {} }
@@ -399,7 +415,15 @@ function linkRow(
 function importBindings(state: TableState, payload: ImportPayload): TableState {
   const chords: ChordTable = { ...state.store.chords }
 
+  const linked = new Set(state.store.linkedActions)
+
   for (const binding of payload.bindings) {
+    // A linked row is a decision the user made about the whole row. Importing
+    // into one of its cells would knock that cell out of sync with the rest and
+    // leave the row rendering as linked *and* divergent, with nothing pending
+    // to explain it.
+    if (linked.has(binding.actionId)) continue
+
     const existing = chords[binding.actionId]?.[binding.app]
     // Anything the user set inside unikeys outranks what an app's config or
     // defaults say; import fills cells in, it never overwrites a decision.
@@ -454,10 +478,11 @@ function setPending(
   value: StoredChord
 ): ChordTable {
   const savedValue = saved[actionId]?.[app]
-  const matchesSaved =
-    savedValue !== undefined &&
-    savedValue.chord === value.chord &&
-    savedValue.origin === value.origin
+  // Compared on the chord alone. Re-entering the chord a cell already holds
+  // only promotes its origin to 'user', which writes the same bytes to the same
+  // file — surfacing that as a pending change would show the user a row reading
+  // "⌘S → ⌘S" and a live Save button for a change that does nothing.
+  const matchesSaved = savedValue !== undefined && savedValue.chord === value.chord
   const current = pending[actionId]
 
   if (matchesSaved) {
@@ -484,34 +509,43 @@ function setLinked(state: TableState, actionId: string, linked: boolean): TableS
   return { ...state, pendingLinks }
 }
 
-function foldPending(saved: ChordTable, pending: ChordTable, apps?: readonly AppId[]): ChordTable {
+function foldPending(
+  saved: ChordTable,
+  pending: ChordTable,
+  savedCells: ReadonlySet<string> | null
+): ChordTable {
   const chords: ChordTable = { ...saved }
   for (const [actionId, row] of Object.entries(pending)) {
-    const accepted = apps === undefined ? row : pickApps(row, apps)
+    const accepted = filterRow(actionId, row, savedCells, true)
     if (Object.keys(accepted).length === 0) continue
     chords[actionId] = { ...chords[actionId], ...accepted }
   }
   return chords
 }
 
-/** The pending cells for apps that were *not* written, which stay pending. */
-function retainUnwritten(pending: ChordTable, apps?: readonly AppId[]): ChordTable {
-  if (apps === undefined) return {}
+/** The pending cells that did not reach disk, which stay pending. */
+function retainUnsaved(pending: ChordTable, savedCells: ReadonlySet<string> | null): ChordTable {
+  if (savedCells === null) return {}
   const kept: ChordTable = {}
   for (const [actionId, row] of Object.entries(pending)) {
-    const remaining = Object.fromEntries(
-      Object.entries(row).filter(([app]) => !apps.includes(app as AppId))
-    )
+    const remaining = filterRow(actionId, row, savedCells, false)
     if (Object.keys(remaining).length > 0) kept[actionId] = remaining
   }
   return kept
 }
 
-function pickApps(
+function filterRow(
+  actionId: string,
   row: Partial<Record<AppId, StoredChord>>,
-  apps: readonly AppId[]
+  savedCells: ReadonlySet<string> | null,
+  keepSaved: boolean
 ): Partial<Record<AppId, StoredChord>> {
-  return Object.fromEntries(Object.entries(row).filter(([app]) => apps.includes(app as AppId)))
+  if (savedCells === null) return keepSaved ? row : {}
+  return Object.fromEntries(
+    Object.entries(row).filter(
+      ([app]) => savedCells.has(cellKey({ actionId, app: app as AppId })) === keepSaved
+    )
+  )
 }
 
 function foldPendingLinks(saved: readonly string[], pendingLinks: PendingLinks): string[] {

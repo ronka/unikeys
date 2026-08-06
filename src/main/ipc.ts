@@ -44,7 +44,7 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IPC.load, (): LoadResult => {
     const loc = ensureLocation()
     const { store, error } = loadStore(loc)
-    const statuses = appStatuses(store)
+    const statuses = appStatuses(store.apps)
 
     if (error) {
       // Surfaced as a problem on every column rather than swallowed, because a
@@ -60,6 +60,8 @@ export function registerIpcHandlers(): void {
       storePath: loc.storePath
     }
   })
+
+  ipcMain.handle(IPC.refreshStatuses, (_event, apps: Store['apps']) => appStatuses(apps))
 
   ipcMain.handle(IPC.importBindings, (_event, store: Store): ImportResult => {
     return importFromApps(store, CATALOGUE)

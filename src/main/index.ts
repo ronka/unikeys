@@ -40,6 +40,12 @@ function createWindow(): void {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
+// A second instance would race the first on temp files and backups, and two
+// windows disagreeing about the store is worse than no second window.
+if (!app.requestSingleInstanceLock()) {
+  app.quit()
+}
+
 app.whenReady().then(() => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')

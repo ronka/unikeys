@@ -1,5 +1,4 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import { electronAPI } from '@electron-toolkit/preload'
 
 import { IPC, type UnikeysApi } from '../shared/ipc'
 
@@ -11,22 +10,23 @@ import { IPC, type UnikeysApi } from '../shared/ipc'
 const unikeys: UnikeysApi = {
   load: () => ipcRenderer.invoke(IPC.load),
   importBindings: (store) => ipcRenderer.invoke(IPC.importBindings, store),
+  refreshStatuses: (apps) => ipcRenderer.invoke(IPC.refreshStatuses, apps),
   persistStore: (store) => ipcRenderer.invoke(IPC.persistStore, store),
   write: (request, store) => ipcRenderer.invoke(IPC.write, request, store),
   chooseConfigPath: (app) => ipcRenderer.invoke(IPC.chooseConfigPath, app),
   revealBackups: () => ipcRenderer.invoke(IPC.revealBackups)
 }
 
+// The scaffold's generic `electronAPI` bridge is deliberately not exposed: it
+// accepts arbitrary IPC channel names and hands the renderer `process.env`,
+// which is the opposite of the small typed surface this app is meant to have.
 if (process.contextIsolated) {
   try {
-    contextBridge.exposeInMainWorld('electron', electronAPI)
     contextBridge.exposeInMainWorld('unikeys', unikeys)
   } catch (error) {
     console.error(error)
   }
 } else {
-  // @ts-ignore (define in dts)
-  window.electron = electronAPI
   // @ts-ignore (define in dts)
   window.unikeys = unikeys
 }

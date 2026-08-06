@@ -8,6 +8,8 @@
  */
 
 import { existsSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
 
 import { adapterFor } from '../shared/adapters'
 import type { ManagedBinding, ParsedBinding } from '../shared/adapters/types'
@@ -16,6 +18,7 @@ import { formatCanonical, parseCanonical, type Chord } from '../shared/chord'
 import type { Catalogue, CatalogueAction } from '../shared/catalogue/types'
 import type {
   AppStatus,
+  DroppedBinding,
   FailedApp,
   ImportedChord,
   ImportResult,
@@ -25,14 +28,18 @@ import type {
   WrittenApp
 } from '../shared/ipc'
 import type { AppConfig, Store } from '../shared/store/types'
-import { BackupSession, candidatePaths, readConfig, writeAtomic } from './config-files'
+import { BackupSession, candidatePaths, readConfig, writeAtomic, writeTarget } from './config-files'
 
 // ---------------------------------------------------------------------------
 // Detection
 // ---------------------------------------------------------------------------
 
 export function isInstalled(app: AppId): boolean {
-  return APPS[app].installPaths.some((path) => existsSync(path))
+  return APPS[app].installPaths.some((path) => existsSync(expandHome(path)))
+}
+
+function expandHome(path: string): string {
+  return path.startsWith('~/') ? join(homedir(), path.slice(2)) : path
 }
 
 // ---------------------------------------------------------------------------
@@ -84,9 +91,15 @@ function readApp(app: AppId, config: AppConfig): AppReading {
         ? `No config found. Looked in: ${read.searched.join(', ')}`
         : `Could not read ${read.path}: ${read.error}`
     return {
-      // An app that is not installed at all is a different situation from one
-      // that is installed but has no config yet, and the user should see which.
-      status: { ...base, health: installed ? health : 'not-installed', message },
+      // "Not installed" is only reported when the config is genuinely absent.
+      // An unreadable config must keep saying so even on an app unikeys failed
+      // to detect, otherwise a permissions problem sends the user off to
+      // reinstall an app they already have.
+      status: {
+        ...base,
+        health: !installed && read.reason === 'not-found' ? 'not-installed' : health,
+        message
+      },
       userBindings: new Map(),
       defaults
     }
@@ -212,8 +225,13 @@ function resolveCell(
 // Reading statuses without a full import
 // ---------------------------------------------------------------------------
 
-export function appStatuses(store: Store): AppStatus[] {
-  return (Object.keys(APPS) as AppId[]).map((app) => readApp(app, store.apps[app]).status)
+/**
+ * App health only depends on the app configuration, so it takes just that —
+ * the renderer can ask for a refresh without shipping the whole store over IPC
+ * on every chord edit.
+ */
+export function appStatuses(apps: Store['apps']): AppStatus[] {
+  return (Object.keys(APPS) as AppId[]).map((app) => readApp(app, apps[app]).status)
 }
 
 // ---------------------------------------------------------------------------
@@ -241,27 +259,32 @@ export function writeToApps(
   catalogue: Catalogue,
   backups: BackupSession
 ): WriteResult {
-  const byApp = groupByApp(request, catalogue, store)
+  const { byApp, dropped } = groupByApp(request, catalogue, store)
   const planned: PlannedWrite[] = []
   const failed: FailedApp[] = []
   const skipped: SkippedBinding[] = []
 
-  // Phase one: compute everything.
+  // Phase one: compute everything. A throw here is caught per app so one app's
+  // unreadable directory cannot abort the save for every other app.
   for (const [app, managed] of byApp) {
-    const plan = planWrite(app, managed, store.apps[app])
-    if ('error' in plan) {
-      failed.push({ app, name: APPS[app].name, error: plan.error })
-      continue
+    try {
+      const plan = planWrite(app, managed, store.apps[app])
+      if ('error' in plan) {
+        failed.push({ app, name: APPS[app].name, error: plan.error })
+        continue
+      }
+      planned.push(plan)
+      skipped.push(...plan.skipped)
+    } catch (error) {
+      failed.push({ app, name: APPS[app].name, error: (error as Error).message })
     }
-    planned.push(plan)
-    skipped.push(...plan.skipped)
   }
 
   // Phase two: write.
   const written: WrittenApp[] = []
   for (const plan of planned) {
     try {
-      const backupPath = backups.ensureBackup(plan.path)
+      const backupPath = backups.ensureBackup(plan.path, plan.app)
       writeAtomic(plan.path, plan.contents)
       written.push({
         app: plan.app,
@@ -275,32 +298,69 @@ export function writeToApps(
     }
   }
 
-  return { written, failed, skipped, backupDirectory: backups.directory }
+  return { written, failed, skipped, dropped, backupDirectory: backups.directory }
 }
 
-function groupByApp(
-  request: WriteRequest,
-  catalogue: Catalogue,
-  store: Store
-): Map<AppId, Array<{ actionId: string; managed: ManagedBinding }>> {
+interface GroupedWrites {
+  byApp: Map<AppId, Array<{ actionId: string; managed: ManagedBinding }>>
+  dropped: DroppedBinding[]
+}
+
+/**
+ * Sorts the requested bindings per app, recording anything it declines to write.
+ *
+ * Nothing is dropped silently. An edit that vanishes here would otherwise stay
+ * pending forever with no explanation, and the user would keep pressing Save
+ * with nothing happening.
+ */
+function groupByApp(request: WriteRequest, catalogue: Catalogue, store: Store): GroupedWrites {
   const actions = new Map<string, CatalogueAction>(catalogue.actions.map((a) => [a.id, a]))
-  const grouped = new Map<AppId, Array<{ actionId: string; managed: ManagedBinding }>>()
+  const byApp = new Map<AppId, Array<{ actionId: string; managed: ManagedBinding }>>()
+  const dropped: DroppedBinding[] = []
 
   for (const entry of request.bindings) {
-    // A disabled app is excluded from all writes, not merely hidden.
-    if (!store.apps[entry.app]?.enabled) continue
+    // A disabled app is excluded from all writes, not merely hidden. This is
+    // deliberate and retrying will not change it, so the edit is settled rather
+    // than left pending.
+    if (!store.apps[entry.app]?.enabled) {
+      dropped.push({
+        app: entry.app,
+        actionId: entry.actionId,
+        reason: `${APPS[entry.app].name} is turned off in unikeys, so nothing was written to it.`,
+        deliberate: true
+      })
+      continue
+    }
 
     const command = actions.get(entry.actionId)?.commands[entry.app]
-    if (command === undefined) continue
+    if (command === undefined) {
+      dropped.push({
+        app: entry.app,
+        actionId: entry.actionId,
+        reason: `The catalogue maps no ${APPS[entry.app].name} command for this action.`,
+        deliberate: true
+      })
+      continue
+    }
 
     const chord = entry.chord === null ? null : parseCanonical(entry.chord)
-    if (entry.chord !== null && chord === null) continue
+    if (entry.chord !== null && chord === null) {
+      // Not deliberate: the stored chord is unreadable, which is a bug or a
+      // hand-edited store, and the user should be able to see and fix it.
+      dropped.push({
+        app: entry.app,
+        actionId: entry.actionId,
+        reason: `unikeys could not read the stored chord "${entry.chord}".`,
+        deliberate: false
+      })
+      continue
+    }
 
-    const list = grouped.get(entry.app) ?? []
+    const list = byApp.get(entry.app) ?? []
     list.push({ actionId: entry.actionId, managed: { command, chord } })
-    grouped.set(entry.app, list)
+    byApp.set(entry.app, list)
   }
-  return grouped
+  return { byApp, dropped }
 }
 
 function planWrite(
@@ -319,8 +379,14 @@ function planWrite(
     contents = read.contents
     path = read.path
   } else if (read.reason === 'not-found') {
+    // Creating the config is fine, but only at a path that actually exists as a
+    // location. A candidate containing `*` is a search pattern; writing to it
+    // literally would create a `WebStorm*` directory and report success for a
+    // file the IDE will never read.
+    const target = writeTarget(app, config.configPath)
+    if (!target.ok) return { error: target.error }
     contents = adapter.emptyContents()
-    path = config.configPath ?? candidatePaths(app)[0]
+    path = target.path
   } else {
     return { error: read.error }
   }

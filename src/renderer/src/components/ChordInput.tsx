@@ -39,7 +39,11 @@ export function ChordInput({ value, targets, onCommit, onCancel }: Props): React
   useEffect(() => {
     if (mode === 'capture') captureRef.current?.focus()
     else textRef.current?.focus()
-  }, [mode])
+    // `armedForSecond` is a dependency because arming moves focus to the button
+    // that was clicked. Without returning focus to the capture area, the second
+    // keystroke lands on nothing and two-keystroke chords cannot be recorded at
+    // all.
+  }, [mode, armedForSecond])
 
   const draft: Chord | null = strokes.length > 0 ? { strokes } : null
   const problems = draft ? expressibilityProblems(draft, targets) : []
@@ -133,7 +137,13 @@ export function ChordInput({ value, targets, onCommit, onCancel }: Props): React
 
       <div className="chord-actions">
         {mode === 'capture' && strokes.length < MAX_STROKES && strokes.length > 0 && (
-          <button type="button" onClick={() => setArmedForSecond(true)} disabled={armedForSecond}>
+          <button
+            type="button"
+            onClick={() => {
+              setArmedForSecond(true)
+              captureRef.current?.focus()
+            }}
+          >
             Add 2nd keystroke
           </button>
         )}

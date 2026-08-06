@@ -1,4 +1,4 @@
-import { APPS, type AppId } from '@shared/apps'
+import { APPS } from '@shared/apps'
 import { formatDisplay, parseCanonical, type Chord } from '@shared/chord'
 import type { ImportResult, WriteResult } from '@shared/ipc'
 import type { LinkCandidate, PendingChange, PendingLinkChange } from '@shared/table/reducer'
@@ -98,7 +98,7 @@ export function PendingChanges({
           type="button"
           className="primary"
           onClick={onSave}
-          disabled={saving || changes.length === 0}
+          disabled={saving || (changes.length === 0 && linkChanges.length === 0)}
         >
           {saving ? 'Saving…' : 'Save to apps'}
         </button>
@@ -273,7 +273,20 @@ export function WriteReport({
           <ul>
             {result.skipped.map((skip, i) => (
               <li key={i}>
-                <strong>{APPS[skip.app as AppId].name}</strong> — {skip.actionId}: {skip.reason}
+                <strong>{APPS[skip.app].name}</strong> — {skip.actionId}: {skip.reason}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {result.dropped.length > 0 && (
+        <div className="summary-failed">
+          <p>Not attempted:</p>
+          <ul>
+            {result.dropped.map((drop, i) => (
+              <li key={i}>
+                <strong>{APPS[drop.app].name}</strong> — {drop.actionId}: {drop.reason}
               </li>
             ))}
           </ul>

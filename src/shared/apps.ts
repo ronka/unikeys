@@ -23,7 +23,12 @@ export interface AppDescriptor {
    * here touches the filesystem.
    */
   configPaths: string[]
-  /** Standard macOS install locations used for detection. */
+  /**
+   * Standard macOS install locations used for detection. A leading `~` is
+   * expanded by the caller. `~/Applications` matters because JetBrains Toolbox
+   * installs there by default, and a Toolbox user is the likeliest WebStorm
+   * user of all.
+   */
   installPaths: string[]
   /** What the user must do for a written config to take effect. */
   reloadHint: string
@@ -35,7 +40,7 @@ export const APPS: Record<AppId, AppDescriptor> = {
     name: 'VSCode',
     format: 'vscode-keybindings',
     configPaths: ['Library/Application Support/Code/User/keybindings.json'],
-    installPaths: ['/Applications/Visual Studio Code.app'],
+    installPaths: ['/Applications/Visual Studio Code.app', '~/Applications/Visual Studio Code.app'],
     reloadHint: 'VSCode picks up keybindings.json automatically; no restart needed.'
   },
   cursor: {
@@ -43,7 +48,7 @@ export const APPS: Record<AppId, AppDescriptor> = {
     name: 'Cursor',
     format: 'vscode-keybindings',
     configPaths: ['Library/Application Support/Cursor/User/keybindings.json'],
-    installPaths: ['/Applications/Cursor.app'],
+    installPaths: ['/Applications/Cursor.app', '~/Applications/Cursor.app'],
     reloadHint: 'Cursor picks up keybindings.json automatically; no restart needed.'
   },
   webstorm: {
@@ -53,7 +58,11 @@ export const APPS: Record<AppId, AppDescriptor> = {
     // The version segment is a glob resolved by the main process, since
     // JetBrains nests keymaps under a versioned support directory.
     configPaths: ['Library/Application Support/JetBrains/WebStorm*/keymaps'],
-    installPaths: ['/Applications/WebStorm.app'],
+    installPaths: [
+      '/Applications/WebStorm.app',
+      '~/Applications/WebStorm.app',
+      '~/Applications/JetBrains Toolbox/WebStorm.app'
+    ],
     reloadHint: 'WebStorm must be restarted before keymap changes take effect.'
   },
   ghostty: {
@@ -64,7 +73,7 @@ export const APPS: Record<AppId, AppDescriptor> = {
       'Library/Application Support/com.mitchellh.ghostty/config',
       '.config/ghostty/config'
     ],
-    installPaths: ['/Applications/Ghostty.app'],
+    installPaths: ['/Applications/Ghostty.app', '~/Applications/Ghostty.app'],
     reloadHint: 'Reload Ghostty config with ⌘⇧, or restart Ghostty.'
   }
 }

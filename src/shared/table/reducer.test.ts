@@ -302,7 +302,10 @@ describe('linking', () => {
     )
 
     // VSCode took the write; Ghostty failed.
-    const afterPartial = run(edited, { type: 'markSaved', apps: ['vscode'] })
+    const afterPartial = run(edited, {
+      type: 'markSaved',
+      cells: [{ actionId: 'file.save', app: 'vscode' }]
+    })
 
     expect(afterPartial.store.chords['file.save']?.vscode?.chord).toBe('cmd+s')
     // Ghostty's edit never reached disk, so it must still read as pending
@@ -312,12 +315,27 @@ describe('linking', () => {
     expect(hasPendingChanges(afterPartial)).toBe(true)
 
     // Retrying the failed app then clears it.
-    const afterRetry = run(afterPartial, { type: 'markSaved', apps: ['ghostty'] })
+    const afterRetry = run(afterPartial, {
+      type: 'markSaved',
+      cells: [{ actionId: 'file.save', app: 'ghostty' }]
+    })
     expect(afterRetry.store.chords['file.save']?.ghostty?.chord).toBe('alt+cmd+s')
     expect(hasPendingChanges(afterRetry)).toBe(false)
   })
 
-  it('folds every pending edit when markSaved names no apps', () => {
+  it('leaves an edit made while a save was in flight pending', () => {
+    // The request was built from the VSCode edit alone; the Ghostty edit landed
+    // afterwards and was never sent, so it must not be marked saved.
+    const state = run(
+      createTableState(),
+      { type: 'setChord', actionId: 'file.save', app: 'vscode', chord: save },
+      { type: 'setChord', actionId: 'file.save', app: 'ghostty', chord: saveAll },
+      { type: 'markSaved', cells: [{ actionId: 'file.save', app: 'vscode' }] }
+    )
+    expect(state.pending['file.save']?.ghostty?.chord).toBe('alt+cmd+s')
+  })
+
+  it('folds every pending edit when markSaved names no cells', () => {
     const edited = run(
       createTableState(),
       { type: 'setChord', actionId: 'file.save', app: 'vscode', chord: save },
