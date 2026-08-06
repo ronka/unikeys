@@ -1,0 +1,19 @@
+[
+  {
+    "key": "cmd+/",
+    "command": "editor.action.commentLine",
+    "when": "resourceFilename =~ /https:\\/\\/example/ && editorTextFocus"
+  },
+  {
+    "key": "cmd+,",
+    "command": "workbench.action.openSettings",
+    "when": "config.a == 'x, y' /* not a comment */"
+  },
+  {
+    "key": "ctrl+shift+numpad_multiply",
+    "command": "workbench.action.terminal.new"
+  },
+  {
+    "command": "workbench.action.files.save"
+  }
+]

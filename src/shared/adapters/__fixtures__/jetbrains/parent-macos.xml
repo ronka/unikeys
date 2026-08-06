@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Stands in for the "Mac OS X 10.5+" keymap shipped inside the app bundle. -->
+<keymap version="1" name="Mac OS X 10.5+" parent="$default">
+  <action id="SaveAll">
+    <keyboard-shortcut first-keystroke="meta s" />
+  </action>
+  <action id="GotoDeclaration">
+    <keyboard-shortcut first-keystroke="meta b" />
+  </action>
+  <action id="EditorSelectWord">
+    <keyboard-shortcut first-keystroke="ctrl w" />
+  </action>
+  <action id="ActivateTerminalToolWindow">
+    <keyboard-shortcut first-keystroke="alt F12" />
+  </action>
+  <action id="ReformatCode">
+    <keyboard-shortcut first-keystroke="alt meta L" />
+  </action>
+  <!-- The grandparent binds this; the mac keymap takes it away. -->
+  <action id="EditorToggleColumnMode" />
+</keymap>

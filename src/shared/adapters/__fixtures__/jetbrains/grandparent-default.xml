@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<keymap version="1" name="$default">
+  <action id="EditorToggleColumnMode">
+    <keyboard-shortcut first-keystroke="shift alt INSERT" />
+  </action>
+  <action id="CloseContent">
+    <keyboard-shortcut first-keystroke="ctrl F4" />
+  </action>
+  <action id="ReformatCode">
+    <keyboard-shortcut first-keystroke="ctrl alt L" />
+  </action>
+</keymap>

@@ -1,0 +1,354 @@
+{
+  "version": 1,
+  "actions": [
+    {
+      "id": "edit.save",
+      "name": "Save",
+      "category": "editing",
+      "commands": {
+        "vscode": "workbench.action.files.save",
+        "cursor": "workbench.action.files.save",
+        "webstorm": "SaveDocument"
+      }
+    },
+    {
+      "id": "edit.save-all",
+      "name": "Save All",
+      "category": "editing",
+      "commands": {
+        "vscode": "workbench.action.files.saveAll",
+        "cursor": "workbench.action.files.saveAll",
+        "webstorm": "SaveAll"
+      }
+    },
+    {
+      "id": "edit.undo",
+      "name": "Undo",
+      "category": "editing",
+      "commands": {
+        "vscode": "undo",
+        "cursor": "undo",
+        "webstorm": "$Undo"
+      }
+    },
+    {
+      "id": "edit.copy",
+      "name": "Copy",
+      "category": "editing",
+      "commands": {
+        "vscode": "editor.action.clipboardCopyAction",
+        "cursor": "editor.action.clipboardCopyAction",
+        "webstorm": "$Copy",
+        "ghostty": "copy_to_clipboard"
+      }
+    },
+    {
+      "id": "edit.paste",
+      "name": "Paste",
+      "category": "editing",
+      "commands": {
+        "vscode": "editor.action.clipboardPasteAction",
+        "cursor": "editor.action.clipboardPasteAction",
+        "webstorm": "$Paste",
+        "ghostty": "paste_from_clipboard"
+      }
+    },
+    {
+      "id": "edit.select-all",
+      "name": "Select All",
+      "category": "editing",
+      "commands": {
+        "vscode": "editor.action.selectAll",
+        "cursor": "editor.action.selectAll",
+        "webstorm": "$SelectAll",
+        "ghostty": "select_all"
+      }
+    },
+    {
+      "id": "edit.comment-line",
+      "name": "Toggle Line Comment",
+      "category": "editing",
+      "commands": {
+        "vscode": "editor.action.commentLine",
+        "cursor": "editor.action.commentLine",
+        "webstorm": "CommentByLineComment"
+      }
+    },
+    {
+      "id": "edit.format-document",
+      "name": "Format Document",
+      "category": "editing",
+      "commands": {
+        "vscode": "editor.action.formatDocument",
+        "cursor": "editor.action.formatDocument",
+        "webstorm": "ReformatCode"
+      }
+    },
+    {
+      "id": "edit.rename-symbol",
+      "name": "Rename Symbol",
+      "category": "editing",
+      "commands": {
+        "vscode": "editor.action.rename",
+        "cursor": "editor.action.rename",
+        "webstorm": "RenameElement"
+      }
+    },
+    {
+      "id": "edit.duplicate-line",
+      "name": "Duplicate Line",
+      "category": "editing",
+      "commands": {
+        "vscode": "editor.action.copyLinesDownAction",
+        "cursor": "editor.action.copyLinesDownAction",
+        "webstorm": "EditorDuplicate"
+      }
+    },
+    {
+      "id": "navigate.command-palette",
+      "name": "Command Palette",
+      "category": "navigation",
+      "commands": {
+        "vscode": "workbench.action.showCommands",
+        "cursor": "workbench.action.showCommands",
+        "webstorm": "GotoAction"
+      }
+    },
+    {
+      "id": "navigate.goto-file",
+      "name": "Go to File",
+      "category": "navigation",
+      "commands": {
+        "vscode": "workbench.action.quickOpen",
+        "cursor": "workbench.action.quickOpen",
+        "webstorm": "GotoFile"
+      }
+    },
+    {
+      "id": "navigate.goto-symbol",
+      "name": "Go to Symbol",
+      "category": "navigation",
+      "commands": {
+        "vscode": "workbench.action.showAllSymbols",
+        "cursor": "workbench.action.showAllSymbols",
+        "webstorm": "GotoClass"
+      }
+    },
+    {
+      "id": "navigate.goto-line",
+      "name": "Go to Line",
+      "category": "navigation",
+      "commands": {
+        "vscode": "workbench.action.gotoLine",
+        "cursor": "workbench.action.gotoLine",
+        "webstorm": "GotoLine"
+      }
+    },
+    {
+      "id": "navigate.goto-definition",
+      "name": "Go to Definition",
+      "category": "navigation",
+      "commands": {
+        "vscode": "editor.action.revealDefinition",
+        "cursor": "editor.action.revealDefinition",
+        "webstorm": "GotoDeclaration"
+      }
+    },
+    {
+      "id": "navigate.find-in-files",
+      "name": "Find in Files",
+      "category": "navigation",
+      "commands": {
+        "vscode": "workbench.action.findInFiles",
+        "cursor": "workbench.action.findInFiles",
+        "webstorm": "FindInPath"
+      }
+    },
+    {
+      "id": "navigate.back",
+      "name": "Navigate Back",
+      "category": "navigation",
+      "commands": {
+        "vscode": "workbench.action.navigateBack",
+        "cursor": "workbench.action.navigateBack",
+        "webstorm": "Back"
+      }
+    },
+    {
+      "id": "navigate.forward",
+      "name": "Navigate Forward",
+      "category": "navigation",
+      "commands": {
+        "vscode": "workbench.action.navigateForward",
+        "cursor": "workbench.action.navigateForward",
+        "webstorm": "Forward"
+      }
+    },
+    {
+      "id": "navigate.next-tab",
+      "name": "Next Tab",
+      "category": "navigation",
+      "commands": {
+        "vscode": "workbench.action.nextEditor",
+        "cursor": "workbench.action.nextEditor",
+        "webstorm": "NextTab",
+        "ghostty": "next_tab"
+      }
+    },
+    {
+      "id": "navigate.previous-tab",
+      "name": "Previous Tab",
+      "category": "navigation",
+      "commands": {
+        "vscode": "workbench.action.previousEditor",
+        "cursor": "workbench.action.previousEditor",
+        "webstorm": "PreviousTab",
+        "ghostty": "previous_tab"
+      }
+    },
+    {
+      "id": "window.new-window",
+      "name": "New Window",
+      "category": "window",
+      "commands": {
+        "vscode": "workbench.action.newWindow",
+        "cursor": "workbench.action.newWindow",
+        "ghostty": "new_window"
+      }
+    },
+    {
+      "id": "window.close",
+      "name": "Close Tab",
+      "category": "window",
+      "commands": {
+        "vscode": "workbench.action.closeActiveEditor",
+        "cursor": "workbench.action.closeActiveEditor",
+        "webstorm": "CloseContent",
+        "ghostty": "close_surface"
+      }
+    },
+    {
+      "id": "window.toggle-fullscreen",
+      "name": "Toggle Full Screen",
+      "category": "window",
+      "commands": {
+        "vscode": "workbench.action.toggleFullScreen",
+        "cursor": "workbench.action.toggleFullScreen",
+        "webstorm": "ToggleFullScreen",
+        "ghostty": "toggle_fullscreen"
+      }
+    },
+    {
+      "id": "pane.split-right",
+      "name": "Split Pane Right",
+      "category": "window",
+      "commands": {
+        "vscode": "workbench.action.splitEditorRight",
+        "cursor": "workbench.action.splitEditorRight",
+        "webstorm": "SplitVertically",
+        "ghostty": "new_split:right"
+      }
+    },
+    {
+      "id": "pane.split-down",
+      "name": "Split Pane Down",
+      "category": "window",
+      "commands": {
+        "vscode": "workbench.action.splitEditorDown",
+        "cursor": "workbench.action.splitEditorDown",
+        "webstorm": "SplitHorizontally",
+        "ghostty": "new_split:down"
+      }
+    },
+    {
+      "id": "pane.focus-left",
+      "name": "Focus Pane Left",
+      "category": "window",
+      "commands": {
+        "vscode": "workbench.action.focusLeftGroup",
+        "cursor": "workbench.action.focusLeftGroup",
+        "ghostty": "goto_split:left"
+      }
+    },
+    {
+      "id": "pane.focus-right",
+      "name": "Focus Pane Right",
+      "category": "window",
+      "commands": {
+        "vscode": "workbench.action.focusRightGroup",
+        "cursor": "workbench.action.focusRightGroup",
+        "ghostty": "goto_split:right"
+      }
+    },
+    {
+      "id": "view.increase-font-size",
+      "name": "Increase Font Size",
+      "category": "window",
+      "commands": {
+        "vscode": "editor.action.fontZoomIn",
+        "cursor": "editor.action.fontZoomIn",
+        "webstorm": "EditorIncreaseFontSize",
+        "ghostty": "increase_font_size:1"
+      }
+    },
+    {
+      "id": "view.decrease-font-size",
+      "name": "Decrease Font Size",
+      "category": "window",
+      "commands": {
+        "vscode": "editor.action.fontZoomOut",
+        "cursor": "editor.action.fontZoomOut",
+        "webstorm": "EditorDecreaseFontSize",
+        "ghostty": "decrease_font_size:1"
+      }
+    },
+    {
+      "id": "view.reset-font-size",
+      "name": "Reset Font Size",
+      "category": "window",
+      "commands": {
+        "vscode": "editor.action.fontZoomReset",
+        "cursor": "editor.action.fontZoomReset",
+        "webstorm": "EditorResetFontSize",
+        "ghostty": "reset_font_size"
+      }
+    },
+    {
+      "id": "terminal.toggle",
+      "name": "Toggle Terminal Panel",
+      "category": "terminal",
+      "commands": {
+        "vscode": "workbench.action.terminal.toggleTerminal",
+        "cursor": "workbench.action.terminal.toggleTerminal",
+        "webstorm": "ActivateTerminalToolWindow"
+      }
+    },
+    {
+      "id": "terminal.new",
+      "name": "New Terminal",
+      "category": "terminal",
+      "commands": {
+        "vscode": "workbench.action.terminal.new",
+        "cursor": "workbench.action.terminal.new"
+      }
+    },
+    {
+      "id": "terminal.clear",
+      "name": "Clear Screen",
+      "category": "terminal",
+      "commands": {
+        "vscode": "workbench.action.terminal.clear",
+        "cursor": "workbench.action.terminal.clear",
+        "ghostty": "clear_screen"
+      }
+    },
+    {
+      "id": "terminal.reload-config",
+      "name": "Reload Terminal Config",
+      "category": "terminal",
+      "commands": {
+        "ghostty": "reload_config"
+      }
+    }
+  ]
+}

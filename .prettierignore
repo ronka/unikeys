@@ -1,0 +1,10 @@
+out
+dist
+pnpm-lock.yaml
+LICENSE.md
+tsconfig.json
+tsconfig.*.json
+
+# Fixtures are captured (or authored) to match real config files byte-for-byte;
+# reformatting them would destroy exactly what the adapter tests exercise.
+src/shared/adapters/__fixtures__

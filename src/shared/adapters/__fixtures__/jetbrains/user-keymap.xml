@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<keymap version="1" name="macOS copy" parent="Mac OS X 10.5+">
+  <!-- Saving. Kept on the same chord as everywhere else. -->
+  <action id="SaveAll">
+    <keyboard-shortcut first-keystroke="meta S" />
+  </action>
+  <action id="EditorSelectWord">
+    <keyboard-shortcut first-keystroke="alt UP" />
+  </action>
+  <action id="Refactorings.QuickListPopupAction">
+    <keyboard-shortcut first-keystroke="ctrl t" second-keystroke="ctrl r" />
+  </action>
+  <!-- Navigation is on the mouse here, plus an alternate keystroke. -->
+  <action id="GotoImplementation">
+      <keyboard-shortcut first-keystroke="alt meta B"/>
+      <keyboard-shortcut first-keystroke="shift meta I"/>
+      <mouse-shortcut keystroke="alt button1" />
+  </action>
+  <action id="ActivateTerminalToolWindow">
+    <mouse-shortcut keystroke="shift button2" />
+  </action>
+  <!-- Deliberately unbound: this one fights with the window manager. -->
+  <action id="GotoDeclaration" />
+  <action id="ShowSettings">
+    <keyboard-shortcut first-keystroke="meta COMMA" />
+  </action>
+</keymap>

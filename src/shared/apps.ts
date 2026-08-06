@@ -1,0 +1,78 @@
+/**
+ * The four applications unikeys supports, and the config format each one uses.
+ *
+ * An `AppId` is a column in the table. A `FormatId` is an adapter — Cursor and
+ * VSCode share one, which is why the two concepts are separate.
+ */
+
+export const APP_IDS = ['vscode', 'cursor', 'webstorm', 'ghostty'] as const
+
+export type AppId = (typeof APP_IDS)[number]
+
+export type FormatId = 'vscode-keybindings' | 'jetbrains-keymap' | 'ghostty-config'
+
+export interface AppDescriptor {
+  id: AppId
+  /** Human-readable name, used in column headers and error messages. */
+  name: string
+  /** Which adapter parses and merges this app's config. */
+  format: FormatId
+  /**
+   * Standard macOS config locations, most likely first. Paths are relative to
+   * the user's home directory. Resolution happens in the main process; nothing
+   * here touches the filesystem.
+   */
+  configPaths: string[]
+  /** Standard macOS install locations used for detection. */
+  installPaths: string[]
+  /** What the user must do for a written config to take effect. */
+  reloadHint: string
+}
+
+export const APPS: Record<AppId, AppDescriptor> = {
+  vscode: {
+    id: 'vscode',
+    name: 'VSCode',
+    format: 'vscode-keybindings',
+    configPaths: ['Library/Application Support/Code/User/keybindings.json'],
+    installPaths: ['/Applications/Visual Studio Code.app'],
+    reloadHint: 'VSCode picks up keybindings.json automatically; no restart needed.'
+  },
+  cursor: {
+    id: 'cursor',
+    name: 'Cursor',
+    format: 'vscode-keybindings',
+    configPaths: ['Library/Application Support/Cursor/User/keybindings.json'],
+    installPaths: ['/Applications/Cursor.app'],
+    reloadHint: 'Cursor picks up keybindings.json automatically; no restart needed.'
+  },
+  webstorm: {
+    id: 'webstorm',
+    name: 'WebStorm',
+    format: 'jetbrains-keymap',
+    // The version segment is a glob resolved by the main process, since
+    // JetBrains nests keymaps under a versioned support directory.
+    configPaths: ['Library/Application Support/JetBrains/WebStorm*/keymaps'],
+    installPaths: ['/Applications/WebStorm.app'],
+    reloadHint: 'WebStorm must be restarted before keymap changes take effect.'
+  },
+  ghostty: {
+    id: 'ghostty',
+    name: 'Ghostty',
+    format: 'ghostty-config',
+    configPaths: [
+      'Library/Application Support/com.mitchellh.ghostty/config',
+      '.config/ghostty/config'
+    ],
+    installPaths: ['/Applications/Ghostty.app'],
+    reloadHint: 'Reload Ghostty config with ⌘⇧, or restart Ghostty.'
+  }
+}
+
+export function appName(id: AppId): string {
+  return APPS[id].name
+}
+
+export function isAppId(value: unknown): value is AppId {
+  return typeof value === 'string' && (APP_IDS as readonly string[]).includes(value)
+}

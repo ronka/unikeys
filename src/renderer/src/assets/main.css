@@ -1,0 +1,603 @@
+/*
+ * The table is dense and read-heavy, so this leans on plain semantic markup and
+ * a small set of tokens rather than a grid library. Divergence, linking and
+ * chord origin all have to be readable at a glance without reading every cell.
+ */
+
+:root {
+  --bg: #16171b;
+  --bg-raised: #1e2026;
+  --bg-hover: #262931;
+  --border: #2f333d;
+  --border-strong: #434958;
+  --text: #e6e8ee;
+  --text-dim: #9aa1b1;
+  --text-faint: #6b7280;
+  --accent: #6ea8fe;
+  --accent-dim: #2b4a7d;
+  --agree: #4ade80;
+  --diverge: #fbbf24;
+  --danger: #f87171;
+  --pending: #a78bfa;
+
+  --radius: 6px;
+  --mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #ffffff;
+    --bg-raised: #f6f7f9;
+    --bg-hover: #eceef2;
+    --border: #dfe2e8;
+    --border-strong: #c2c7d0;
+    --text: #1b1d23;
+    --text-dim: #5b616e;
+    --text-faint: #8a909c;
+    --accent: #2563eb;
+    --accent-dim: #bfd4fb;
+    --agree: #16a34a;
+    --diverge: #b45309;
+    --danger: #dc2626;
+    --pending: #7c3aed;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font:
+    13px/1.5 -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+input[type='text'],
+input:not([type]) {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: 4px 8px;
+}
+
+code {
+  font-family: var(--mono);
+  font-size: 0.92em;
+}
+
+.muted {
+  color: var(--text-faint);
+}
+
+/* --- Layout ------------------------------------------------------------- */
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-raised);
+  flex: none;
+}
+
+.toolbar h1 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 8px 0 0;
+  letter-spacing: 0.01em;
+}
+
+.toolbar .spacer {
+  flex: 1;
+}
+
+.toolbar input {
+  width: 220px;
+}
+
+.pending-count {
+  color: var(--pending);
+  font-variant-numeric: tabular-nums;
+}
+
+.scroll {
+  flex: 1;
+  overflow: auto;
+}
+
+/* --- Table -------------------------------------------------------------- */
+
+.keys-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.keys-table th,
+.keys-table td {
+  border-bottom: 1px solid var(--border);
+  padding: 0;
+  text-align: left;
+}
+
+.keys-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--border-strong);
+  padding: 8px 10px;
+  font-weight: 600;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.category-row th {
+  position: sticky;
+  top: 33px;
+  z-index: 1;
+  background: var(--bg);
+  padding: 14px 10px 6px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  border-bottom: 1px solid var(--border);
+}
+
+.action-cell {
+  /* Extra left padding keeps the name clear of the divergence marker. */
+  padding: 6px 10px 6px 14px;
+  min-width: 220px;
+}
+
+.action-name {
+  display: block;
+}
+
+.action-id {
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-faint);
+}
+
+/* A divergent row is the problem the app exists to surface, so it gets the
+   marker; agreement is the quiet default rather than a competing signal. */
+.row-divergent .action-cell {
+  box-shadow: inset 3px 0 0 var(--diverge);
+}
+
+.row-agree .action-cell {
+  box-shadow: inset 3px 0 0 var(--agree);
+}
+
+.row-pending {
+  background: color-mix(in srgb, var(--pending) 8%, transparent);
+}
+
+.link-cell {
+  width: 1%;
+  padding: 6px 8px;
+  white-space: nowrap;
+}
+
+.link-button {
+  padding: 2px 8px;
+  font-size: 11px;
+}
+
+.link-button.linked {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+/* --- Cells -------------------------------------------------------------- */
+
+.cell {
+  padding: 4px 6px;
+  min-width: 150px;
+  vertical-align: middle;
+}
+
+.cell-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 3px 6px;
+  text-align: left;
+}
+
+.cell-button:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-hover);
+}
+
+.chord {
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: 0.02em;
+}
+
+.cell-default .chord {
+  color: var(--text-dim);
+}
+
+.cell-user .chord {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* Origin is what explains *why* the apps diverged, so it stays visible rather
+   than hiding behind a tooltip. */
+.origin-mark {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0 3px;
+}
+
+.cell-unbound .chord {
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+.cell-na {
+  color: var(--text-faint);
+}
+
+.cell-na-mark {
+  display: inline-block;
+  padding: 3px 6px;
+  color: var(--text-faint);
+}
+
+.cell-pending .chord {
+  color: var(--pending);
+}
+
+.cell-disabled {
+  opacity: 0.4;
+}
+
+/* --- Chord input -------------------------------------------------------- */
+
+.chord-input {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  background: var(--bg-raised);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  min-width: 240px;
+}
+
+.chord-capture {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 3px 8px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  outline: none;
+}
+
+.chord-capture:focus {
+  border-color: var(--accent);
+  border-style: solid;
+}
+
+.chord-key {
+  font-family: var(--mono);
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+.chord-placeholder {
+  color: var(--text-faint);
+}
+
+.chord-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.chord-actions button {
+  font-size: 11px;
+  padding: 3px 8px;
+}
+
+.chord-error {
+  color: var(--danger);
+  margin: 0;
+  padding-left: 16px;
+  font-size: 12px;
+}
+
+.chord-text input {
+  width: 100%;
+}
+
+/* --- Panels ------------------------------------------------------------- */
+
+.panel {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 10;
+}
+
+.panel-body {
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  padding: 18px;
+  max-width: 720px;
+  max-height: 80vh;
+  overflow: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+}
+
+.panel-body h2 {
+  margin: 0 0 12px;
+  font-size: 15px;
+}
+
+.panel-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+/* --- Pending changes ---------------------------------------------------- */
+
+.changes-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.changes-table th,
+.changes-table td {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+.changes-table td.from {
+  color: var(--text-faint);
+  font-family: var(--mono);
+}
+
+.changes-table td.to {
+  color: var(--pending);
+  font-family: var(--mono);
+}
+
+/* --- Settings ----------------------------------------------------------- */
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.settings-header h2 {
+  margin: 0;
+}
+
+.settings-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-app {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+}
+
+.settings-app-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.settings-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.settings-app-name {
+  font-weight: 600;
+}
+
+.badge {
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  color: var(--text-dim);
+}
+
+.badge-ok {
+  color: var(--agree);
+  border-color: var(--agree);
+}
+
+.badge-config-not-found,
+.badge-config-unreadable,
+.badge-config-unparseable {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.settings-path {
+  margin: 6px 0 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  word-break: break-all;
+}
+
+.settings-message {
+  margin: 6px 0 0;
+  color: var(--danger);
+  font-size: 12px;
+}
+
+.settings-note {
+  margin: 6px 0 0;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.settings-problems {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.settings-problems ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.settings-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.settings-footer {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.settings-footer p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-dim);
+  word-break: break-all;
+}
+
+/* --- Summary / status --------------------------------------------------- */
+
+.summary-stats {
+  display: flex;
+  gap: 20px;
+  margin: 12px 0;
+}
+
+.summary-stat {
+  display: flex;
+  flex-direction: column;
+}
+
+.summary-stat strong {
+  font-size: 24px;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-stat span {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.summary-failed {
+  color: var(--danger);
+  font-size: 12px;
+}
+
+.banner {
+  padding: 8px 14px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--border);
+  flex: none;
+}
+
+.banner-error {
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  color: var(--danger);
+}
+
+.banner-info {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.empty-state {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-dim);
+}
