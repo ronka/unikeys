@@ -1,15 +1,20 @@
 /**
- * The four applications unikeys supports, and the config format each one uses.
+ * The applications unikeys supports, and the config format each one uses.
  *
  * An `AppId` is a column in the table. A `FormatId` is an adapter — Cursor and
  * VSCode share one, which is why the two concepts are separate.
+ *
+ * Column order follows `APP_IDS`. Keep the `APPS` literal below in the same
+ * order: `apps-service.ts` iterates `Object.keys(APPS)` when building statuses,
+ * so a literal that disagrees with `APP_IDS` silently reorders the status list
+ * against the columns.
  */
 
-export const APP_IDS = ['vscode', 'cursor', 'webstorm', 'ghostty'] as const
+export const APP_IDS = ['vscode', 'cursor', 'webstorm', 'ghostty', 'cmux'] as const
 
 export type AppId = (typeof APP_IDS)[number]
 
-export type FormatId = 'vscode-keybindings' | 'jetbrains-keymap' | 'ghostty-config'
+export type FormatId = 'vscode-keybindings' | 'jetbrains-keymap' | 'ghostty-config' | 'cmux-config'
 
 export interface AppDescriptor {
   id: AppId
@@ -75,6 +80,17 @@ export const APPS: Record<AppId, AppDescriptor> = {
     ],
     installPaths: ['/Applications/Ghostty.app', '~/Applications/Ghostty.app'],
     reloadHint: 'Reload Ghostty config with ⌘⇧, or restart Ghostty.'
+  },
+  cmux: {
+    id: 'cmux',
+    name: 'cmux',
+    format: 'cmux-config',
+    // cmux writes this template itself on first launch, so the file usually
+    // already exists — as one object of `$schema` and `schemaVersion` with
+    // every setting commented out.
+    configPaths: ['.config/cmux/cmux.json'],
+    installPaths: ['/Applications/cmux.app', '~/Applications/cmux.app'],
+    reloadHint: 'Reload cmux config with ⌘⇧, or restart cmux.'
   }
 }
 

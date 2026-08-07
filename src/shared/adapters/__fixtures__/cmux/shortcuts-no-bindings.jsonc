@@ -1,0 +1,10 @@
+{
+  "$schema": "https://raw.githubusercontent.com/manaflow-ai/cmux/main/web/data/cmux.schema.json",
+  "schemaVersion": 1,
+
+  // `shortcuts` exists, but the user has only touched the hint setting — so a
+  // merge has to create `bindings` inside it rather than beside it.
+  "shortcuts": {
+    "showModifierHoldHints": false
+  }
+}

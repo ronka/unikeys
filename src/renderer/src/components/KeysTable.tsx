@@ -37,8 +37,8 @@ export function KeysTable({
     <table className="keys-table">
       <thead>
         <tr>
-          <th>Action</th>
-          <th>Link</th>
+          <th className="action-head">Action</th>
+          <th className="link-head">Link</th>
           {view.apps.map((app) => (
             <th key={app}>{APPS[app].name}</th>
           ))}
@@ -48,7 +48,12 @@ export function KeysTable({
       {view.groups.map((group) => (
         <tbody key={group.category}>
           <tr className="category-row">
-            <th colSpan={view.apps.length + 2}>{group.label}</th>
+            {/* The `+ 2` is the two leading columns, not the app count. The
+                label is wrapped so it can stay pinned to the left edge while
+                the app columns scroll out from under this full-width cell. */}
+            <th colSpan={view.apps.length + 2}>
+              <span className="category-label">{group.label}</span>
+            </th>
           </tr>
           {group.rows.map((row) => (
             <Row
@@ -111,26 +116,34 @@ function Row({
         </button>
       </td>
 
-      {apps.map((app) => {
+      {apps.map((app, index) => {
         const cell = row.cells[app]
         const isEditing = editing?.actionId === row.action.id && editing.app === app
 
         return (
-          <td key={app} className="cell">
-            {isEditing ? (
-              <ChordInput
-                value={cell?.kind === 'bound' ? cell.chord : null}
-                targets={row.linked ? propagationTargets(row.action.id) : [app]}
-                onCommit={(chord) => onCommit({ actionId: row.action.id, app }, chord)}
-                onCancel={onCancelEdit}
-              />
-            ) : (
+          <td key={app} className={`cell${isEditing ? ' cell-editing' : ''}`}>
+            {/* The cell stays mounted while editing so the column keeps its width
+                and the row its height; the editor floats above it rather than
+                shoving every other column sideways. */}
+            <div className="cell-content" inert={isEditing}>
               <Cell
                 cell={cell}
                 onEdit={() => onStartEdit({ actionId: row.action.id, app })}
                 appName={APPS[app].name}
                 actionName={row.action.name}
               />
+            </div>
+            {isEditing && (
+              // The last column opens leftwards so the editor stays inside the
+              // table's right edge rather than hanging off the end of it.
+              <div className={`chord-popover${index === apps.length - 1 ? ' align-right' : ''}`}>
+                <ChordInput
+                  value={cell?.kind === 'bound' ? cell.chord : null}
+                  targets={row.linked ? propagationTargets(row.action.id) : [app]}
+                  onCommit={(chord) => onCommit({ actionId: row.action.id, app }, chord)}
+                  onCancel={onCancelEdit}
+                />
+              </div>
             )}
           </td>
         )

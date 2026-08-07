@@ -1,6 +1,6 @@
-import { APPS } from '@shared/apps'
+import { APPS, type AppId } from '@shared/apps'
 import { formatDisplay, parseCanonical, type Chord } from '@shared/chord'
-import type { ImportResult, WriteResult } from '@shared/ipc'
+import type { DroppedBinding, ImportResult, WriteResult } from '@shared/ipc'
 import type { LinkCandidate, PendingChange, PendingLinkChange } from '@shared/table/reducer'
 import type { ImportSummary } from '@shared/table/view'
 
@@ -220,6 +220,24 @@ export function ImportSummaryPanel({
 // What a save actually did
 // ---------------------------------------------------------------------------
 
+/**
+ * One line per app and reason rather than one per binding. A save that touches
+ * ten linked rows drops ten bindings for an app the user does not have, and
+ * listing each of them by raw action id buries the one thing worth reading.
+ */
+function groupDropped(
+  dropped: readonly DroppedBinding[]
+): Array<{ key: string; app: AppId; reason: string; actionIds: string[] }> {
+  const groups = new Map<string, { key: string; app: AppId; reason: string; actionIds: string[] }>()
+  for (const drop of dropped) {
+    const key = `${drop.app}\u0000${drop.reason}`
+    const group = groups.get(key) ?? { key, app: drop.app, reason: drop.reason, actionIds: [] }
+    group.actionIds.push(drop.actionId)
+    groups.set(key, group)
+  }
+  return [...groups.values()]
+}
+
 export function WriteReport({
   result,
   onClose
@@ -281,12 +299,20 @@ export function WriteReport({
       )}
 
       {result.dropped.length > 0 && (
-        <div className="summary-failed">
+        // Not styled as a failure: a deliberate drop is unikeys doing the right
+        // thing — an app is turned off, or is not installed. Only the
+        // non-deliberate ones are worth alarming the user about, and those are
+        // rare enough not to warrant a second list.
+        <div
+          className={result.dropped.some((drop) => !drop.deliberate) ? 'summary-failed' : 'muted'}
+        >
           <p>Not attempted:</p>
           <ul>
-            {result.dropped.map((drop, i) => (
-              <li key={i}>
-                <strong>{APPS[drop.app].name}</strong> — {drop.actionId}: {drop.reason}
+            {groupDropped(result.dropped).map((group) => (
+              <li key={group.key}>
+                <strong>{APPS[group.app].name}</strong>
+                {group.actionIds.length === 1 ? ` — ${group.actionIds[0]}` : ''}: {group.reason}
+                {group.actionIds.length > 1 && ` (${group.actionIds.length} bindings)`}
               </li>
             ))}
           </ul>

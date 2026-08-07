@@ -111,7 +111,8 @@
       "commands": {
         "vscode": "workbench.action.showCommands",
         "cursor": "workbench.action.showCommands",
-        "webstorm": "GotoAction"
+        "webstorm": "GotoAction",
+        "cmux": "commandPalette"
       }
     },
     {
@@ -161,7 +162,8 @@
       "commands": {
         "vscode": "workbench.action.findInFiles",
         "cursor": "workbench.action.findInFiles",
-        "webstorm": "FindInPath"
+        "webstorm": "FindInPath",
+        "cmux": "findInDirectory"
       }
     },
     {
@@ -171,7 +173,8 @@
       "commands": {
         "vscode": "workbench.action.navigateBack",
         "cursor": "workbench.action.navigateBack",
-        "webstorm": "Back"
+        "webstorm": "Back",
+        "cmux": "focusHistoryBack"
       }
     },
     {
@@ -181,7 +184,8 @@
       "commands": {
         "vscode": "workbench.action.navigateForward",
         "cursor": "workbench.action.navigateForward",
-        "webstorm": "Forward"
+        "webstorm": "Forward",
+        "cmux": "focusHistoryForward"
       }
     },
     {
@@ -192,7 +196,8 @@
         "vscode": "workbench.action.nextEditor",
         "cursor": "workbench.action.nextEditor",
         "webstorm": "NextTab",
-        "ghostty": "next_tab"
+        "ghostty": "next_tab",
+        "cmux": "nextSurface"
       }
     },
     {
@@ -203,7 +208,8 @@
         "vscode": "workbench.action.previousEditor",
         "cursor": "workbench.action.previousEditor",
         "webstorm": "PreviousTab",
-        "ghostty": "previous_tab"
+        "ghostty": "previous_tab",
+        "cmux": "prevSurface"
       }
     },
     {
@@ -213,7 +219,8 @@
       "commands": {
         "vscode": "workbench.action.newWindow",
         "cursor": "workbench.action.newWindow",
-        "ghostty": "new_window"
+        "ghostty": "new_window",
+        "cmux": "newWindow"
       }
     },
     {
@@ -224,7 +231,8 @@
         "vscode": "workbench.action.closeActiveEditor",
         "cursor": "workbench.action.closeActiveEditor",
         "webstorm": "CloseContent",
-        "ghostty": "close_surface"
+        "ghostty": "close_surface",
+        "cmux": "closeTab"
       }
     },
     {
@@ -235,7 +243,8 @@
         "vscode": "workbench.action.toggleFullScreen",
         "cursor": "workbench.action.toggleFullScreen",
         "webstorm": "ToggleFullScreen",
-        "ghostty": "toggle_fullscreen"
+        "ghostty": "toggle_fullscreen",
+        "cmux": "toggleFullScreen"
       }
     },
     {
@@ -246,7 +255,8 @@
         "vscode": "workbench.action.splitEditorRight",
         "cursor": "workbench.action.splitEditorRight",
         "webstorm": "SplitVertically",
-        "ghostty": "new_split:right"
+        "ghostty": "new_split:right",
+        "cmux": "splitRight"
       }
     },
     {
@@ -257,7 +267,8 @@
         "vscode": "workbench.action.splitEditorDown",
         "cursor": "workbench.action.splitEditorDown",
         "webstorm": "SplitHorizontally",
-        "ghostty": "new_split:down"
+        "ghostty": "new_split:down",
+        "cmux": "splitDown"
       }
     },
     {
@@ -267,7 +278,8 @@
       "commands": {
         "vscode": "workbench.action.focusLeftGroup",
         "cursor": "workbench.action.focusLeftGroup",
-        "ghostty": "goto_split:left"
+        "ghostty": "goto_split:left",
+        "cmux": "focusLeft"
       }
     },
     {
@@ -277,7 +289,8 @@
       "commands": {
         "vscode": "workbench.action.focusRightGroup",
         "cursor": "workbench.action.focusRightGroup",
-        "ghostty": "goto_split:right"
+        "ghostty": "goto_split:right",
+        "cmux": "focusRight"
       }
     },
     {
@@ -288,7 +301,8 @@
         "vscode": "editor.action.fontZoomIn",
         "cursor": "editor.action.fontZoomIn",
         "webstorm": "EditorIncreaseFontSize",
-        "ghostty": "increase_font_size:1"
+        "ghostty": "increase_font_size:1",
+        "cmux": "increaseWorkspaceTerminalFontSize"
       }
     },
     {
@@ -299,7 +313,8 @@
         "vscode": "editor.action.fontZoomOut",
         "cursor": "editor.action.fontZoomOut",
         "webstorm": "EditorDecreaseFontSize",
-        "ghostty": "decrease_font_size:1"
+        "ghostty": "decrease_font_size:1",
+        "cmux": "decreaseWorkspaceTerminalFontSize"
       }
     },
     {
@@ -310,7 +325,8 @@
         "vscode": "editor.action.fontZoomReset",
         "cursor": "editor.action.fontZoomReset",
         "webstorm": "EditorResetFontSize",
-        "ghostty": "reset_font_size"
+        "ghostty": "reset_font_size",
+        "cmux": "resetWorkspaceTerminalFontSize"
       }
     },
     {
@@ -329,7 +345,8 @@
       "category": "terminal",
       "commands": {
         "vscode": "workbench.action.terminal.new",
-        "cursor": "workbench.action.terminal.new"
+        "cursor": "workbench.action.terminal.new",
+        "cmux": "newSurface"
       }
     },
     {
@@ -339,7 +356,8 @@
       "commands": {
         "vscode": "workbench.action.terminal.clear",
         "cursor": "workbench.action.terminal.clear",
-        "ghostty": "clear_screen"
+        "ghostty": "clear_screen",
+        "cmux": "clearScreenKeepScrollback"
       }
     },
     {
@@ -347,7 +365,8 @@
       "name": "Reload Terminal Config",
       "category": "terminal",
       "commands": {
-        "ghostty": "reload_config"
+        "ghostty": "reload_config",
+        "cmux": "reloadConfiguration"
       }
     }
   ]

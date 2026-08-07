@@ -17,6 +17,7 @@ import {
   propagationTargets,
   type LinkCandidate
 } from '@shared/table/reducer'
+import { appsMissingFromStore } from '@shared/store/types'
 import { buildTableView, summarizeImport } from '@shared/table/view'
 import { AppSettings } from './components/AppSettings'
 import { KeysTable, type EditTarget } from './components/KeysTable'
@@ -61,15 +62,32 @@ function App(): React.JSX.Element {
         setBackupDirectory(result.backupDirectory)
         dispatch({ type: 'hydrate', store: result.store })
 
-        if (!result.store.firstRunCompleted) {
+        const firstRun = !result.store.firstRunCompleted
+        // An app unikeys gained in an update has a column but no data, and
+        // nothing else would ever fill it: import runs once, and there is no
+        // re-import in the UI. Importing just those apps leaves every column
+        // the store already knows about exactly as the user left it.
+        //
+        // Restricted to installed apps because the condition is otherwise never
+        // satisfiable — an app that is absent yields no bindings, so it would
+        // still look unseen on the next launch and re-import on every one. An
+        // app installed later still fills, since it stays unseen until it does.
+        const installed = new Set(
+          result.statuses.filter((status) => status.installed).map((status) => status.app)
+        )
+        const unseen = firstRun
+          ? []
+          : appsMissingFromStore(result.store).filter((app) => installed.has(app))
+
+        if (firstRun || unseen.length > 0) {
           const imported = await window.unikeys.importBindings(result.store)
           if (cancelled) return
           setStatuses(imported.statuses)
-          setImportResult(imported)
           dispatch({
             type: 'importBindings',
             payload: {
               bindings: imported.chords.flatMap((entry) => {
+                if (!firstRun && !unseen.includes(entry.app)) return []
                 const chord = entry.chord === null ? null : parseCanonical(entry.chord)
                 // A chord unikeys cannot parse is dropped rather than stored as
                 // a value nothing downstream could render or write.
@@ -87,7 +105,12 @@ function App(): React.JSX.Element {
               markFirstRunCompleted: true
             }
           })
-          setOverlay('summary')
+          // The summary reports on the whole table, which only tells the truth
+          // on a real first run.
+          if (firstRun) {
+            setImportResult(imported)
+            setOverlay('summary')
+          }
         }
       } catch (cause) {
         setError(`Could not start up: ${(cause as Error).message}`)
@@ -123,6 +146,14 @@ function App(): React.JSX.Element {
         // better than blanking the panel; the next change retries.
       })
   }, [state.store.apps])
+
+  // An app the user simply does not have is not a problem to warn about — it is
+  // the normal state of any machine that does not run all five. Only apps that
+  // are present but unreadable belong in the banner.
+  const unreadable = useMemo(
+    () => statuses.filter((s) => s.enabled && s.health !== 'ok' && s.health !== 'not-installed'),
+    [statuses]
+  )
 
   const view = useMemo(() => buildTableView(state, CATALOGUE, { search }), [state, search])
   const changes = useMemo(() => pendingChanges(state, CATALOGUE), [state])
@@ -226,14 +257,10 @@ function App(): React.JSX.Element {
 
       {error && <div className="banner banner-error">{error}</div>}
 
-      {statuses.some((s) => s.enabled && s.health !== 'ok') && (
+      {unreadable.length > 0 && (
         <div className="banner banner-info">
-          Some apps could not be read —{' '}
-          {statuses
-            .filter((s) => s.enabled && s.health !== 'ok')
-            .map((s) => s.name)
-            .join(', ')}
-          . Open <strong>Apps</strong> to see why.
+          Some apps could not be read — {unreadable.map((s) => s.name).join(', ')}. Open{' '}
+          <strong>Apps</strong> to see why.
         </div>
       )}
 

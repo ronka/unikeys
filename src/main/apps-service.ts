@@ -318,6 +318,10 @@ function groupByApp(request: WriteRequest, catalogue: Catalogue, store: Store): 
   const byApp = new Map<AppId, Array<{ actionId: string; managed: ManagedBinding }>>()
   const dropped: DroppedBinding[] = []
 
+  // Computed once: detection stats the filesystem, and doing it per binding
+  // would mean hundreds of `existsSync` calls for a single save.
+  const installed = new Set((Object.keys(APPS) as AppId[]).filter(isInstalled))
+
   for (const entry of request.bindings) {
     // A disabled app is excluded from all writes, not merely hidden. This is
     // deliberate and retrying will not change it, so the edit is settled rather
@@ -327,6 +331,22 @@ function groupByApp(request: WriteRequest, catalogue: Catalogue, store: Store): 
         app: entry.app,
         actionId: entry.actionId,
         reason: `${APPS[entry.app].name} is turned off in unikeys, so nothing was written to it.`,
+        deliberate: true
+      })
+      continue
+    }
+
+    // An app the user does not have is not a failure to report and retry: there
+    // is no config to write and no action they can take. Without this, editing a
+    // linked row leaves a cell pending forever for an app they will never
+    // install. The chord still lands in unikeys' store, so it is there if they
+    // do. A manual path overrides detection — the user pointing unikeys at a
+    // config is a stronger statement than an app missing from /Applications.
+    if (!installed.has(entry.app) && !store.apps[entry.app].configPath) {
+      dropped.push({
+        app: entry.app,
+        actionId: entry.actionId,
+        reason: `${APPS[entry.app].name} is not installed, so there is nothing to write to.`,
         deliberate: true
       })
       continue

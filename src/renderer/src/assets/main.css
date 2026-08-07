@@ -148,9 +148,18 @@ code {
 
 /* --- Table -------------------------------------------------------------- */
 
+/* The app columns are allowed to overrun the window and scroll sideways, so the
+   table takes its content's width and only stretches to fill when there is room
+   to spare. Squeezing five columns into the viewport instead would make every
+   chord fight for space. */
 .keys-table {
-  width: 100%;
-  border-collapse: collapse;
+  min-width: 100%;
+  width: max-content;
+  /* `separate` rather than `collapse`: collapsed borders belong to the table,
+     not the cell, so they do not travel with a sticky cell and the action
+     column would scroll out from under its own row lines. */
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 13px;
 }
 
@@ -161,16 +170,25 @@ code {
   text-align: left;
 }
 
+/* Sticky layering, bottom to top: category headings, then the pinned action
+   columns, then an open chord editor, then the header row, then the header's
+   own pinned corner. The editor sits above the pinned columns deliberately —
+   it opens leftwards, straight over them. */
 .keys-table thead th {
   position: sticky;
   top: 0;
-  z-index: 2;
+  z-index: 4;
   background: var(--bg-raised);
   border-bottom: 1px solid var(--border-strong);
   padding: 8px 10px;
   font-weight: 600;
   color: var(--text-dim);
   white-space: nowrap;
+}
+
+.keys-table thead .action-head,
+.keys-table thead .link-head {
+  z-index: 5;
 }
 
 .category-row th {
@@ -186,10 +204,51 @@ code {
   border-bottom: 1px solid var(--border);
 }
 
-.action-cell {
+/* The heading cell spans every column, so its label would scroll away with the
+   app columns unless it is pinned inside its own cell. */
+.category-label {
+  position: sticky;
+  left: 10px;
+  display: inline-block;
+}
+
+/* Scoped to .keys-table so they outrank the th/td padding reset above. */
+
+/* Both leading columns stay put while the app columns scroll: which action a
+   row is, and whether it is linked, are what make a chord four columns to the
+   right mean anything.
+
+   The width is fixed rather than a minimum so the link column's `left` offset
+   is exact — under auto layout the action column's width follows its content
+   and the two would drift apart. */
+.keys-table .action-cell,
+.keys-table .action-head {
+  width: 240px;
+  min-width: 240px;
+}
+
+.keys-table .action-cell {
   /* Extra left padding keeps the name clear of the divergence marker. */
   padding: 6px 10px 6px 14px;
-  min-width: 220px;
+}
+
+.keys-table .action-cell,
+.keys-table .link-cell {
+  position: sticky;
+  z-index: 2;
+  /* Opaque, because the row tint lives on the `tr` and does not paint under a
+     sticky cell — see the `.row-pending` overrides below. */
+  background: var(--bg);
+}
+
+.keys-table .action-cell,
+.keys-table thead .action-head {
+  left: 0;
+}
+
+.keys-table .link-cell,
+.keys-table thead .link-head {
+  left: 240px;
 }
 
 .action-name {
@@ -217,10 +276,26 @@ code {
   background: color-mix(in srgb, var(--pending) 8%, transparent);
 }
 
-.link-cell {
+/* Pre-composited over the page background rather than over `transparent`: the
+   sticky cells paint their own opaque backdrop, so the tint has nothing to sit
+   on top of and would otherwise vanish exactly where it is pinned. */
+.row-pending .action-cell,
+.row-pending .link-cell {
+  background: color-mix(in srgb, var(--pending) 8%, var(--bg));
+}
+
+.keys-table .link-cell {
   width: 1%;
   padding: 6px 8px;
   white-space: nowrap;
+  /* Marks where the pinned columns end and the scrolling ones begin. It goes
+     here rather than on the action cell, whose `box-shadow` is already spoken
+     for by the divergence marker. */
+  box-shadow: 1px 0 0 var(--border);
+}
+
+.keys-table thead .link-head {
+  box-shadow: 1px 0 0 var(--border);
 }
 
 .link-button {
@@ -236,10 +311,23 @@ code {
 
 /* --- Cells -------------------------------------------------------------- */
 
-.cell {
+.keys-table .cell {
+  position: relative;
   padding: 4px 6px;
   min-width: 150px;
   vertical-align: middle;
+}
+
+/* The open editor paints over neighbouring rows — including the sticky
+   category headings and the pinned action columns it opens towards. */
+.keys-table .cell-editing {
+  z-index: 3;
+}
+
+/* Dimmed rather than hidden: the cell still reserves the row's height and the
+   column's width, which is what keeps the table from jumping on click. */
+.cell-editing .cell-content {
+  opacity: 0.25;
 }
 
 .cell-button {
@@ -310,7 +398,22 @@ code {
 
 /* --- Chord input -------------------------------------------------------- */
 
+/* Floated out of flow: the editor is wider and taller than the cell it edits,
+   and in flow it resized the column and the row, shifting the whole table. */
+.chord-popover {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+}
+
+.chord-popover.align-right {
+  left: auto;
+  right: 0;
+}
+
 .chord-input {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   display: flex;
   flex-direction: column;
   gap: 6px;

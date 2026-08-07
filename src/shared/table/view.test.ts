@@ -35,7 +35,12 @@ const catalogue: Catalogue = {
 }
 
 const actionsById = Object.fromEntries(catalogue.actions.map((action) => [action.id, action]))
-const ALL_APPS = ['vscode', 'cursor', 'webstorm', 'ghostty'] as const
+/**
+ * Every column. Spelled out rather than derived from `APP_IDS` so that adding
+ * an app is a deliberate edit here — a derived list would quietly extend these
+ * cases to a column none of them was written for.
+ */
+const ALL_APPS = ['vscode', 'cursor', 'webstorm', 'ghostty', 'cmux'] as const
 
 function storeWith(chords: Store['chords'], linkedActions: string[] = []): Store {
   return { ...createEmptyStore(), chords, linkedActions }
@@ -194,8 +199,13 @@ describe('the table view', () => {
 
     const view = buildTableView(state, catalogue)
 
-    expect(view.apps).toEqual(['vscode', 'webstorm', 'ghostty'])
-    expect(Object.keys(view.groups[0].rows[0].cells)).toEqual(['vscode', 'webstorm', 'ghostty'])
+    expect(view.apps).toEqual(['vscode', 'webstorm', 'ghostty', 'cmux'])
+    expect(Object.keys(view.groups[0].rows[0].cells)).toEqual([
+      'vscode',
+      'webstorm',
+      'ghostty',
+      'cmux'
+    ])
   })
 
   it('counts divergent rows across the whole table', () => {

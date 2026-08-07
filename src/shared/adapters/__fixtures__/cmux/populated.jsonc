@@ -1,0 +1,28 @@
+{
+  "$schema": "https://raw.githubusercontent.com/manaflow-ai/cmux/main/web/data/cmux.schema.json",
+  "schemaVersion": 1,
+
+  // Keeping a non-shortcut section here so merges have something they must not
+  // disturb on either side of the block they edit.
+  "app": {
+    "appearance": "system"
+  },
+
+  "shortcuts": {
+    "showModifierHoldHints": true,
+    "bindings": {
+      "commandPalette": "cmd+shift+p",
+      "splitRight": "cmd+d",
+      // The template's own spelling of the arrow keys.
+      "focusLeft": "cmd+opt+←",
+      // A two-keystroke chord is written as an array.
+      "newSurface": ["ctrl+b", "c"],
+      // Both ways of saying "no shortcut".
+      "sendFeedback": "",
+      "toggleSidebar": null,
+      "quit": "disabled",
+      // Not one of the 142 ids cmux accepts.
+      "notARealCmuxAction": "cmd+j"
+    }
+  }
+}

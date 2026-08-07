@@ -79,6 +79,29 @@ export function serializeStore(store: Store): string {
   return JSON.stringify(store, null, 2)
 }
 
+/**
+ * Enabled apps the chord table has nothing at all for.
+ *
+ * This is how unikeys spots an app it gained in an update. Import runs once, on
+ * the first run, and there is no re-import in the UI — so without this a column
+ * added later would stay empty forever, with no way for the user to fill it.
+ *
+ * "Nothing at all" is deliberately strict. An app the user has merely unbound
+ * everywhere still has entries (with `chord: null`), so it is not mistaken for
+ * a new one and never re-imported behind their back.
+ *
+ * These are candidates, not a decision: an app that is not installed yields no
+ * bindings and so would stay on this list forever. Callers are expected to
+ * narrow it to apps actually present.
+ */
+export function appsMissingFromStore(store: Store): AppId[] {
+  const seen = new Set<string>()
+  for (const perApp of Object.values(store.chords)) {
+    for (const app of Object.keys(perApp)) seen.add(app)
+  }
+  return APP_IDS.filter((app) => store.apps[app]?.enabled && !seen.has(app))
+}
+
 export type DeserializeOutcome = { ok: true; store: Store } | { ok: false; error: string }
 
 /**

@@ -48,9 +48,9 @@ describe('the shipped catalogue', () => {
     }
   })
 
-  it('includes a meaningful number of rows that map all four apps', () => {
-    const allFour = ACTIONS.filter((action) => mappedApps(action).length === APP_IDS.length)
-    expect(allFour.length).toBeGreaterThanOrEqual(6)
+  it('includes a meaningful number of rows that map every app', () => {
+    const universal = ACTIONS.filter((action) => mappedApps(action).length === APP_IDS.length)
+    expect(universal.length).toBeGreaterThanOrEqual(6)
   })
 
   it('includes rows that deliberately skip apps with no equivalent', () => {
