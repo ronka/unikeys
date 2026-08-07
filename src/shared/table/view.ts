@@ -127,6 +127,12 @@ export interface TableView {
 export interface TableViewOptions {
   /** Case-insensitive substring match on the action name or its id. */
   search?: string
+  /**
+   * Show only actions the catalogue maps a command for in this app. The other
+   * apps keep their columns: the point is to answer "what can I bind here?"
+   * without giving up the comparison that makes the table worth reading.
+   */
+  appFilter?: AppId
   /** Defaults to the apps enabled in the store. */
   enabledApps?: readonly AppId[]
 }
@@ -140,6 +146,12 @@ export function buildTableView(
     (options.enabledApps ?? enabledApps(state.store)).includes(app)
   )
   const query = (options.search ?? '').trim().toLowerCase()
+  // A disabled app has no column, so filtering rows against it would hide rows
+  // for a reason the user cannot see on screen.
+  const appFilter =
+    options.appFilter !== undefined && apps.includes(options.appFilter)
+      ? options.appFilter
+      : undefined
 
   const groups: CategoryGroup[] = []
   let rowCount = 0
@@ -148,7 +160,12 @@ export function buildTableView(
   // Fixed category order, so the table never reshuffles itself as rows change.
   for (const category of CATEGORIES) {
     const rows = catalogue.actions
-      .filter((action) => action.category === category && matches(action, query))
+      .filter(
+        (action) =>
+          action.category === category &&
+          matches(action, query) &&
+          (appFilter === undefined || isMapped(action, appFilter))
+      )
       .map((action) => buildRowView(state, action, apps))
 
     rowCount += rows.length

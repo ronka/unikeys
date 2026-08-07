@@ -190,6 +190,51 @@ describe('the table view', () => {
     expect(buildTableView(state, catalogue, { search: 'zzz' }).groups).toEqual([])
   })
 
+  it('drops rows the filtered app has no command for, keeping every column', () => {
+    const state = createTableState(createEmptyStore())
+
+    const ghostty = buildTableView(state, catalogue, { appFilter: 'ghostty' })
+    expect(ghostty.groups.flatMap((group) => group.rows.map((row) => row.action.id))).toEqual([
+      'file.save',
+      'terminal.split-right'
+    ])
+    expect(ghostty.rowCount).toBe(2)
+    // The filter hides rows, not columns: the comparison is the point.
+    expect(ghostty.apps).toEqual([...ALL_APPS])
+
+    const webstorm = buildTableView(state, catalogue, { appFilter: 'webstorm' })
+    expect(webstorm.groups.map((group) => group.category)).toEqual(['editing'])
+    expect(webstorm.groups[0].rows.map((row) => row.action.id)).toEqual(['file.save'])
+  })
+
+  it('requires both the search and the app filter to match', () => {
+    const state = createTableState(createEmptyStore())
+
+    expect(
+      buildTableView(state, catalogue, { search: 'save', appFilter: 'ghostty' }).groups[0].rows.map(
+        (row) => row.action.id
+      )
+    ).toEqual(['file.save'])
+
+    // Matches the search but not the filter, so nothing survives.
+    expect(buildTableView(state, catalogue, { search: 'save', appFilter: 'cmux' }).groups).toEqual(
+      []
+    )
+  })
+
+  it('ignores an app filter naming an app with no column', () => {
+    const state = run(createTableState(createEmptyStore()), {
+      type: 'setAppEnabled',
+      app: 'cursor',
+      enabled: false
+    })
+
+    const view = buildTableView(state, catalogue, { appFilter: 'cursor' })
+
+    expect(view.rowCount).toBe(3)
+    expect(view.apps).not.toContain('cursor')
+  })
+
   it('shows only enabled apps as columns', () => {
     const state = run(createTableState(createEmptyStore()), {
       type: 'setAppEnabled',

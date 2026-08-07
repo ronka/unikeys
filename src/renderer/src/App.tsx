@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 
 import { CATALOGUE, actionById } from '@shared/catalogue'
-import type { AppId } from '@shared/apps'
+import { APPS, type AppId } from '@shared/apps'
 import { parseCanonical, type Chord } from '@shared/chord'
 import type { AppStatus, ImportResult, WriteResult } from '@shared/ipc'
 import type { CellRef } from '@shared/table/reducer'
@@ -34,6 +34,7 @@ function App(): React.JSX.Element {
   const [statuses, setStatuses] = useState<AppStatus[]>([])
   const [backupDirectory, setBackupDirectory] = useState('')
   const [search, setSearch] = useState('')
+  const [appFilter, setAppFilter] = useState<AppId | 'all'>('all')
   const [editing, setEditing] = useState<EditTarget | null>(null)
   const [overlay, setOverlay] = useState<Overlay>('none')
   const [linking, setLinking] = useState<{ actionId: string; candidates: LinkCandidate[] } | null>(
@@ -155,7 +156,14 @@ function App(): React.JSX.Element {
     [statuses]
   )
 
-  const view = useMemo(() => buildTableView(state, CATALOGUE, { search }), [state, search])
+  const view = useMemo(
+    () =>
+      buildTableView(state, CATALOGUE, {
+        search,
+        appFilter: appFilter === 'all' ? undefined : appFilter
+      }),
+    [state, search, appFilter]
+  )
   const changes = useMemo(() => pendingChanges(state, CATALOGUE), [state])
   const linkChanges = useMemo(() => pendingLinkChanges(state, CATALOGUE), [state])
 
@@ -239,6 +247,20 @@ function App(): React.JSX.Element {
           placeholder="Search actions…"
           aria-label="Search actions"
         />
+        <select
+          value={appFilter}
+          onChange={(e) => setAppFilter(e.target.value as AppId | 'all')}
+          aria-label="Filter by app"
+        >
+          <option value="all">All apps</option>
+          {/* The enabled columns, not `APP_IDS` — an app with no column would
+              filter the table against something the user cannot see. */}
+          {view.apps.map((app) => (
+            <option key={app} value={app}>
+              {APPS[app].name}
+            </option>
+          ))}
+        </select>
         <span className="muted">
           {view.rowCount} rows · {view.divergentCount} diverging
         </span>
@@ -283,7 +305,14 @@ function App(): React.JSX.Element {
               statuses={statuses}
               store={state.store}
               backupDirectory={backupDirectory}
-              onToggle={(app, enabled) => dispatch({ type: 'setAppEnabled', app, enabled })}
+              onToggle={(app, enabled) => {
+                // Disabling the filtered app drops its column, so the filter
+                // goes with it. Clearing the state — rather than falling back
+                // at render — keeps the app from silently springing back to a
+                // filter the user never reselected.
+                if (!enabled && appFilter === app) setAppFilter('all')
+                dispatch({ type: 'setAppEnabled', app, enabled })
+              }}
               onChoosePath={(app) => {
                 void window.unikeys.chooseConfigPath(app).then((path) => {
                   if (path) dispatch({ type: 'setAppConfigPath', app, path })

@@ -85,7 +85,8 @@ button.primary {
 }
 
 input[type='text'],
-input:not([type]) {
+input:not([type]),
+select {
   font: inherit;
   color: var(--text);
   background: var(--bg);

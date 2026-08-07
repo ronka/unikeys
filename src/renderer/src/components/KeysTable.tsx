@@ -30,7 +30,7 @@ export function KeysTable({
   propagationTargets
 }: Props): React.JSX.Element {
   if (view.rowCount === 0) {
-    return <p className="empty-state">No actions match your search.</p>
+    return <p className="empty-state">No actions match your filters.</p>
   }
 
   return (
