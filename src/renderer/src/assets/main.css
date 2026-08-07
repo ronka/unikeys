@@ -171,14 +171,16 @@ code {
   text-align: left;
 }
 
-/* Sticky layering, bottom to top: category headings, then the pinned action
-   columns, then an open chord editor, then the header row, then the header's
-   own pinned corner. The editor sits above the pinned columns deliberately —
-   it opens leftwards, straight over them. */
+/* Sticky layering, bottom to top: the pinned action columns, then category
+   headings, then an open chord editor, then the header row, then the header's
+   own pinned corner. A pinned heading has to outrank the pinned columns, or the
+   rows sliding under it push their action name and link button back through it
+   — which reads as a half-drawn row welded below the header. The editor sits
+   above both deliberately: it opens leftwards, straight over them. */
 .keys-table thead th {
   position: sticky;
   top: 0;
-  z-index: 4;
+  z-index: 5;
   background: var(--bg-raised);
   border-bottom: 1px solid var(--border-strong);
   padding: 8px 10px;
@@ -189,13 +191,13 @@ code {
 
 .keys-table thead .action-head,
 .keys-table thead .link-head {
-  z-index: 5;
+  z-index: 6;
 }
 
 .category-row th {
   position: sticky;
   top: 33px;
-  z-index: 1;
+  z-index: 3;
   background: var(--bg);
   padding: 14px 10px 6px;
   font-size: 11px;
@@ -322,7 +324,7 @@ code {
 /* The open editor paints over neighbouring rows — including the sticky
    category headings and the pinned action columns it opens towards. */
 .keys-table .cell-editing {
-  z-index: 3;
+  z-index: 4;
 }
 
 /* Dimmed rather than hidden: the cell still reserves the row's height and the
