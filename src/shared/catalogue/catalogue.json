@@ -294,6 +294,52 @@
       }
     },
     {
+      "id": "pane.focus-up",
+      "name": "Focus Pane Up",
+      "category": "window",
+      "commands": {
+        "vscode": "workbench.action.focusAboveGroup",
+        "cursor": "workbench.action.focusAboveGroup",
+        "ghostty": "goto_split:up",
+        "cmux": "focusUp"
+      }
+    },
+    {
+      "id": "pane.focus-down",
+      "name": "Focus Pane Down",
+      "category": "window",
+      "commands": {
+        "vscode": "workbench.action.focusBelowGroup",
+        "cursor": "workbench.action.focusBelowGroup",
+        "ghostty": "goto_split:down",
+        "cmux": "focusDown"
+      }
+    },
+    {
+      "id": "pane.focus-next",
+      "name": "Focus Next Pane",
+      "category": "window",
+      "commands": {
+        "vscode": "workbench.action.focusNextGroup",
+        "cursor": "workbench.action.focusNextGroup",
+        "webstorm": "NextSplitter",
+        "ghostty": "goto_split:next",
+        "cmux": "focusNextPane"
+      }
+    },
+    {
+      "id": "pane.focus-previous",
+      "name": "Focus Previous Pane",
+      "category": "window",
+      "commands": {
+        "vscode": "workbench.action.focusPreviousGroup",
+        "cursor": "workbench.action.focusPreviousGroup",
+        "webstorm": "PrevSplitter",
+        "ghostty": "goto_split:previous",
+        "cmux": "focusPreviousPane"
+      }
+    },
+    {
       "id": "view.increase-font-size",
       "name": "Increase Font Size",
       "category": "window",

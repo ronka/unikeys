@@ -17,7 +17,7 @@ import {
   propagationTargets,
   type LinkCandidate
 } from '@shared/table/reducer'
-import { appsMissingFromStore } from '@shared/store/types'
+import { isCellUnseen } from '@shared/store/types'
 import { buildTableView, summarizeImport } from '@shared/table/view'
 import { AppSettings } from './components/AppSettings'
 import { KeysTable, type EditTarget } from './components/KeysTable'
@@ -64,54 +64,43 @@ function App(): React.JSX.Element {
         dispatch({ type: 'hydrate', store: result.store })
 
         const firstRun = !result.store.firstRunCompleted
-        // An app unikeys gained in an update has a column but no data, and
-        // nothing else would ever fill it: import runs once, and there is no
-        // re-import in the UI. Importing just those apps leaves every column
-        // the store already knows about exactly as the user left it.
-        //
-        // Restricted to installed apps because the condition is otherwise never
-        // satisfiable — an app that is absent yields no bindings, so it would
-        // still look unseen on the next launch and re-import on every one. An
-        // app installed later still fills, since it stays unseen until it does.
-        const installed = new Set(
-          result.statuses.filter((status) => status.installed).map((status) => status.app)
-        )
-        const unseen = firstRun
-          ? []
-          : appsMissingFromStore(result.store).filter((app) => installed.has(app))
 
-        if (firstRun || unseen.length > 0) {
-          const imported = await window.unikeys.importBindings(result.store)
-          if (cancelled) return
-          setStatuses(imported.statuses)
-          dispatch({
-            type: 'importBindings',
-            payload: {
-              bindings: imported.chords.flatMap((entry) => {
-                if (!firstRun && !unseen.includes(entry.app)) return []
-                const chord = entry.chord === null ? null : parseCanonical(entry.chord)
-                // A chord unikeys cannot parse is dropped rather than stored as
-                // a value nothing downstream could render or write.
-                if (entry.chord !== null && chord === null) return []
-                return [
-                  {
-                    actionId: entry.actionId,
-                    app: entry.app,
-                    chord,
-                    origin:
-                      entry.origin === 'default' ? ('default' as const) : ('imported' as const)
-                  }
-                ]
-              }),
-              markFirstRunCompleted: true
-            }
-          })
-          // The summary reports on the whole table, which only tells the truth
-          // on a real first run.
-          if (firstRun) {
-            setImportResult(imported)
-            setOverlay('summary')
+        // Import runs on every launch, and writes only into cells the store has
+        // no entry for. That one rule covers everything that would otherwise
+        // never appear: a column unikeys gained in an update, a row added to the
+        // catalogue, a default an adapter only learned about later. It cannot
+        // touch a cell the user has set or deliberately cleared, because those
+        // already have an entry — so re-reading costs a few small config files
+        // and changes nothing until there is genuinely something new to fill.
+        const imported = await window.unikeys.importBindings(result.store)
+        if (cancelled) return
+        setStatuses(imported.statuses)
+        dispatch({
+          type: 'importBindings',
+          payload: {
+            bindings: imported.chords.flatMap((entry) => {
+              if (!isCellUnseen(result.store, entry.actionId, entry.app)) return []
+              const chord = entry.chord === null ? null : parseCanonical(entry.chord)
+              // A chord unikeys cannot parse is dropped rather than stored as
+              // a value nothing downstream could render or write.
+              if (entry.chord !== null && chord === null) return []
+              return [
+                {
+                  actionId: entry.actionId,
+                  app: entry.app,
+                  chord,
+                  origin: entry.origin === 'default' ? ('default' as const) : ('imported' as const)
+                }
+              ]
+            }),
+            markFirstRunCompleted: true
           }
+        })
+        // The summary reports on the whole table, which only tells the truth
+        // on a real first run.
+        if (firstRun) {
+          setImportResult(imported)
+          setOverlay('summary')
         }
       } catch (cause) {
         setError(`Could not start up: ${(cause as Error).message}`)

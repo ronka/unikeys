@@ -80,26 +80,18 @@ export function serializeStore(store: Store): string {
 }
 
 /**
- * Enabled apps the chord table has nothing at all for.
+ * True when the chord table holds no entry at all for this cell.
  *
- * This is how unikeys spots an app it gained in an update. Import runs once, on
- * the first run, and there is no re-import in the UI — so without this a column
- * added later would stay empty forever, with no way for the user to fill it.
+ * The whole of unikeys' backfill rule. Import re-reads every app on launch and
+ * writes only where this is true, which is what lets a column, a row or a
+ * default that unikeys learned about after the first run still reach the table.
  *
- * "Nothing at all" is deliberately strict. An app the user has merely unbound
- * everywhere still has entries (with `chord: null`), so it is not mistaken for
- * a new one and never re-imported behind their back.
- *
- * These are candidates, not a decision: an app that is not installed yields no
- * bindings and so would stay on this list forever. Callers are expected to
- * narrow it to apps actually present.
+ * "No entry at all" is deliberately strict. A cell the user has set, or has
+ * deliberately unbound (`chord: null`), has an entry and is left alone — so a
+ * later import can never resurrect a default the user just switched off.
  */
-export function appsMissingFromStore(store: Store): AppId[] {
-  const seen = new Set<string>()
-  for (const perApp of Object.values(store.chords)) {
-    for (const app of Object.keys(perApp)) seen.add(app)
-  }
-  return APP_IDS.filter((app) => store.apps[app]?.enabled && !seen.has(app))
+export function isCellUnseen(store: Store, actionId: string, app: AppId): boolean {
+  return store.chords[actionId]?.[app] === undefined
 }
 
 export type DeserializeOutcome = { ok: true; store: Store } | { ok: false; error: string }

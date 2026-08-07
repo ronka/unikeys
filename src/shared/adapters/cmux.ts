@@ -55,7 +55,7 @@ const SCHEMA_URL =
  * and an unrecognised id found while reading is a problem to surface, not a
  * binding to show.
  */
-const CMUX_ACTION_IDS: ReadonlySet<string> = new Set([
+export const CMUX_ACTION_IDS: ReadonlySet<string> = new Set([
   'openSettings',
   'reloadConfiguration',
   'showHideAllWindows',

@@ -793,6 +793,10 @@ const MACOS_DEFAULTS: ReadonlyArray<readonly [string, string]> = [
   ['ActivateTerminalToolWindow', 'alt+f12'],
   ['ActivateProjectToolWindow', 'cmd+1'],
   ['ActivateVersionControlToolWindow', 'cmd+9'],
+  // Splitter navigation is the only pane movement the macOS keymap binds;
+  // SplitVertically / SplitHorizontally ship no shortcut at all.
+  ['NextSplitter', 'alt+tab'],
+  ['PrevSplitter', 'alt+shift+tab'],
   ['NextTab', 'cmd+shift+]'],
   ['PreviousTab', 'cmd+shift+['],
   ['CloseContent', 'cmd+w'],

@@ -308,6 +308,8 @@ const DEFAULT_TRIGGERS: Record<string, string> = {
   'goto_split:right': 'cmd+alt+right',
   'goto_split:up': 'cmd+alt+up',
   'goto_split:down': 'cmd+alt+down',
+  'goto_split:next': 'cmd+right_bracket',
+  'goto_split:previous': 'cmd+left_bracket',
   copy_to_clipboard: 'cmd+c',
   paste_from_clipboard: 'cmd+v',
   select_all: 'cmd+a',

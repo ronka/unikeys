@@ -402,6 +402,15 @@ const DEFAULT_KEYS: Record<string, string> = {
   'workbench.action.files.openFile': 'cmd+o',
   'workbench.action.closeActiveEditor': 'cmd+w',
   'workbench.action.splitEditor': 'cmd+\\',
+  // The four directional `splitEditor*` commands are deliberately absent: they
+  // all register the same `⌘K ⌘\` as `splitEditorOrthogonal` at equal weight,
+  // so no one of them owns the chord and listing it would be a wrong default.
+  // Directional *focus*, by contrast, is unambiguous.
+  'workbench.action.focusLeftGroup': 'cmd+k cmd+left',
+  'workbench.action.focusRightGroup': 'cmd+k cmd+right',
+  'workbench.action.focusAboveGroup': 'cmd+k cmd+up',
+  'workbench.action.focusBelowGroup': 'cmd+k cmd+down',
+  // focusNextGroup / focusPreviousGroup ship no default binding at all.
   'workbench.action.nextEditor': 'cmd+alt+right',
   'workbench.action.previousEditor': 'cmd+alt+left',
   // Navigation

@@ -484,6 +484,8 @@ describe('defaults', () => {
     expect(found.get('Run')).toBe('ctrl+r')
     expect(found.get('ActivateTerminalToolWindow')).toBe('alt+f12')
     expect(found.get('EditorSelectWord')).toBe('alt+up')
+    expect(found.get('NextSplitter')).toBe('alt+tab')
+    expect(found.get('PrevSplitter')).toBe('alt+shift+tab')
   })
 
   it('claims nothing for an app it does not serve', () => {

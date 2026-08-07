@@ -433,6 +433,36 @@ describe('defaults', () => {
     })
   })
 
+  it('carries directional editor-group focus, which VSCode binds unambiguously', () => {
+    const report = vscodeAdapter.defaults('vscode')
+    const byCommand = new Map(report.bindings.map((b) => [b.command, formatCanonical(b.chord!)]))
+
+    expect(Object.fromEntries(byCommand)).toMatchObject({
+      'workbench.action.focusLeftGroup': 'cmd+k cmd+left',
+      'workbench.action.focusRightGroup': 'cmd+k cmd+right',
+      'workbench.action.focusAboveGroup': 'cmd+k cmd+up',
+      'workbench.action.focusBelowGroup': 'cmd+k cmd+down'
+    })
+  })
+
+  it('claims no default for the directional splits, which all share one chord', () => {
+    const commands = new Set(vscodeAdapter.defaults('vscode').bindings.map((b) => b.command))
+    // `splitEditorLeft/Right/Up/Down` and `splitEditorOrthogonal` every one
+    // register `cmd+k cmd+\` at the same weight, so none of them owns it.
+    for (const command of [
+      'workbench.action.splitEditorLeft',
+      'workbench.action.splitEditorRight',
+      'workbench.action.splitEditorUp',
+      'workbench.action.splitEditorDown',
+      'workbench.action.splitEditorOrthogonal',
+      // Cycling between groups ships no binding at all.
+      'workbench.action.focusNextGroup',
+      'workbench.action.focusPreviousGroup'
+    ]) {
+      expect(commands.has(command), `${command} must not claim a default`).toBe(false)
+    }
+  })
+
   it('has no duplicate commands', () => {
     const commands = vscodeAdapter.defaults('vscode').bindings.map((b) => b.command)
     expect(new Set(commands).size).toBe(commands.length)

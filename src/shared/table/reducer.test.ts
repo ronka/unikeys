@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { chord, parseCanonical, stroke } from '../chord'
 import type { Catalogue } from '../catalogue/types'
 import {
-  appsMissingFromStore,
   createEmptyStore,
   deserializeStore,
+  isCellUnseen,
   serializeStore,
   type Store,
   type StoredChord
@@ -556,37 +556,21 @@ describe('import and app configuration', () => {
     expect(canonicalOf(next, 'file.save', 'vscode')).toBe('alt+cmd+s')
   })
 
-  it('spots an app the store has never held any chord for', () => {
-    // How a column added in an update gets filled: import runs once, so without
-    // this the new app would render an empty column forever.
+  it('treats only a cell with no entry at all as unseen', () => {
+    // The rule that keeps a backfill safe: it fills holes and nothing else.
     const store = storeWith({
       'file.save': {
         vscode: { chord: 'cmd+s', origin: 'default' },
-        webstorm: { chord: 'ctrl+s', origin: 'imported' }
-      },
-      'terminal.split-right': { ghostty: { chord: 'shift+cmd+d', origin: 'default' } }
+        webstorm: { chord: null, origin: 'user' }
+      }
     })
 
-    expect(appsMissingFromStore(store)).toEqual(['cursor', 'cmux'])
-  })
-
-  it('does not mistake an app the user unbound everywhere for a new one', () => {
-    // Unbinding leaves entries behind, so re-importing here would resurrect
-    // exactly the defaults the user just switched off.
-    const store = storeWith({
-      'file.save': { cmux: { chord: null, origin: 'user' } }
-    })
-
-    expect(appsMissingFromStore(store)).not.toContain('cmux')
-  })
-
-  it('ignores a disabled app, which has no column to fill', () => {
-    const store = {
-      ...createEmptyStore(),
-      apps: { ...createEmptyStore().apps, cmux: { enabled: false, configPath: null } }
-    }
-
-    expect(appsMissingFromStore(store)).not.toContain('cmux')
+    expect(isCellUnseen(store, 'file.save', 'vscode')).toBe(false)
+    // Deliberately unbound is a decision, not a hole.
+    expect(isCellUnseen(store, 'file.save', 'webstorm')).toBe(false)
+    expect(isCellUnseen(store, 'file.save', 'cursor')).toBe(true)
+    // A row the catalogue gained after the last import.
+    expect(isCellUnseen(store, 'pane.focus-up', 'vscode')).toBe(true)
   })
 
   it('records app enablement and a hand-set config path', () => {

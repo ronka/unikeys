@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { APP_IDS, type AppId } from '../apps'
+import { CMUX_ACTION_IDS } from '../adapters/cmux'
 import { CATEGORIES, type CatalogueAction } from './types'
 import { ACTIONS, CATALOGUE, actionById, actionsByCategory, loadCatalogue } from './index'
 import catalogueData from './catalogue.json'
@@ -13,9 +14,9 @@ describe('the shipped catalogue', () => {
     expect(CATALOGUE.version).toBe(1)
   })
 
-  it('ships roughly thirty actions', () => {
-    expect(ACTIONS.length).toBeGreaterThanOrEqual(28)
-    expect(ACTIONS.length).toBeLessThanOrEqual(34)
+  it('ships roughly forty actions', () => {
+    expect(ACTIONS.length).toBeGreaterThanOrEqual(32)
+    expect(ACTIONS.length).toBeLessThanOrEqual(42)
   })
 
   it('gives every action a unique id', () => {
@@ -58,6 +59,18 @@ describe('the shipped catalogue', () => {
     expect(partial.length).toBeGreaterThan(0)
     // Ghostty is a terminal: editor-only actions must not invent a mapping.
     expect(actionById('edit.rename-symbol')?.commands.ghostty).toBeUndefined()
+  })
+
+  it('only maps cmux action ids cmux itself accepts', () => {
+    // cmux's `shortcuts.bindings` is `additionalProperties: false`, so an id
+    // outside its enum would make cmux reject the whole file on save.
+    for (const action of ACTIONS) {
+      const command = action.commands.cmux
+      if (command === undefined) continue
+      expect(CMUX_ACTION_IDS.has(command), `${action.id} maps unknown cmux id "${command}"`).toBe(
+        true
+      )
+    }
   })
 
   it('marks shipped actions as builtin', () => {
