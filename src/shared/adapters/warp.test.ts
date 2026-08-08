@@ -3,8 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 import { chord, formatCanonical, stroke } from '../chord'
-import catalogueData from '../catalogue/catalogue.json'
-import warpCommands from '../catalogue/catalogue-warp.json'
+import { ACTIONS } from '../catalogue'
 import type { ManagedBinding, MergeOutcome, ParseOutcome } from './types'
 import { warpAdapter, WARP_ACTION_IDS } from './warp'
 
@@ -471,15 +470,20 @@ describe('defaults', () => {
   })
 })
 
-describe('the Warp catalogue fragment', () => {
-  const commands: Record<string, string> = warpCommands
-  const catalogueIds = new Set(catalogueData.actions.map((action) => action.id))
-
-  it('names only actions that exist in the shipped catalogue', () => {
-    for (const id of Object.keys(commands)) {
-      expect(catalogueIds.has(id), `${id} is not a catalogue action`).toBe(true)
-    }
-  })
+/**
+ * These read the shipped catalogue rather than the `catalogue-warp.json`
+ * fragment they were written against: ticket 26 folded the fragment in and
+ * deleted it. The "is this a real action id" check went with it — derived from
+ * `ACTIONS`, every key is one by construction, and `validateCatalogue` already
+ * refuses an unknown app key. Everything else here is still worth asserting.
+ */
+describe('the catalogue’s Warp column', () => {
+  const commands: Record<string, string> = Object.fromEntries(
+    ACTIONS.filter((action) => action.commands.warp !== undefined).map((action) => [
+      action.id,
+      action.commands.warp as string
+    ])
+  )
 
   it('names only Warp actions the adapter knows', () => {
     for (const [id, command] of Object.entries(commands)) {

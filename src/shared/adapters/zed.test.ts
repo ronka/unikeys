@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest'
 
 import { chord, formatCanonical, parseCanonical, stroke } from '../chord'
 import { ACTIONS } from '../catalogue'
-import zedCommands from '../catalogue/catalogue-zed.json'
 import type { ManagedBinding } from './types'
 import { zedAdapter } from './zed'
 
@@ -548,15 +547,20 @@ describe('defaults', () => {
   })
 })
 
-describe('catalogue fragment', () => {
-  const commands: Record<string, string> = zedCommands
-
-  it('maps only real catalogue actions', () => {
-    const ids = new Set(ACTIONS.map((action) => action.id))
-    for (const id of Object.keys(commands)) {
-      expect(ids.has(id), `${id} is not a catalogue action`).toBe(true)
-    }
-  })
+/**
+ * These read the shipped catalogue rather than the `catalogue-zed.json`
+ * fragment they were written against: ticket 26 folded the fragment in and
+ * deleted it. The "is this a real action id" check went with it — derived from
+ * `ACTIONS`, every key is one by construction, and `validateCatalogue` already
+ * refuses an unknown app key. Everything else here is still worth asserting.
+ */
+describe('the catalogue’s Zed column', () => {
+  const commands: Record<string, string> = Object.fromEntries(
+    ACTIONS.filter((action) => action.commands.zed !== undefined).map((action) => [
+      action.id,
+      action.commands.zed as string
+    ])
+  )
 
   it('names every command in Zed’s namespaced form', () => {
     for (const [id, command] of Object.entries(commands)) {

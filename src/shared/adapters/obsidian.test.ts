@@ -2,8 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 import { chord, formatCanonical, parseCanonical, stroke } from '../chord'
-import catalogueData from '../catalogue/catalogue.json'
-import obsidianCommands from '../catalogue/catalogue-obsidian.json'
+import { ACTIONS } from '../catalogue'
 import { obsidianAdapter } from './obsidian'
 import type { ManagedBinding } from './types'
 
@@ -459,17 +458,17 @@ describe('defaults', () => {
   })
 })
 
-describe('the catalogue fragment', () => {
-  const actionIds = new Set(catalogueData.actions.map((action) => action.id))
-  const entries = Object.entries(obsidianCommands as Record<string, string>)
-
-  it('names actions the catalogue really has', () => {
-    // Nothing else reads this file until ticket 26 folds it in, so a typo would
-    // otherwise ship silently and land on that ticket.
-    for (const [id] of entries) {
-      expect(actionIds.has(id), `${id} is not a catalogue action`).toBe(true)
-    }
-  })
+/**
+ * These read the shipped catalogue rather than the `catalogue-obsidian.json`
+ * fragment they were written against: ticket 26 folded the fragment in and
+ * deleted it. The "is this a real action id" check went with it — derived from
+ * `ACTIONS`, every key is one by construction, and `validateCatalogue` already
+ * refuses an unknown app key. Everything else here is still worth asserting.
+ */
+describe('the catalogue’s Obsidian column', () => {
+  const entries = ACTIONS.filter((action) => action.commands.obsidian !== undefined).map(
+    (action) => [action.id, action.commands.obsidian as string] as const
+  )
 
   it('maps a handful of rows and leaves the natively-handled ones alone', () => {
     expect(entries.length).toBeGreaterThanOrEqual(8)

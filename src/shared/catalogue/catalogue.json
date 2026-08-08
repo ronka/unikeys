@@ -10,9 +10,11 @@
         "cursor": "workbench.action.files.save",
         "kiro": "workbench.action.files.save",
         "antigravity": "workbench.action.files.save",
+        "zed": "workspace::Save",
         "webstorm": "SaveDocument",
         "intellij": "SaveDocument",
-        "pycharm": "SaveDocument"
+        "pycharm": "SaveDocument",
+        "obsidian": "editor:save-file"
       }
     },
     {
@@ -24,6 +26,7 @@
         "cursor": "workbench.action.files.saveAll",
         "kiro": "workbench.action.files.saveAll",
         "antigravity": "workbench.action.files.saveAll",
+        "zed": "workspace::SaveAll",
         "webstorm": "SaveAll",
         "intellij": "SaveAll",
         "pycharm": "SaveAll"
@@ -38,6 +41,7 @@
         "cursor": "undo",
         "kiro": "undo",
         "antigravity": "undo",
+        "zed": "editor::Undo",
         "webstorm": "$Undo",
         "intellij": "$Undo",
         "pycharm": "$Undo"
@@ -52,11 +56,13 @@
         "cursor": "editor.action.clipboardCopyAction",
         "kiro": "editor.action.clipboardCopyAction",
         "antigravity": "editor.action.clipboardCopyAction",
+        "zed": "editor::Copy",
         "webstorm": "$Copy",
         "intellij": "$Copy",
         "pycharm": "$Copy",
         "ghostty": "copy_to_clipboard",
-        "iterm2": "menu:copy"
+        "iterm2": "menu:copy",
+        "warp": "terminal:copy"
       }
     },
     {
@@ -68,11 +74,13 @@
         "cursor": "editor.action.clipboardPasteAction",
         "kiro": "editor.action.clipboardPasteAction",
         "antigravity": "editor.action.clipboardPasteAction",
+        "zed": "editor::Paste",
         "webstorm": "$Paste",
         "intellij": "$Paste",
         "pycharm": "$Paste",
         "ghostty": "paste_from_clipboard",
-        "iterm2": "menu:paste"
+        "iterm2": "menu:paste",
+        "warp": "terminal:paste"
       }
     },
     {
@@ -84,11 +92,13 @@
         "cursor": "editor.action.selectAll",
         "kiro": "editor.action.selectAll",
         "antigravity": "editor.action.selectAll",
+        "zed": "editor::SelectAll",
         "webstorm": "$SelectAll",
         "intellij": "$SelectAll",
         "pycharm": "$SelectAll",
         "ghostty": "select_all",
-        "iterm2": "menu:select-all"
+        "iterm2": "menu:select-all",
+        "warp": "terminal:select_all_blocks"
       }
     },
     {
@@ -100,6 +110,7 @@
         "cursor": "editor.action.commentLine",
         "kiro": "editor.action.commentLine",
         "antigravity": "editor.action.commentLine",
+        "zed": "editor::ToggleComments",
         "webstorm": "CommentByLineComment",
         "intellij": "CommentByLineComment",
         "pycharm": "CommentByLineComment"
@@ -114,6 +125,7 @@
         "cursor": "editor.action.formatDocument",
         "kiro": "editor.action.formatDocument",
         "antigravity": "editor.action.formatDocument",
+        "zed": "editor::Format",
         "webstorm": "ReformatCode",
         "intellij": "ReformatCode",
         "pycharm": "ReformatCode"
@@ -128,6 +140,7 @@
         "cursor": "editor.action.rename",
         "kiro": "editor.action.rename",
         "antigravity": "editor.action.rename",
+        "zed": "editor::Rename",
         "webstorm": "RenameElement",
         "intellij": "RenameElement",
         "pycharm": "RenameElement"
@@ -142,6 +155,7 @@
         "cursor": "editor.action.copyLinesDownAction",
         "kiro": "editor.action.copyLinesDownAction",
         "antigravity": "editor.action.copyLinesDownAction",
+        "zed": "editor::DuplicateLineDown",
         "webstorm": "EditorDuplicate",
         "intellij": "EditorDuplicate",
         "pycharm": "EditorDuplicate"
@@ -156,10 +170,13 @@
         "cursor": "workbench.action.showCommands",
         "kiro": "workbench.action.showCommands",
         "antigravity": "workbench.action.showCommands",
+        "zed": "command_palette::Toggle",
         "webstorm": "GotoAction",
         "intellij": "GotoAction",
         "pycharm": "GotoAction",
-        "cmux": "commandPalette"
+        "cmux": "commandPalette",
+        "warp": "workspace:toggle_command_palette",
+        "obsidian": "command-palette:open"
       }
     },
     {
@@ -171,9 +188,11 @@
         "cursor": "workbench.action.quickOpen",
         "kiro": "workbench.action.quickOpen",
         "antigravity": "workbench.action.quickOpen",
+        "zed": "file_finder::Toggle",
         "webstorm": "GotoFile",
         "intellij": "GotoFile",
-        "pycharm": "GotoFile"
+        "pycharm": "GotoFile",
+        "obsidian": "switcher:open"
       }
     },
     {
@@ -185,6 +204,7 @@
         "cursor": "workbench.action.showAllSymbols",
         "kiro": "workbench.action.showAllSymbols",
         "antigravity": "workbench.action.showAllSymbols",
+        "zed": "project_symbols::Toggle",
         "webstorm": "GotoClass",
         "intellij": "GotoClass",
         "pycharm": "GotoClass"
@@ -199,6 +219,7 @@
         "cursor": "workbench.action.gotoLine",
         "kiro": "workbench.action.gotoLine",
         "antigravity": "workbench.action.gotoLine",
+        "zed": "go_to_line::Toggle",
         "webstorm": "GotoLine",
         "intellij": "GotoLine",
         "pycharm": "GotoLine"
@@ -213,6 +234,7 @@
         "cursor": "editor.action.revealDefinition",
         "kiro": "editor.action.revealDefinition",
         "antigravity": "editor.action.revealDefinition",
+        "zed": "editor::GoToDefinition",
         "webstorm": "GotoDeclaration",
         "intellij": "GotoDeclaration",
         "pycharm": "GotoDeclaration"
@@ -227,10 +249,12 @@
         "cursor": "workbench.action.findInFiles",
         "kiro": "workbench.action.findInFiles",
         "antigravity": "workbench.action.findInFiles",
+        "zed": "pane::DeploySearch",
         "webstorm": "FindInPath",
         "intellij": "FindInPath",
         "pycharm": "FindInPath",
-        "cmux": "findInDirectory"
+        "cmux": "findInDirectory",
+        "obsidian": "global-search:open"
       }
     },
     {
@@ -242,10 +266,12 @@
         "cursor": "workbench.action.navigateBack",
         "kiro": "workbench.action.navigateBack",
         "antigravity": "workbench.action.navigateBack",
+        "zed": "pane::GoBack",
         "webstorm": "Back",
         "intellij": "Back",
         "pycharm": "Back",
-        "cmux": "focusHistoryBack"
+        "cmux": "focusHistoryBack",
+        "obsidian": "app:go-back"
       }
     },
     {
@@ -257,10 +283,12 @@
         "cursor": "workbench.action.navigateForward",
         "kiro": "workbench.action.navigateForward",
         "antigravity": "workbench.action.navigateForward",
+        "zed": "pane::GoForward",
         "webstorm": "Forward",
         "intellij": "Forward",
         "pycharm": "Forward",
-        "cmux": "focusHistoryForward"
+        "cmux": "focusHistoryForward",
+        "obsidian": "app:go-forward"
       }
     },
     {
@@ -272,12 +300,15 @@
         "cursor": "workbench.action.nextEditor",
         "kiro": "workbench.action.nextEditor",
         "antigravity": "workbench.action.nextEditor",
+        "zed": "pane::ActivateNextItem",
         "webstorm": "NextTab",
         "intellij": "NextTab",
         "pycharm": "NextTab",
         "ghostty": "next_tab",
         "cmux": "nextSurface",
-        "iterm2": "action:next-tab"
+        "iterm2": "action:next-tab",
+        "warp": "workspace:activate_next_tab",
+        "obsidian": "workspace:next-tab"
       }
     },
     {
@@ -289,12 +320,15 @@
         "cursor": "workbench.action.previousEditor",
         "kiro": "workbench.action.previousEditor",
         "antigravity": "workbench.action.previousEditor",
+        "zed": "pane::ActivatePrevItem",
         "webstorm": "PreviousTab",
         "intellij": "PreviousTab",
         "pycharm": "PreviousTab",
         "ghostty": "previous_tab",
         "cmux": "prevSurface",
-        "iterm2": "action:previous-tab"
+        "iterm2": "action:previous-tab",
+        "warp": "workspace:activate_prev_tab",
+        "obsidian": "workspace:previous-tab"
       }
     },
     {
@@ -306,6 +340,7 @@
         "cursor": "workbench.action.newWindow",
         "kiro": "workbench.action.newWindow",
         "antigravity": "workbench.action.newWindow",
+        "zed": "workspace::NewWindow",
         "ghostty": "new_window",
         "cmux": "newWindow",
         "iterm2": "action:new-window"
@@ -320,12 +355,14 @@
         "cursor": "workbench.action.closeActiveEditor",
         "kiro": "workbench.action.closeActiveEditor",
         "antigravity": "workbench.action.closeActiveEditor",
+        "zed": "pane::CloseActiveItem",
         "webstorm": "CloseContent",
         "intellij": "CloseContent",
         "pycharm": "CloseContent",
         "ghostty": "close_surface",
         "cmux": "closeTab",
-        "iterm2": "menu:close"
+        "iterm2": "menu:close",
+        "obsidian": "workspace:close"
       }
     },
     {
@@ -337,6 +374,7 @@
         "cursor": "workbench.action.toggleFullScreen",
         "kiro": "workbench.action.toggleFullScreen",
         "antigravity": "workbench.action.toggleFullScreen",
+        "zed": "zed::ToggleFullScreen",
         "webstorm": "ToggleFullScreen",
         "intellij": "ToggleFullScreen",
         "pycharm": "ToggleFullScreen",
@@ -354,12 +392,15 @@
         "cursor": "workbench.action.splitEditorRight",
         "kiro": "workbench.action.splitEditorRight",
         "antigravity": "workbench.action.splitEditorRight",
+        "zed": "pane::SplitRight",
         "webstorm": "SplitVertically",
         "intellij": "SplitVertically",
         "pycharm": "SplitVertically",
         "ghostty": "new_split:right",
         "cmux": "splitRight",
-        "iterm2": "action:split-vertically"
+        "iterm2": "action:split-vertically",
+        "warp": "pane_group:add_right",
+        "obsidian": "workspace:split-vertical"
       }
     },
     {
@@ -371,12 +412,15 @@
         "cursor": "workbench.action.splitEditorDown",
         "kiro": "workbench.action.splitEditorDown",
         "antigravity": "workbench.action.splitEditorDown",
+        "zed": "pane::SplitDown",
         "webstorm": "SplitHorizontally",
         "intellij": "SplitHorizontally",
         "pycharm": "SplitHorizontally",
         "ghostty": "new_split:down",
         "cmux": "splitDown",
-        "iterm2": "action:split-horizontally"
+        "iterm2": "action:split-horizontally",
+        "warp": "pane_group:add_down",
+        "obsidian": "workspace:split-horizontal"
       }
     },
     {
@@ -388,9 +432,11 @@
         "cursor": "workbench.action.focusLeftGroup",
         "kiro": "workbench.action.focusLeftGroup",
         "antigravity": "workbench.action.focusLeftGroup",
+        "zed": "workspace::ActivatePaneLeft",
         "ghostty": "goto_split:left",
         "cmux": "focusLeft",
-        "iterm2": "action:select-pane-left"
+        "iterm2": "action:select-pane-left",
+        "warp": "pane_group:navigate_left"
       }
     },
     {
@@ -402,9 +448,11 @@
         "cursor": "workbench.action.focusRightGroup",
         "kiro": "workbench.action.focusRightGroup",
         "antigravity": "workbench.action.focusRightGroup",
+        "zed": "workspace::ActivatePaneRight",
         "ghostty": "goto_split:right",
         "cmux": "focusRight",
-        "iterm2": "action:select-pane-right"
+        "iterm2": "action:select-pane-right",
+        "warp": "pane_group:navigate_right"
       }
     },
     {
@@ -416,9 +464,11 @@
         "cursor": "workbench.action.focusAboveGroup",
         "kiro": "workbench.action.focusAboveGroup",
         "antigravity": "workbench.action.focusAboveGroup",
+        "zed": "workspace::ActivatePaneUp",
         "ghostty": "goto_split:up",
         "cmux": "focusUp",
-        "iterm2": "action:select-pane-above"
+        "iterm2": "action:select-pane-above",
+        "warp": "pane_group:navigate_up"
       }
     },
     {
@@ -430,9 +480,11 @@
         "cursor": "workbench.action.focusBelowGroup",
         "kiro": "workbench.action.focusBelowGroup",
         "antigravity": "workbench.action.focusBelowGroup",
+        "zed": "workspace::ActivatePaneDown",
         "ghostty": "goto_split:down",
         "cmux": "focusDown",
-        "iterm2": "action:select-pane-below"
+        "iterm2": "action:select-pane-below",
+        "warp": "pane_group:navigate_down"
       }
     },
     {
@@ -449,7 +501,8 @@
         "pycharm": "NextSplitter",
         "ghostty": "goto_split:next",
         "cmux": "focusNextPane",
-        "iterm2": "action:next-pane"
+        "iterm2": "action:next-pane",
+        "warp": "pane_group:navigate_next"
       }
     },
     {
@@ -466,7 +519,8 @@
         "pycharm": "PrevSplitter",
         "ghostty": "goto_split:previous",
         "cmux": "focusPreviousPane",
-        "iterm2": "action:previous-pane"
+        "iterm2": "action:previous-pane",
+        "warp": "pane_group:navigate_prev"
       }
     },
     {
@@ -478,12 +532,14 @@
         "cursor": "editor.action.fontZoomIn",
         "kiro": "editor.action.fontZoomIn",
         "antigravity": "editor.action.fontZoomIn",
+        "zed": "zed::IncreaseBufferFontSize",
         "webstorm": "EditorIncreaseFontSize",
         "intellij": "EditorIncreaseFontSize",
         "pycharm": "EditorIncreaseFontSize",
         "ghostty": "increase_font_size:1",
         "cmux": "increaseWorkspaceTerminalFontSize",
-        "iterm2": "menu:make-text-bigger"
+        "iterm2": "menu:make-text-bigger",
+        "warp": "workspace:increase_font_size"
       }
     },
     {
@@ -495,12 +551,14 @@
         "cursor": "editor.action.fontZoomOut",
         "kiro": "editor.action.fontZoomOut",
         "antigravity": "editor.action.fontZoomOut",
+        "zed": "zed::DecreaseBufferFontSize",
         "webstorm": "EditorDecreaseFontSize",
         "intellij": "EditorDecreaseFontSize",
         "pycharm": "EditorDecreaseFontSize",
         "ghostty": "decrease_font_size:1",
         "cmux": "decreaseWorkspaceTerminalFontSize",
-        "iterm2": "menu:make-text-smaller"
+        "iterm2": "menu:make-text-smaller",
+        "warp": "workspace:decrease_font_size"
       }
     },
     {
@@ -512,12 +570,14 @@
         "cursor": "editor.action.fontZoomReset",
         "kiro": "editor.action.fontZoomReset",
         "antigravity": "editor.action.fontZoomReset",
+        "zed": "zed::ResetBufferFontSize",
         "webstorm": "EditorResetFontSize",
         "intellij": "EditorResetFontSize",
         "pycharm": "EditorResetFontSize",
         "ghostty": "reset_font_size",
         "cmux": "resetWorkspaceTerminalFontSize",
-        "iterm2": "menu:make-text-normal-size"
+        "iterm2": "menu:make-text-normal-size",
+        "warp": "workspace:reset_font_size"
       }
     },
     {
@@ -529,6 +589,7 @@
         "cursor": "workbench.action.terminal.toggleTerminal",
         "kiro": "workbench.action.terminal.toggleTerminal",
         "antigravity": "workbench.action.terminal.toggleTerminal",
+        "zed": "terminal_panel::ToggleFocus",
         "webstorm": "ActivateTerminalToolWindow",
         "intellij": "ActivateTerminalToolWindow",
         "pycharm": "ActivateTerminalToolWindow"
@@ -544,7 +605,8 @@
         "kiro": "workbench.action.terminal.new",
         "antigravity": "workbench.action.terminal.new",
         "cmux": "newSurface",
-        "iterm2": "action:new-tab"
+        "iterm2": "action:new-tab",
+        "warp": "workspace:new_tab"
       }
     },
     {
@@ -556,9 +618,11 @@
         "cursor": "workbench.action.terminal.clear",
         "kiro": "workbench.action.terminal.clear",
         "antigravity": "workbench.action.terminal.clear",
+        "zed": "terminal::Clear",
         "ghostty": "clear_screen",
         "cmux": "clearScreenKeepScrollback",
-        "iterm2": "menu:clear-buffer"
+        "iterm2": "menu:clear-buffer",
+        "warp": "input:clear_screen"
       }
     },
     {

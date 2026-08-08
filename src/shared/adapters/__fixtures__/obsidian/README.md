@@ -11,7 +11,7 @@ faithfully as possible — an object of command id to an array of
 an empty array for a command the user has explicitly unbound — but they are a
 reconstruction, not evidence.
 
-The **command ids** used here and in `../../../catalogue/catalogue-obsidian.json`
+The **command ids** used here and in the shipped catalogue's `obsidian` commands
 come from the same place: Obsidian's documented command names, not a list read out
 of a running app. `switcher:open`, `command-palette:open`, `workspace:split-vertical`
 and the rest are ids a real vault should confirm before unikeys is trusted to write

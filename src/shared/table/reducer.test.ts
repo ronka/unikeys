@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { APP_IDS, APPS } from '../apps'
+import { ACTIONS, CATALOGUE } from '../catalogue'
 import { chord, parseCanonical, stroke } from '../chord'
 import type { Catalogue } from '../catalogue/types'
 import {
@@ -211,6 +213,53 @@ describe('linking', () => {
     expect(effectiveLinked(next, 'file.save')).toBe(true)
     for (const app of ['vscode', 'cursor', 'webstorm', 'ghostty'] as const) {
       expect(canonicalOf(next, 'file.save', app)).toBe('ctrl+s')
+    }
+  })
+
+  /**
+   * The other linking tests run against the small fixture catalogue above, so
+   * none of them says what happens at thirteen columns. This one runs against
+   * the shipped catalogue: with the table this wide a linked row reaches across
+   * categories at once — editors, terminals and Obsidian — and the apps it
+   * reaches are exactly the mapped ones, never the whole column set.
+   */
+  it('propagates a linked row across every mapped app of the shipped thirteen', () => {
+    const action = ACTIONS.find((candidate) => candidate.id === 'navigate.command-palette')!
+    const mapped = APP_IDS.filter((app) => action.commands[app] !== undefined)
+    const unmapped = APP_IDS.filter((app) => action.commands[app] === undefined)
+
+    // The row is worth this test only if it really does span the table.
+    expect(mapped.length).toBeGreaterThan(6)
+    expect(unmapped.length).toBeGreaterThan(0)
+    expect(mapped).toContain('obsidian')
+    expect(new Set(mapped.map((app) => APPS[app].category)).size).toBeGreaterThan(1)
+
+    const state = createTableState(
+      storeWith({ 'navigate.command-palette': { vscode: imported('shift+cmd+p') } })
+    )
+    const next = tableReducer(
+      state,
+      {
+        type: 'linkRow',
+        actionId: 'navigate.command-palette',
+        winningChord: parseCanonical('cmd+k')!
+      },
+      CATALOGUE
+    )
+
+    expect(effectiveLinked(next, 'navigate.command-palette')).toBe(true)
+    for (const app of mapped) {
+      expect(
+        effectiveChord(next, 'navigate.command-palette', app)?.chord,
+        `${app} did not receive the linked chord`
+      ).toBe('cmd+k')
+    }
+    // An unmapped app has no cell to fill, so linking must not invent one.
+    for (const app of unmapped) {
+      expect(
+        effectiveChord(next, 'navigate.command-palette', app),
+        `${app} is unmapped and should have been left alone`
+      ).toBeUndefined()
     }
   })
 

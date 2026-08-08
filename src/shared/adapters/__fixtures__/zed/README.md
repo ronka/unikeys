@@ -16,7 +16,7 @@ the same reason: Zed keeps its default keymap inside the application bundle
 (`assets/keymaps/default-macos.json`), where this adapter cannot read it. Actions
 whose default chord could not be sourced carry none at all, which is why
 `defaults('zed')` reports `partial`. The same rule governs
-`../../../catalogue/catalogue-zed.json`: an action Zed has no confirmed command
+the shipped catalogue's `zed` commands: an action Zed has no confirmed command
 for is omitted rather than guessed at.
 
 **Replace all of this with real captures when a Mac with Zed is available**, and
@@ -37,7 +37,7 @@ Capture procedure, for whoever gets to a Mac with Zed first:
 1. Rebind a few actions in Zed, unbind one, and add a two-keystroke sequence, then
    copy `~/.config/zed/keymap.json` (scrubbed of anything personal).
 2. Run `zed: open default keymap` from the command palette and use it to check
-   `DEFAULT_KEYS` and `catalogue-zed.json` action names line by line. The four
+   `DEFAULT_KEYS` and the catalogue's `zed` action names line by line. The four
    action names authored with least confidence are
    `workspace::ActivatePaneLeft`/`Right`/`Up`/`Down` and `pane::DeploySearch`.
 3. Bind one action in your own block and the same action through unikeys, and
