@@ -7,7 +7,7 @@ plain text, one binding per line — and it should be built the same way.
 
 **Blocked by:** 20.
 
-**Status:** ready-for-agent
+**Status:** done — branch `feat/apps-warp`, commit `e8c87c1`
 
 **Files you own:** `src/shared/adapters/warp.ts`, `src/shared/adapters/warp.test.ts`,
 `src/shared/adapters/__fixtures__/warp/`, `src/shared/catalogue/catalogue-warp.json`.
@@ -74,11 +74,11 @@ problem, and a file with no trailing newline.
 
 ## Definition of done
 
-- [ ] The table shows a Warp column populated from `~/.warp/keybindings.yaml`
-- [ ] Warp's chord notation converts to and from the canonical chord in both directions
-- [ ] A two-keystroke chord is reported as inexpressible rather than written or dropped
-- [ ] Merge is textual: unchanged content round-trips byte-identically, and comments, ordering and unmanaged bindings survive
-- [ ] A line the scanner cannot read becomes a parse problem, not a failed file
-- [ ] `defaults('warp')` reports an availability that matches how the list was actually sourced
-- [ ] `catalogue-warp.json` exists and maps only actions Warp really has
-- [ ] `npm test`, `npm run typecheck` and `npm run lint` pass
+- [ ] The table shows a Warp column populated from `~/.warp/keybindings.yaml` — renderer work, lands with ticket 27; Warp is not installed here so this stays unobserved
+- [x] Warp's chord notation converts to and from the canonical chord in both directions
+- [x] A two-keystroke chord is reported as inexpressible rather than written or dropped
+- [x] Merge is textual: unchanged content round-trips byte-identically, and comments, ordering and unmanaged bindings survive
+- [x] A line the scanner cannot read becomes a parse problem, not a failed file
+- [x] `defaults('warp')` reports an availability that matches how the list was actually sourced
+- [x] `catalogue-warp.json` exists and maps only actions Warp really has
+- [x] `npm test`, `npm run typecheck` and `npm run lint` pass

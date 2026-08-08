@@ -9,7 +9,7 @@ ticket has to make that state read sensibly to a user.
 
 **Blocked by:** 20.
 
-**Status:** ready-for-agent
+**Status:** done — branch `feat/apps-obsidian`, commit `ad750e9`
 
 **Files you own:** `src/shared/adapters/obsidian.ts`,
 `src/shared/adapters/obsidian.test.ts`,
@@ -114,12 +114,12 @@ single command, one with a `Mod`+`Ctrl` mix, an empty `{}`, and a malformed file
 
 ## Definition of done
 
-- [ ] The table shows an Obsidian column, populated once the user points unikeys at a vault's `hotkeys.json`
-- [ ] `Mod` maps to Cmd and `Ctrl` maps to Ctrl, in both directions, under test
-- [ ] An empty binding array reads as an explicit unbind, not as an unmentioned command
-- [ ] Extra bindings for a managed command survive a merge untouched
-- [ ] Merging unchanged content round-trips byte-identically
-- [ ] With no path configured, the Apps page says what to point at and where to find it, and no save writes anywhere
-- [ ] An override naming a `.obsidian` directory resolves to `hotkeys.json` inside it
-- [ ] `catalogue-obsidian.json` exists and maps only actions Obsidian really has
-- [ ] `npm test`, `npm run typecheck` and `npm run lint` pass
+- [ ] The table shows an Obsidian column — renderer work, lands with ticket 27; Obsidian is not installed here so this stays unobserved
+- [x] `Mod` maps to Cmd and `Ctrl` maps to Ctrl, in both directions, under test
+- [x] An empty binding array reads as an explicit unbind, not as an unmentioned command
+- [x] Extra bindings for a managed command survive a merge untouched
+- [x] Merging unchanged content round-trips byte-identically
+- [x] With no path configured, the Apps page says what to point at and where to find it, and no save writes anywhere
+- [x] An override naming a `.obsidian` directory resolves to `hotkeys.json` inside it
+- [x] `catalogue-obsidian.json` exists and maps only actions Obsidian really has
+- [x] `npm test`, `npm run typecheck` and `npm run lint` pass

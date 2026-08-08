@@ -136,9 +136,9 @@ Every Wave 2 agent gets the same closing instruction:
 | 21 | `issues/21-intellij-and-pycharm.md` | 2, worktree | done — merged `1924dbd` |
 | 22 | `issues/22-kiro-and-antigravity.md` | 2, worktree | done — merged `2a6f9de` |
 | 23 | `issues/23-zed-adapter.md` | 2, worktree | done — merged `21bd84f` |
-| 24 | `issues/24-warp-adapter.md` | 2, worktree | in progress |
-| 25 | `issues/25-obsidian-adapter.md` | 2, worktree | in progress |
-| 26 | `issues/26-catalogue-integration.md` | 3, serial | not started |
+| 24 | `issues/24-warp-adapter.md` | 2, worktree | done — merged `e8c87c1` |
+| 25 | `issues/25-obsidian-adapter.md` | 2, worktree | done — merged `ad750e9` |
+| 26 | `issues/26-catalogue-integration.md` | 3, serial | in progress |
 | 27 | `issues/27-thirteen-columns.md` | 3, serial | not started |
 
 ## Verification asymmetry — say it out loud
