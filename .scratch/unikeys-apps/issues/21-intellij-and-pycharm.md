@@ -8,7 +8,7 @@ adapter stops being about WebStorm specifically — in its `apps` list, in its
 
 **Blocked by:** 20.
 
-**Status:** ready-for-agent
+**Status:** done — branch `feat/apps-jetbrains`, commit `1924dbd`
 
 **Files you own:** `src/shared/adapters/jetbrains.ts`,
 `src/shared/adapters/jetbrains.test.ts`,
@@ -50,9 +50,9 @@ and `defaults()` for an unrelated app still returning `unavailable`.
 
 ## Definition of done
 
-- [ ] The table shows IntelliJ IDEA and PyCharm columns, populated from a real keymap when one exists
-- [ ] `adapterFor('intellij')` and `adapterFor('pycharm')` both resolve to the JetBrains adapter
-- [ ] `defaults()` returns the curated macOS keymap for all three IDEs and `unavailable` for anything else
-- [ ] No user-visible string from this adapter says "WebStorm" when the column is IntelliJ or PyCharm
-- [ ] Both IDEs' versioned config directories resolve, including the Community Edition directory names
-- [ ] `npm test`, `npm run typecheck` and `npm run lint` pass
+- [ ] The table shows IntelliJ IDEA and PyCharm columns, populated from a real keymap when one exists — renderer work, lands with ticket 27
+- [x] `adapterFor('intellij')` and `adapterFor('pycharm')` both resolve to the JetBrains adapter
+- [x] `defaults()` returns the curated macOS keymap for all three IDEs and `unavailable` for anything else
+- [x] No user-visible string from this adapter says "WebStorm" when the column is IntelliJ or PyCharm
+- [x] Both IDEs' versioned config directories resolve, including the Community Edition directory names
+- [x] `npm test`, `npm run typecheck` and `npm run lint` pass

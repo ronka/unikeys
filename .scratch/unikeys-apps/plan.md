@@ -133,7 +133,7 @@ Every Wave 2 agent gets the same closing instruction:
 | # | File | Wave | Status |
 | --- | --- | --- | --- |
 | 20 | `issues/20-thirteen-app-ids.md` | 1, serial | done — `af9e744` |
-| 21 | `issues/21-intellij-and-pycharm.md` | 2, worktree | in progress |
+| 21 | `issues/21-intellij-and-pycharm.md` | 2, worktree | done — merged `1924dbd` |
 | 22 | `issues/22-kiro-and-antigravity.md` | 2, worktree | in progress |
 | 23 | `issues/23-zed-adapter.md` | 2, worktree | in progress |
 | 24 | `issues/24-warp-adapter.md` | 2, worktree | in progress |
