@@ -35,6 +35,11 @@ interface Props {
    * `useSidebarShortcut`.
    */
   shortcutBlocked: boolean
+  /**
+   * Controls for the current page, rendered in the top strip beside Save. Only
+   * the table has any: everything else narrows nothing.
+   */
+  controls?: React.ReactNode
   banners?: React.ReactNode
   children: React.ReactNode
 }
@@ -63,6 +68,7 @@ export function AppShell({
   saving,
   onSave,
   shortcutBlocked,
+  controls,
   banners,
   children
 }: Props): React.JSX.Element {
@@ -84,6 +90,7 @@ export function AppShell({
         saving={saving}
         onSave={onSave}
         shortcutBlocked={shortcutBlocked}
+        controls={controls}
         banners={banners}
       >
         {children}
@@ -104,6 +111,7 @@ function ShellBody({
   saving,
   onSave,
   shortcutBlocked,
+  controls,
   banners,
   children
 }: Omit<Props, never>): React.JSX.Element {
@@ -174,11 +182,12 @@ function ShellBody({
           instead of scrolling inside it. `min-h-0` is the same story for the
           vertical scroll. */}
       <SidebarInset className="min-h-0 min-w-0">
-        {/* `pl-3` is load-bearing — the trigger's margin below subtracts it by
-            hand. The right side is free to match the pages underneath, so Save
-            lines up with the banners and headings rather than sitting nearer
-            the window edge than anything else on screen. */}
-        <header className="drag-region flex h-11 shrink-0 items-center gap-2 pl-3 pr-6">
+        {/* Both sides match the pages underneath, so the search box, Save and
+            everything else in this strip line up with the banners and headings
+            below rather than sitting nearer the window edge than anything else
+            on screen. The `1.5rem` in the trigger's margin is this padding,
+            subtracted by hand — the two have to change together. */}
+        <header className="drag-region flex h-11 shrink-0 items-center gap-2 px-6">
           {/* Only when the sidebar's own header is out of reach: expanded it
               carries the trigger itself, and off-canvas on a narrow window it
               is behind a sheet that has to be openable from somewhere. The
@@ -190,11 +199,12 @@ function ShellBody({
               className="no-drag"
               style={{
                 marginLeft: isMobile
-                  ? 'calc(var(--traffic-light-inset) - 0.75rem)'
-                  : 'calc(var(--traffic-light-inset) - var(--sidebar-width-icon) - 0.75rem)'
+                  ? 'calc(var(--traffic-light-inset) - 1.5rem)'
+                  : 'calc(var(--traffic-light-inset) - var(--sidebar-width-icon) - 1.5rem)'
               }}
             />
           )}
+          {controls}
           <span className="flex-1" />
           {pendingCount > 0 && (
             <span className="text-pending text-xs tabular-nums">{pendingCount} pending</span>

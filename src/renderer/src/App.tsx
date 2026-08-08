@@ -36,7 +36,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { AppsPage } from './pages/AppsPage'
 import { HistoryPage } from './pages/HistoryPage'
-import { KeysPage } from './pages/KeysPage'
+import { KeysControls, KeysPage } from './pages/KeysPage'
 import { PendingPage } from './pages/PendingPage'
 import { SettingsPage } from './pages/SettingsPage'
 
@@ -334,6 +334,16 @@ function App(): React.JSX.Element {
       shortcutBlocked={
         editing !== null || overlay !== 'none' || linking !== null || copying !== null
       }
+      controls={
+        page === 'keys' ? (
+          <KeysControls
+            view={view}
+            search={search}
+            onSearchChange={setSearch}
+            appFilter={appFilter}
+          />
+        ) : undefined
+      }
       banners={
         <div className="empty:hidden shrink-0 space-y-2 px-6 pb-2">
           {error && (
@@ -362,8 +372,6 @@ function App(): React.JSX.Element {
       {page === 'keys' && (
         <KeysPage
           view={view}
-          search={search}
-          onSearchChange={setSearch}
           appFilter={appFilter}
           onAppFilterChange={setAppFilter}
           onStartCopy={setCopying}
