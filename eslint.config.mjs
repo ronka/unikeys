@@ -6,7 +6,11 @@ import eslintPluginReactHooks from 'eslint-plugin-react-hooks'
 import eslintPluginReactRefresh from 'eslint-plugin-react-refresh'
 
 export default defineConfig(
-  { ignores: ['**/node_modules', '**/dist', '**/out'] },
+  // `.claude` holds agent worktrees — whole extra checkouts of this repo. Left
+  // in, eslint lints every file twice and reports the second copy against the
+  // wrong rules, because the shadcn exemption below is anchored at `src/` and
+  // does not match a nested `.claude/worktrees/<agent>/src/`.
+  { ignores: ['**/node_modules', '**/dist', '**/out', '.claude'] },
   tseslint.configs.recommended,
   eslintPluginReact.configs.flat.recommended,
   eslintPluginReact.configs.flat['jsx-runtime'],
