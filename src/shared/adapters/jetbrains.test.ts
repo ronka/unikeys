@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { chord, formatCanonical, parseCanonical, stroke } from '../chord'
 import type { Chord } from '../chord'
+import { adapterFor } from './index'
 import { jetbrainsAdapter, parseKeymap, resolveInheritance } from './jetbrains'
 import type { Keymap } from './jetbrains'
 
@@ -49,14 +50,20 @@ function merged(
 }
 
 describe('adapter identity', () => {
-  it('declares its format and app', () => {
+  it('declares its format and every IDE it serves', () => {
     expect(jetbrainsAdapter.format).toBe('jetbrains-keymap')
-    expect(jetbrainsAdapter.apps).toEqual(['webstorm'])
+    expect(jetbrainsAdapter.apps).toEqual(['webstorm', 'intellij', 'pycharm'])
+  })
+
+  it('is the adapter the registry hands back for all three IDEs', () => {
+    for (const app of ['webstorm', 'intellij', 'pycharm'] as const) {
+      expect(adapterFor(app)).toBe(jetbrainsAdapter)
+    }
   })
 })
 
 describe('chord translation', () => {
-  it('encodes modifiers in the order WebStorm writes them', () => {
+  it('encodes modifiers in the order the IDEs write them', () => {
     expect(jetbrainsAdapter.encodeChord(canonical('cmd+shift+p'))).toEqual({
       ok: true,
       value: 'shift meta P'
@@ -120,13 +127,21 @@ describe('chord translation', () => {
     expect(formatCanonical(jetbrainsAdapter.decodeChord(encoded.value)!)).toBe('ctrl+t ctrl+r')
   })
 
-  it('refuses chords WebStorm cannot express', () => {
+  it('refuses chords a keymap cannot express, without naming one IDE', () => {
     expect(jetbrainsAdapter.encodeChord({ strokes: [] }).ok).toBe(false)
     const three = { strokes: [stroke('a', 'cmd'), stroke('b', 'cmd'), stroke('c', 'cmd')] }
-    expect(jetbrainsAdapter.encodeChord(three).ok).toBe(false)
-    expect(
-      jetbrainsAdapter.encodeChord({ strokes: [{ modifiers: ['cmd'], key: 'eject' }] }).ok
-    ).toBe(false)
+    const tooMany = jetbrainsAdapter.encodeChord(three)
+    expect(tooMany.ok).toBe(false)
+    const unknownKey = jetbrainsAdapter.encodeChord({
+      strokes: [{ modifiers: ['cmd'], key: 'eject' }]
+    })
+    expect(unknownKey.ok).toBe(false)
+    // The reason reaches the user beside an IntelliJ or PyCharm cell just as
+    // often as a WebStorm one, so it must not claim to be about WebStorm.
+    for (const outcome of [tooMany, unknownKey]) {
+      if (outcome.ok) continue
+      expect(outcome.reason).not.toMatch(/WebStorm/)
+    }
   })
 
   it('returns null rather than guessing at unreadable notation', () => {
@@ -475,7 +490,7 @@ describe('defaults', () => {
     expect(new Set(commands).size).toBe(commands.length)
   })
 
-  it('includes the bindings a WebStorm user would look for first', () => {
+  it('includes the bindings a JetBrains user would look for first', () => {
     const report = jetbrainsAdapter.defaults('webstorm')
     const found = new Map(report.bindings.map((b) => [b.command, formatCanonical(b.chord!)]))
     expect(found.get('SaveAll')).toBe('cmd+s')
@@ -488,10 +503,34 @@ describe('defaults', () => {
     expect(found.get('PrevSplitter')).toBe('alt+shift+tab')
   })
 
+  it('gives IntelliJ IDEA and PyCharm the very same report as WebStorm', () => {
+    // Every id in the table is a platform-level action, so a difference between
+    // the three would be a bug rather than a fact about the IDEs.
+    const webstorm = jetbrainsAdapter.defaults('webstorm')
+    expect(jetbrainsAdapter.defaults('intellij')).toEqual(webstorm)
+    expect(jetbrainsAdapter.defaults('pycharm')).toEqual(webstorm)
+  })
+
+  it('reports partial coverage for every IDE it serves', () => {
+    for (const app of jetbrainsAdapter.apps) {
+      const report = jetbrainsAdapter.defaults(app)
+      expect(report.availability).toBe('partial')
+      expect(report.bindings.length).toBeGreaterThan(20)
+    }
+  })
+
+  it('explains itself without naming one IDE', () => {
+    // The note sits above an IntelliJ or PyCharm column as readily as a
+    // WebStorm one.
+    expect(jetbrainsAdapter.defaults('intellij').note).not.toMatch(/WebStorm/)
+  })
+
   it('claims nothing for an app it does not serve', () => {
-    const report = jetbrainsAdapter.defaults('vscode')
-    expect(report.availability).toBe('unavailable')
-    expect(report.bindings).toEqual([])
+    for (const app of ['vscode', 'ghostty'] as const) {
+      const report = jetbrainsAdapter.defaults(app)
+      expect(report.availability).toBe('unavailable')
+      expect(report.bindings).toEqual([])
+    }
   })
 
   it('is expressible as a keymap the adapter can read back', () => {
