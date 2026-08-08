@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 import { chord, formatCanonical, parseCanonical, stroke } from '../chord'
+import { adapterFor } from './index'
 import type { ManagedBinding } from './types'
 import { vscodeAdapter } from './vscode'
 
@@ -25,9 +26,15 @@ function encoded(text: string): string {
 }
 
 describe('identity', () => {
-  it('serves VSCode and Cursor from one format', () => {
+  it('serves VSCode and its forks from one format', () => {
     expect(vscodeAdapter.format).toBe('vscode-keybindings')
-    expect(vscodeAdapter.apps).toEqual(['vscode', 'cursor'])
+    expect(vscodeAdapter.apps).toEqual(['vscode', 'cursor', 'kiro', 'antigravity'])
+  })
+
+  it('is the adapter the registry hands back for every one of them', () => {
+    for (const app of vscodeAdapter.apps) {
+      expect(adapterFor(app)).toBe(vscodeAdapter)
+    }
   })
 })
 
@@ -400,6 +407,87 @@ describe('merge', () => {
   })
 })
 
+/**
+ * `captured-antigravity.json` is a real file copied byte for byte off a Mac —
+ * see the fixtures README. It is the only evidence in this suite that a fork's
+ * own file behaves like VSCode's, so the assertions here are about the fork's
+ * own command surviving contact with unikeys rather than about the format.
+ */
+describe('a captured fork config', () => {
+  const captured = fixture('captured-antigravity.json')
+
+  it('reads a fork-specific command as an ordinary binding', () => {
+    const outcome = vscodeAdapter.parse(captured)
+    if (!outcome.ok) throw new Error(outcome.error)
+
+    expect(outcome.problems).toEqual([])
+    expect(outcome.bindings).toHaveLength(1)
+    expect(outcome.bindings[0].command).toBe('composerMode.agent')
+    expect(formatCanonical(outcome.bindings[0].chord!)).toBe('cmd+i')
+  })
+
+  it('round-trips byte-identically when nothing is managed', () => {
+    // Antigravity's file ends without a trailing newline, so this is also the
+    // assertion that an unchanged merge does not quietly add one.
+    expect(captured.endsWith(']')).toBe(true)
+    expect(mergedContents(captured, [])).toBe(captured)
+  })
+
+  it('leaves the fork’s own binding untouched while adding managed ones', () => {
+    const out = mergedContents(captured, [
+      { command: 'workbench.action.files.save', chord: parseCanonical('cmd+s') },
+      { command: 'workbench.action.showCommands', chord: parseCanonical('shift+cmd+p') }
+    ])
+
+    // The fork command's own lines survive verbatim — key, spelling and the
+    // file's four-space indentation, which is not the style this suite's
+    // authored fixtures use.
+    expect(out).toContain(
+      ['    {', '        "key": "cmd+i",', '        "command": "composerMode.agent"', '    }'].join(
+        '\n'
+      )
+    )
+    // Stronger than a `toContain`: every byte before the appended entries is
+    // the file the user had, header comment included. Only the comma that
+    // separates the fork's entry from the new ones is added.
+    const upToLastEntry = captured.slice(0, captured.lastIndexOf('\n]'))
+    expect(out.startsWith(upToLastEntry)).toBe(true)
+    expect(out.slice(upToLastEntry.length)).toBe(
+      [
+        ',',
+        '    {',
+        '        "key": "cmd+s",',
+        '        "command": "workbench.action.files.save"',
+        '    },',
+        '    {',
+        '        "key": "cmd+shift+p",',
+        '        "command": "workbench.action.showCommands"',
+        '    }',
+        ']'
+      ].join('\n')
+    )
+
+    const reparsed = vscodeAdapter.parse(out)
+    if (!reparsed.ok) throw new Error(reparsed.error)
+    expect(reparsed.problems).toEqual([])
+    expect(reparsed.bindings.map((b) => b.command)).toEqual([
+      'composerMode.agent',
+      'workbench.action.files.save',
+      'workbench.action.showCommands'
+    ])
+  })
+
+  it('is idempotent over a fork’s file too', () => {
+    const managed: ManagedBinding[] = [
+      { command: 'workbench.action.files.save', chord: parseCanonical('cmd+s') },
+      { command: 'workbench.action.findInFiles', chord: null }
+    ]
+    const once = mergedContents(captured, managed)
+    expect(mergedContents(once, managed)).toBe(once)
+    expect(once).toContain('"command": "composerMode.agent"')
+  })
+})
+
 describe('defaults', () => {
   it('reports itself as a partial, curated set with a reason', () => {
     const report = vscodeAdapter.defaults('vscode')
@@ -410,8 +498,17 @@ describe('defaults', () => {
     expect(report.bindings.every((b) => b.negated === undefined)).toBe(true)
   })
 
-  it('gives Cursor the same set, since it is a VSCode fork', () => {
-    expect(vscodeAdapter.defaults('cursor')).toEqual(vscodeAdapter.defaults('vscode'))
+  it('gives every fork the same set, since they all inherit Code OSS’s defaults', () => {
+    for (const app of ['cursor', 'kiro', 'antigravity'] as const) {
+      expect(vscodeAdapter.defaults(app)).toEqual(vscodeAdapter.defaults('vscode'))
+    }
+  })
+
+  it('names the forks in its note rather than reading as VSCode alone', () => {
+    const note = vscodeAdapter.defaults('antigravity').note!
+    expect(note).toContain('Cursor')
+    expect(note).toContain('Kiro')
+    expect(note).toContain('Antigravity')
   })
 
   it('carries the well-known macOS chords', () => {
