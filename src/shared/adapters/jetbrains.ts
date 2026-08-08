@@ -1,5 +1,10 @@
 /**
- * The JetBrains (WebStorm) keymap adapter.
+ * The JetBrains keymap adapter, shared by WebStorm, IntelliJ IDEA and PyCharm.
+ *
+ * The IDEs are one product built on the IntelliJ platform, and the keymap is a
+ * platform file: same XML, same inheritance chain, same action ids for
+ * everything unikeys manages. Nothing below is specialised per IDE, which is
+ * why the adapter names them collectively rather than singling one out.
  *
  * A JetBrains keymap is an XML document whose `<action>` elements carry
  * `<keyboard-shortcut>` children, and which usually names a `parent` keymap it
@@ -53,7 +58,7 @@ import type {
 /**
  * Canonical key -> the `java.awt.event.KeyEvent` name JetBrains writes. The
  * awkward spellings (`BACK_SPACE`, `OPEN_BRACKET`) are Java's, not ours, and
- * are the only ones WebStorm will read back.
+ * are the only ones a JetBrains IDE will read back.
  */
 const CANONICAL_TO_JETBRAINS: Record<string, string> = {
   enter: 'ENTER',
@@ -97,7 +102,7 @@ for (const [canonical, jetbrains] of Object.entries(CANONICAL_TO_JETBRAINS)) {
 
 /**
  * Modifiers are emitted in `java.awt.AWTKeyStroke.toString()` order, which is
- * what produced every keymap WebStorm ships. Decoding accepts any order, since
+ * what produced every keymap the IDEs ship. Decoding accepts any order, since
  * a hand-edited keymap is under no such obligation.
  */
 const JETBRAINS_MODIFIER_ORDER: readonly Modifier[] = ['shift', 'ctrl', 'cmd', 'alt']
@@ -121,7 +126,7 @@ const STROKE_SEPARATOR = ', '
 function encodeKeystroke(raw: KeyStroke): EncodeOutcome {
   const s = normalizeStroke(raw)
   const key = CANONICAL_TO_JETBRAINS[s.key]
-  if (!key) return { ok: false, reason: `WebStorm has no key name for "${s.key}"` }
+  if (!key) return { ok: false, reason: `JetBrains keymaps have no key name for "${s.key}"` }
   const mods = JETBRAINS_MODIFIER_ORDER.filter((m) => s.modifiers.includes(m)).map(
     (m) => MODIFIER_TO_JETBRAINS[m]
   )
@@ -159,7 +164,7 @@ export function encodeChord(chord: Chord): EncodeOutcome {
   if (chord.strokes.length === 0)
     return { ok: false, reason: 'A chord needs at least one keystroke' }
   if (chord.strokes.length > MAX_STROKES) {
-    return { ok: false, reason: 'WebStorm supports at most two keystrokes in a shortcut' }
+    return { ok: false, reason: 'JetBrains IDEs support at most two keystrokes in a shortcut' }
   }
   const parts: string[] = []
   for (const s of chord.strokes) {
@@ -564,7 +569,7 @@ function shortcutElement(chord: Chord): EncodeOutcome {
     strokes.push(encoded.value)
   }
   if (strokes.length === 0 || strokes.length > MAX_STROKES) {
-    return { ok: false, reason: 'WebStorm supports one or two keystrokes in a shortcut' }
+    return { ok: false, reason: 'JetBrains IDEs support one or two keystrokes in a shortcut' }
   }
   const second = strokes[1] ? ` second-keystroke="${escapeAttribute(strokes[1])}"` : ''
   return {
@@ -751,13 +756,21 @@ export function mergeKeymap(contents: string, managed: ManagedBinding[]): MergeO
 // ---------------------------------------------------------------------------
 
 /**
- * A curated slice of the macOS keymap.
+ * A curated slice of the macOS keymap, shared by every IDE this adapter serves.
  *
- * WebStorm's real defaults live inside the application bundle as keymap XML
- * with its own inheritance chain, so they are only readable on a machine with
- * WebStorm installed. Rather than leave the column empty on first run, unikeys
- * ships the bindings that are stable across recent releases and reports the
- * partial coverage instead of implying the list is complete.
+ * The real defaults live inside each application bundle as keymap XML with its
+ * own inheritance chain, so they are only readable on a machine with that IDE
+ * installed. Rather than leave the column empty on first run, unikeys ships the
+ * bindings that are stable across recent releases and reports the partial
+ * coverage instead of implying the list is complete.
+ *
+ * One table covers WebStorm, IntelliJ IDEA and PyCharm by decision, not by
+ * oversight: every id below — `SaveAll`, `GotoFile`, `$Undo`,
+ * `CommentByLineComment` and the rest — is a platform-level action that the
+ * IntelliJ platform itself defines and binds identically in the macOS keymap it
+ * ships to all of its IDEs. Nothing here is language- or framework-specific, so
+ * per-IDE tables would be three copies of one list. An action that genuinely
+ * differed between IDEs would not belong in this table at all.
  */
 const MACOS_DEFAULTS: ReadonlyArray<readonly [string, string]> = [
   ['SaveAll', 'cmd+s'],
@@ -818,9 +831,9 @@ const MACOS_DEFAULTS: ReadonlyArray<readonly [string, string]> = [
 ]
 
 const DEFAULTS_NOTE =
-  'WebStorm ships its keymaps inside the application bundle rather than as a readable ' +
-  'config file, so unikeys cannot read them. These are a curated subset of the macOS ' +
-  'keymap; actions outside it will show as unbound unless you have overridden them.'
+  'JetBrains IDEs ship their keymaps inside the application bundle rather than as a ' +
+  'readable config file, so unikeys cannot read them. These are a curated subset of the ' +
+  'macOS keymap; actions outside it will show as unbound unless you have overridden them.'
 
 function macosDefaults(): ParsedBinding[] {
   const bindings: ParsedBinding[] = []
@@ -836,9 +849,21 @@ function macosDefaults(): ParsedBinding[] {
 // The adapter
 // ---------------------------------------------------------------------------
 
+/**
+ * The IDEs this adapter serves, in `APP_IDS` order.
+ *
+ * One list feeds both `apps` and the `defaults` gate, so the set the registry
+ * advertises and the set `defaults` will answer for cannot drift apart.
+ */
+const JETBRAINS_APPS = ['webstorm', 'intellij', 'pycharm'] as const satisfies readonly AppId[]
+
+function servesApp(app: AppId): boolean {
+  return (JETBRAINS_APPS as readonly AppId[]).includes(app)
+}
+
 export const jetbrainsAdapter: Adapter = {
   format: 'jetbrains-keymap',
-  apps: ['webstorm'],
+  apps: JETBRAINS_APPS,
 
   /**
    * Parses one keymap file in isolation, which is all the interface's string
@@ -866,8 +891,14 @@ export const jetbrainsAdapter: Adapter = {
   encodeChord,
   decodeChord,
 
+  /**
+   * The same curated macOS keymap for every IDE this adapter serves — see
+   * `MACOS_DEFAULTS` for why one table is right. Anything else still gets
+   * `unavailable`: the adapter is reachable by format, and answering for an app
+   * it does not serve would put JetBrains action ids in someone else's column.
+   */
   defaults(app: AppId): DefaultsReport {
-    if (app !== 'webstorm') {
+    if (!servesApp(app)) {
       return {
         availability: 'unavailable',
         note: `The JetBrains adapter has no defaults for ${app}.`,
@@ -878,8 +909,9 @@ export const jetbrainsAdapter: Adapter = {
   },
 
   /**
-   * A fresh keymap must still declare a parent, or WebStorm would treat it as a
-   * keymap in which nothing at all is bound.
+   * A fresh keymap must still declare a parent, or the IDE would treat it as a
+   * keymap in which nothing at all is bound. `Mac OS X 10.5+` is the macOS
+   * keymap the IntelliJ platform ships under that name in all three IDEs.
    */
   emptyContents(): string {
     return '<keymap version="1" name="unikeys" parent="Mac OS X 10.5+">\n</keymap>\n'
