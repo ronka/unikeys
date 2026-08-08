@@ -25,11 +25,13 @@ function createWindow(): void {
     // `trafficLightPosition` — measured, not assumed: under `hiddenInset` the
     // property is ignored and the cluster stays at its default {x: 12, y: 11}.
     titleBarStyle: 'hidden',
-    // The cluster measures 59.5×12 and this is its top-left, so y = 16 puts its
-    // centre at 22 — the middle of the renderer's 44px (h-11) top strip. Its
-    // right edge lands at 71.5, which is where --traffic-light-inset's 80px in
-    // main.css comes from: 71.5 plus a gap the eye reads as deliberate.
-    trafficLightPosition: { x: 12, y: 16 },
+    // The cluster measures 59.5×12 and this is its top-left, so y = 22 puts its
+    // centre at 28 — the middle of the renderer's 56px (h-14) top strip. Move
+    // that strip and this has to move with it, or the lights sit off-centre
+    // against the controls beside them. Its right edge lands at 71.5, which is
+    // where --traffic-light-inset's 80px in main.css comes from: 71.5 plus a
+    // gap the eye reads as deliberate.
+    trafficLightPosition: { x: 12, y: 22 },
     // Painted before the first frame, so resizing does not flash white.
     backgroundColor: '#16171b',
     ...(process.platform === 'linux' ? { icon } : {}),

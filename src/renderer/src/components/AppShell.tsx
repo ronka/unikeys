@@ -59,6 +59,11 @@ const NAV: { view: View; label: string; icon: typeof Keyboard }[] = [
  * The strip runs across both columns at the height of the macOS traffic lights,
  * which now sit inside the web contents rather than in a title bar of their own
  * (see `titleBarStyle` in src/main/index.ts).
+ *
+ * Both halves of it are `h-14`, and `trafficLightPosition` in that file centres
+ * the lights in exactly that. The three are one measurement written down in
+ * three places: change one and the lights sit off-centre against the controls
+ * beside them.
  */
 export function AppShell({
   page,
@@ -126,7 +131,7 @@ function ShellBody({
               strip stays rendered when collapsed — empty, since the rail is
               narrower than the traffic lights — so the nav still starts below
               them. */}
-          <div className="drag-region flex h-11 shrink-0 items-center pl-(--traffic-light-inset)">
+          <div className="drag-region flex h-14 shrink-0 items-center pl-(--traffic-light-inset)">
             <SidebarTrigger className="no-drag group-data-[collapsible=icon]:hidden" />
           </div>
           {/* Hidden rather than shrunk when collapsed — there is no app mark to
@@ -187,7 +192,7 @@ function ShellBody({
             below rather than sitting nearer the window edge than anything else
             on screen. The `1.5rem` in the trigger's margin is this padding,
             subtracted by hand — the two have to change together. */}
-        <header className="drag-region flex h-11 shrink-0 items-center gap-2 px-6">
+        <header className="drag-region flex h-14 shrink-0 items-center gap-2 px-6">
           {/* Only when the sidebar's own header is out of reach: expanded it
               carries the trigger itself, and off-canvas on a narrow window it
               is behind a sheet that has to be openable from somewhere. The
