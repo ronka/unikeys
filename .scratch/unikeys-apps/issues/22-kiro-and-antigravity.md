@@ -10,7 +10,7 @@ both apps are installed here.
 
 **Blocked by:** 20.
 
-**Status:** ready-for-agent
+**Status:** done — branch `feat/apps-vscode-forks`, commit `2a6f9de`
 
 **Files you own:** `src/shared/adapters/vscode.ts`,
 `src/shared/adapters/vscode.test.ts`, `src/shared/adapters/__fixtures__/vscode/`.
@@ -51,9 +51,9 @@ are captured, from which app, and leave the caveat standing for the rest.
 
 ## Definition of done
 
-- [ ] The table shows Kiro and Antigravity columns, populated from their real configs
-- [ ] `adapterFor('kiro')` and `adapterFor('antigravity')` both resolve to the VSCode adapter
-- [ ] A captured Antigravity fixture is committed, and a merge over it leaves the fork's own commands untouched
-- [ ] Kiro's missing config reports `config-not-created` with the path a first save would use, not an error
-- [ ] `__fixtures__/vscode/README.md` distinguishes captured fixtures from authored ones
-- [ ] `npm test`, `npm run typecheck` and `npm run lint` pass
+- [ ] The table shows Kiro and Antigravity columns, populated from their real configs — renderer work, lands with ticket 27
+- [x] `adapterFor('kiro')` and `adapterFor('antigravity')` both resolve to the VSCode adapter
+- [x] A captured Antigravity fixture is committed, and a merge over it leaves the fork's own commands untouched
+- [x] Kiro's missing config reports `config-not-created` with the path a first save would use, not an error
+- [x] `__fixtures__/vscode/README.md` distinguishes captured fixtures from authored ones
+- [x] `npm test`, `npm run typecheck` and `npm run lint` pass
