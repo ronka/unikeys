@@ -1,0 +1,9 @@
+---
+# Every spelling Warp accepts for "this action has no binding"
+"terminal:copy":
+"terminal:paste": ""
+"editor_view:select_all": null
+"workspace:new_tab": ~
+
+# One real binding, so the file is not only unbinds
+"pane_group:add_right": cmd-d

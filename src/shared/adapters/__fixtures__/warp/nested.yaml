@@ -1,0 +1,14 @@
+---
+# YAML this adapter's line scanner cannot account for. Each one spoils its own
+# entry and nothing else: the two plain bindings here still come through.
+"terminal:copy": cmd-c
+
+keybindings:
+  "terminal:paste": cmd-v
+  "editor_view:select_all": cmd-a
+
+"pane_group:add_right": &split cmd-d
+"pane_group:add_down": *split
+"workspace:new_tab": { key: cmd-t }
+
+"terminal:find": cmd-f

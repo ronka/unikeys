@@ -1,0 +1,21 @@
+{
+  "edit.copy": "terminal:copy",
+  "edit.paste": "terminal:paste",
+  "edit.select-all": "terminal:select_all_blocks",
+  "navigate.command-palette": "workspace:toggle_command_palette",
+  "navigate.next-tab": "workspace:activate_next_tab",
+  "navigate.previous-tab": "workspace:activate_prev_tab",
+  "pane.split-right": "pane_group:add_right",
+  "pane.split-down": "pane_group:add_down",
+  "pane.focus-left": "pane_group:navigate_left",
+  "pane.focus-right": "pane_group:navigate_right",
+  "pane.focus-up": "pane_group:navigate_up",
+  "pane.focus-down": "pane_group:navigate_down",
+  "pane.focus-next": "pane_group:navigate_next",
+  "pane.focus-previous": "pane_group:navigate_prev",
+  "view.increase-font-size": "workspace:increase_font_size",
+  "view.decrease-font-size": "workspace:decrease_font_size",
+  "view.reset-font-size": "workspace:reset_font_size",
+  "terminal.new": "workspace:new_tab",
+  "terminal.clear": "input:clear_screen"
+}
