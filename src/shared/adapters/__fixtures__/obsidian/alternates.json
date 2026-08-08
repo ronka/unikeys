@@ -1,0 +1,8 @@
+{
+  "global-search:open": [
+    { "modifiers": ["Mod", "Shift"], "key": "F" },
+    { "modifiers": ["Mod"], "key": "F" },
+    { "modifiers": ["Ctrl", "Alt"], "key": "F" }
+  ],
+  "workspace:close": [{ "modifiers": ["Mod"], "key": "W" }]
+}

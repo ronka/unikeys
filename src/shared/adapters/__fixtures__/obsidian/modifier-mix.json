@@ -1,0 +1,10 @@
+{
+  "command-palette:open": [{ "modifiers": ["Mod"], "key": "P" }],
+  "switcher:open": [{ "modifiers": ["Ctrl"], "key": "O" }],
+  "global-search:open": [{ "modifiers": ["Mod", "Ctrl"], "key": "F" }],
+  "app:go-back": [{ "modifiers": ["Meta"], "key": "[" }],
+  "workspace:next-tab": [{ "modifiers": ["Alt", "Shift"], "key": "PageDown" }],
+  "editor:save-file": [{ "modifiers": ["Mod", "Ctrl", "Alt", "Shift"], "key": "S" }],
+  "workspace:close": [{ "modifiers": ["Mod"], "key": " " }],
+  "app:go-forward": [{ "modifiers": [], "key": "F5" }]
+}

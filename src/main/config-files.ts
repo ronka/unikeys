@@ -12,7 +12,7 @@ import { chmodSync, copyFileSync, mkdirSync, realpathSync, unlinkSync } from 'no
 import { homedir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 
-import { APPS, type AppId } from '../shared/apps'
+import { APPS, type AppId, type FormatId } from '../shared/apps'
 
 /**
  * Named separately because a caller that has already ruled out success still
@@ -52,6 +52,48 @@ export function candidatePaths(app: AppId): string[] {
   return APPS[app].configPaths.map((relative) => join(homedir(), relative))
 }
 
+/**
+ * The fixed filename a format keeps inside a directory, when it has one.
+ *
+ * Obsidian's hotkeys live at `<vault>/.obsidian/hotkeys.json`, and `.obsidian`
+ * is the directory a user browsing to their vault will land on and select — the
+ * file inside it may not even exist yet. Resolving the directory to the file is
+ * the same courtesy `resolveKeymapFile` extends to a JetBrains `keymaps`
+ * directory, and the difference is only that the name here is known in advance.
+ *
+ * Keyed by format rather than by app, so nothing above the adapter registry
+ * hardcodes a particular application.
+ */
+const DIRECTORY_FILENAMES: Partial<Record<FormatId, string>> = {
+  'obsidian-hotkeys': 'hotkeys.json'
+}
+
+/** The file a directory path names for this app, or `null` if it names none. */
+export function configFileIn(app: AppId, directory: string): string | null {
+  const filename = DIRECTORY_FILENAMES[APPS[app].format]
+  return filename === undefined ? null : join(directory, filename)
+}
+
+/**
+ * What to tell a user about an app that has no standard config location at all.
+ *
+ * Shared because three call sites need the same sentence — the Apps page status,
+ * the write target, and the save that declines to write — and three copies of it
+ * would drift into three different accounts of the same situation.
+ */
+export function configPathRequiredMessage(app: AppId): string {
+  const hint = CONFIG_PATH_HINTS[APPS[app].format]
+  return hint ?? `${APPS[app].name} has no standard config location. Choose one in Apps.`
+}
+
+const CONFIG_PATH_HINTS: Partial<Record<FormatId, string>> = {
+  'obsidian-hotkeys':
+    'Obsidian keeps its hotkeys inside a vault, so unikeys cannot find them on its own. ' +
+    'Choose the vault’s .obsidian folder, or the hotkeys.json inside it. Obsidian only ' +
+    'writes that file once you have set at least one hotkey, so if it is not there yet, set ' +
+    'one in Obsidian first.'
+}
+
 export type WriteTarget = { ok: true; path: string } | { ok: false; error: string }
 
 /**
@@ -65,6 +107,12 @@ export type WriteTarget = { ok: true; path: string } | { ok: false; error: strin
 export function writeTarget(app: AppId, override: string | null): WriteTarget {
   if (override) {
     if (existsSync(override) && statSync(override).isDirectory()) {
+      // A format with a known filename can name the file even when it does not
+      // exist yet, which is the ordinary state of a vault whose owner has never
+      // set a hotkey.
+      const known = configFileIn(app, override)
+      if (known) return { ok: true, path: known }
+
       const keymap = resolveKeymapFile(override)
       if (keymap) return { ok: true, path: keymap }
       // A keymaps directory with no keymap in it: unikeys has no filename to
@@ -75,6 +123,14 @@ export function writeTarget(app: AppId, override: string | null): WriteTarget {
       }
     }
     return { ok: true, path: override }
+  }
+
+  // An app with no standard location was never going to have one found for it,
+  // and telling its user to create a config in the app is advice that cannot
+  // work: the file is already wherever they keep their data, and unikeys needs
+  // to be pointed at it.
+  if (APPS[app].configPaths.length === 0) {
+    return { ok: false, error: configPathRequiredMessage(app) }
   }
 
   const concrete = candidatePaths(app).find((path) => !path.includes('*'))
@@ -147,13 +203,23 @@ export function readConfig(app: AppId, override: string | null): ReadOutcome {
     return { ok: false, reason: 'not-found', searched: override ? [override] : candidatePaths(app) }
   }
 
-  // WebStorm resolves to a directory of keymaps; pick the file inside it.
+  // A path may name a directory rather than a file: WebStorm resolves to a
+  // directory of keymaps, and an Obsidian override is as likely to name the
+  // vault's `.obsidian` folder as the `hotkeys.json` inside it. Reading, unlike
+  // writing, needs the file to be there — a named file that does not exist yet
+  // is `not-found`, which is what lets the first save create it.
   if (existsSync(path) && statSync(path).isDirectory()) {
-    const keymap = resolveKeymapFile(path)
-    if (keymap === null) {
-      return { ok: false, reason: 'not-found', searched: [path] }
+    const known = configFileIn(app, path)
+    if (known !== null) {
+      if (!existsSync(known)) return { ok: false, reason: 'not-found', searched: [known] }
+      path = known
+    } else {
+      const keymap = resolveKeymapFile(path)
+      if (keymap === null) {
+        return { ok: false, reason: 'not-found', searched: [path] }
+      }
+      path = keymap
     }
-    path = keymap
   }
 
   try {

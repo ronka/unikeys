@@ -1,0 +1,10 @@
+{
+  "editor:save-file": [{ "modifiers": ["Mod"], "key": "S" }],
+  "workspace:close": "Mod+W",
+  "app:go-forward": [{ "modifiers": ["Mod"] }],
+  "editor:swap-line-up": [{ "modifiers": ["Hyper"], "key": "ArrowUp" }],
+  "global-search:open": [{ "modifiers": ["Mod"], "key": "Compose" }],
+  "workspace:next-tab": [["Mod", "PageDown"]],
+  "switcher:open": [{ "modifiers": ["Mod"], "key": "O" }],
+  "switcher:open": [{ "modifiers": ["Mod", "Shift"], "key": "O" }]
+}
