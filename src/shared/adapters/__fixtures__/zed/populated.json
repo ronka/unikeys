@@ -1,0 +1,29 @@
+// Zed keymap
+//
+// For information on binding keys, see the Zed online documentation:
+// https://zed.dev/docs/key-bindings
+[
+  {
+    "context": "Workspace",
+    "bindings": {
+      "cmd-shift-a": "command_palette::Toggle",
+      "cmd-k cmd-s": "zed::OpenKeymap",
+      "ctrl-cmd-f": "zed::ToggleFullScreen"
+    }
+  },
+  {
+    "context": "Editor && mode == full",
+    "bindings": {
+      "cmd-s": "workspace::Save",
+      "ctrl-shift-7": "editor::ToggleComments",
+      "cmd-shift-d": "editor::DuplicateLineDown"
+    }
+  },
+  {
+    "context": "Terminal",
+    "bindings": {
+      "cmd-k": "terminal::Clear",
+      "cmd--": "zed::DecreaseBufferFontSize"
+    }
+  }
+]

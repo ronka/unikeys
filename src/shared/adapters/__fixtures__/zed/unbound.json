@@ -1,0 +1,19 @@
+[
+  {
+    "context": "Editor",
+    "bindings": {
+      "cmd-shift-s": "workspace::Save",
+      "cmd-d": "editor::DuplicateLineDown"
+    }
+  },
+  {
+    // A null unbinds the chord, whatever action was holding it: the first
+    // takes back the binding above, the second one of Zed's own defaults, and
+    // the third a chord unikeys knows nothing about.
+    "bindings": {
+      "cmd-shift-s": null,
+      "cmd-p": null,
+      "ctrl-alt-shift-cmd-9": null
+    }
+  }
+]

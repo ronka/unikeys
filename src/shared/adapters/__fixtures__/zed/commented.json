@@ -1,0 +1,21 @@
+// Zed keymap. Comments are legal in this file and unikeys must not lose them.
+[
+  // The command palette, moved off the default so it matches WebStorm.
+  {
+    "context": "Workspace",
+    "bindings": {
+      // "cmd-p": "file_finder::Toggle",
+      "cmd-shift-a": "command_palette::Toggle"
+    }
+  },
+  /* Toggling comments is fine as shipped, so this block only carries the
+     two bindings below. */
+  {
+    "context": "Editor && mode == full || Terminal",
+    "bindings": {
+      "cmd-/": "editor::ToggleComments",
+      "cmd-alt-l": ["editor::MoveToEndOfLine", { "stop_at_soft_wraps": true }],
+      "cmd-numpad_multiply": "editor::Format"
+    }
+  }
+]
