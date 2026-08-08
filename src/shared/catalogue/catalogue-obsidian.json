@@ -1,0 +1,13 @@
+{
+  "edit.save": "editor:save-file",
+  "navigate.command-palette": "command-palette:open",
+  "navigate.goto-file": "switcher:open",
+  "navigate.find-in-files": "global-search:open",
+  "navigate.back": "app:go-back",
+  "navigate.forward": "app:go-forward",
+  "navigate.next-tab": "workspace:next-tab",
+  "navigate.previous-tab": "workspace:previous-tab",
+  "window.close": "workspace:close",
+  "pane.split-right": "workspace:split-vertical",
+  "pane.split-down": "workspace:split-horizontal"
+}

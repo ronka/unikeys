@@ -29,7 +29,14 @@ import type {
 } from '../shared/ipc'
 import type { AppConfig, Store } from '../shared/store/types'
 import type { ReadFailure } from './config-files'
-import { BackupSession, candidatePaths, readConfig, writeAtomic, writeTarget } from './config-files'
+import {
+  BackupSession,
+  candidatePaths,
+  configPathRequiredMessage,
+  readConfig,
+  writeAtomic,
+  writeTarget
+} from './config-files'
 
 // ---------------------------------------------------------------------------
 // Detection
@@ -75,13 +82,11 @@ function diagnose(
   }
 
   // An app with no standard config location was never looked for, so neither
-  // "not installed" nor "not found" describes it — both imply a search that
-  // did not happen. Placeholder wording; ticket 25 lands the real message.
+  // "not installed" nor "not found" describes it — both imply a search that did
+  // not happen, and "No config found. Looked in: " with nothing after it is a
+  // sentence that trails off. The message says what to point at instead.
   if (APPS[app].configPaths.length === 0 && !override) {
-    return {
-      health: 'config-path-required',
-      message: `${APPS[app].name} keeps its config somewhere unikeys cannot guess. Set the path manually in Apps.`
-    }
+    return { health: 'config-path-required', message: configPathRequiredMessage(app) }
   }
 
   if (!installed) {
@@ -376,6 +381,20 @@ function groupByApp(request: WriteRequest, catalogue: Catalogue, store: Store): 
         app: entry.app,
         actionId: entry.actionId,
         reason: `${APPS[entry.app].name} is turned off in unikeys, so nothing was written to it.`,
+        deliberate: true
+      })
+      continue
+    }
+
+    // An app whose config has no standard location is read-only until the user
+    // names one. Checked before installation, because the fix is the same
+    // whether or not the app is on this Mac, and because writing anywhere here
+    // would mean guessing at a vault — the one thing unikeys must not do.
+    if (APPS[entry.app].configPaths.length === 0 && !store.apps[entry.app].configPath) {
+      dropped.push({
+        app: entry.app,
+        actionId: entry.actionId,
+        reason: configPathRequiredMessage(entry.app),
         deliberate: true
       })
       continue
