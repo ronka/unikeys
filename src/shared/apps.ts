@@ -14,6 +14,21 @@ export const APP_IDS = ['vscode', 'cursor', 'webstorm', 'ghostty', 'cmux', 'iter
 
 export type AppId = (typeof APP_IDS)[number]
 
+/**
+ * What kind of app this is, for grouping on the Apps page. The order here is
+ * the order the groups appear in, chosen to run with `APP_IDS` rather than
+ * against it — nothing enforces that, so a reordering of one wants a look at
+ * the other.
+ */
+export const CATEGORY_IDS = ['ide', 'terminal'] as const
+
+export type CategoryId = (typeof CATEGORY_IDS)[number]
+
+export const CATEGORY_LABELS: Record<CategoryId, string> = {
+  ide: 'Editors',
+  terminal: 'Terminals'
+}
+
 export type FormatId =
   | 'vscode-keybindings'
   | 'jetbrains-keymap'
@@ -27,6 +42,13 @@ export interface AppDescriptor {
   name: string
   /** Which adapter parses and merges this app's config. */
   format: FormatId
+  /**
+   * Which group the app appears under on the Apps page. It lives on the
+   * descriptor rather than in a list beside the page so that the exhaustive
+   * `Record<AppId, AppDescriptor>` below forces a category onto app number
+   * seven instead of quietly leaving it out of every group.
+   */
+  category: CategoryId
   /**
    * Standard macOS config locations, most likely first. Paths are relative to
    * the user's home directory. Resolution happens in the main process; nothing
@@ -49,6 +71,7 @@ export const APPS: Record<AppId, AppDescriptor> = {
     id: 'vscode',
     name: 'VSCode',
     format: 'vscode-keybindings',
+    category: 'ide',
     configPaths: ['Library/Application Support/Code/User/keybindings.json'],
     installPaths: ['/Applications/Visual Studio Code.app', '~/Applications/Visual Studio Code.app'],
     reloadHint: 'VSCode picks up keybindings.json automatically; no restart needed.'
@@ -57,6 +80,7 @@ export const APPS: Record<AppId, AppDescriptor> = {
     id: 'cursor',
     name: 'Cursor',
     format: 'vscode-keybindings',
+    category: 'ide',
     configPaths: ['Library/Application Support/Cursor/User/keybindings.json'],
     installPaths: ['/Applications/Cursor.app', '~/Applications/Cursor.app'],
     reloadHint: 'Cursor picks up keybindings.json automatically; no restart needed.'
@@ -65,6 +89,7 @@ export const APPS: Record<AppId, AppDescriptor> = {
     id: 'webstorm',
     name: 'WebStorm',
     format: 'jetbrains-keymap',
+    category: 'ide',
     // The version segment is a glob resolved by the main process, since
     // JetBrains nests keymaps under a versioned support directory.
     configPaths: ['Library/Application Support/JetBrains/WebStorm*/keymaps'],
@@ -79,6 +104,7 @@ export const APPS: Record<AppId, AppDescriptor> = {
     id: 'ghostty',
     name: 'Ghostty',
     format: 'ghostty-config',
+    category: 'terminal',
     configPaths: [
       'Library/Application Support/com.mitchellh.ghostty/config',
       '.config/ghostty/config'
@@ -90,6 +116,7 @@ export const APPS: Record<AppId, AppDescriptor> = {
     id: 'cmux',
     name: 'cmux',
     format: 'cmux-config',
+    category: 'terminal',
     // cmux writes this template itself on first launch, so the file usually
     // already exists — as one object of `$schema` and `schemaVersion` with
     // every setting commented out.
@@ -101,6 +128,7 @@ export const APPS: Record<AppId, AppDescriptor> = {
     id: 'iterm2',
     name: 'iTerm2',
     format: 'iterm2-dynamic-profile',
+    category: 'terminal',
     // Not iTerm2's real preferences: those are a binary plist, and iTerm2
     // overwrites them from memory when it quits. This is a Dynamic Profile —
     // a JSON file unikeys owns outright, which iTerm2 watches and reloads live.
