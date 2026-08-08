@@ -1,6 +1,6 @@
 # Plan: seven more apps
 
-Status: ready-for-agent
+Status: done — all eight tickets landed on main
 
 Adds IntelliJ IDEA, PyCharm, Kiro, Antigravity, Zed, Warp and Obsidian to unikeys —
 taking the table from six columns to thirteen.
@@ -139,7 +139,7 @@ Every Wave 2 agent gets the same closing instruction:
 | 24 | `issues/24-warp-adapter.md` | 2, worktree | done — merged `e8c87c1` |
 | 25 | `issues/25-obsidian-adapter.md` | 2, worktree | done — merged `ad750e9` |
 | 26 | `issues/26-catalogue-integration.md` | 3, serial | done — `49d7503` |
-| 27 | `issues/27-thirteen-columns.md` | 3, serial | in progress |
+| 27 | `issues/27-thirteen-columns.md` | 3, serial | done — `dc29a79`, `3be3e40` |
 
 ## Verification asymmetry — say it out loud
 

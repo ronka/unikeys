@@ -6,7 +6,7 @@ on first launch after upgrading, and whether the table is still readable.
 
 **Blocked by:** 26.
 
-**Status:** ready-for-agent
+**Status:** done — commits `dc29a79`, `3be3e40`
 
 **Files you own:** `src/main/index.ts` and `src/main/store-file.ts` for the seeding
 change, `src/renderer/src/components/KeysTable.tsx`, `src/renderer/src/pages/AppsPage.tsx`,
@@ -62,9 +62,9 @@ cards instead of six, several of them for apps the user does not have. Check tha
 
 ## Definition of done
 
-- [ ] On upgrade, an existing store gains the new apps disabled unless they are installed
-- [ ] Apps the user had already enabled or disabled keep that choice
-- [ ] Detection stays in the main process; nothing in `src/shared/` touches the filesystem
-- [ ] With thirteen columns enabled, the pinned columns, sticky headings and horizontal scroll all still behave
-- [ ] The Apps page renders three category groups and thirteen cards legibly
-- [ ] `npm test`, `npm run typecheck` and `npm run lint` pass
+- [x] On upgrade, an existing store gains the new apps disabled unless they are installed
+- [x] Apps the user had already enabled or disabled keep that choice
+- [x] Detection stays in the main process; nothing in `src/shared/` touches the filesystem
+- [x] With thirteen columns enabled, the pinned columns, sticky headings and horizontal scroll all still behave
+- [x] The Apps page renders three category groups and thirteen cards legibly
+- [x] `npm test`, `npm run typecheck` and `npm run lint` pass
