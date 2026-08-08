@@ -1,0 +1,8 @@
+[
+  {
+    "context": "Editor"
+    "bindings": {
+      "cmd-s": "workspace::Save"
+    }
+  }
+]

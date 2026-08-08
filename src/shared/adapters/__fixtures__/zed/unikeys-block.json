@@ -1,0 +1,40 @@
+// Zed keymap
+//
+// For information on binding keys, see the Zed online documentation:
+// https://zed.dev/docs/key-bindings
+[
+  {
+    "context": "Workspace",
+    "bindings": {
+      "cmd-shift-a": "command_palette::Toggle",
+      "cmd-k cmd-s": "zed::OpenKeymap",
+      "ctrl-cmd-f": "zed::ToggleFullScreen"
+    }
+  },
+  {
+    "context": "Editor && mode == full",
+    "bindings": {
+      "cmd-s": "workspace::Save",
+      "ctrl-shift-7": "editor::ToggleComments",
+      "cmd-shift-d": "editor::DuplicateLineDown"
+    }
+  },
+  {
+    "context": "Terminal",
+    "bindings": {
+      "cmd-k": "terminal::Clear",
+      "cmd--": "zed::DecreaseBufferFontSize"
+    }
+  },
+  // unikeys: managed keybindings. Rewritten on every save.
+  // Zed applies later blocks over earlier ones, so these bindings win over the ones above.
+  // unikeys never edits your own blocks: a binding you made yourself for one of these actions
+  // stays in the file but no longer fires. Delete it there if you want it gone.
+  {
+    "bindings": {
+      "cmd-shift-s": "workspace::Save",
+      "cmd-shift-a": "command_palette::Toggle",
+      "cmd-p": null
+    }
+  }
+]
