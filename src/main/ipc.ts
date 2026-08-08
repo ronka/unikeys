@@ -25,7 +25,7 @@ import type { HistoryEntry, NewHistoryEntry } from '../shared/history/types'
 import type { Store } from '../shared/store/types'
 import { createBackupSession, type BackupSession } from './config-files'
 import { appStatuses, importFromApps, writeToApps } from './apps-service'
-import { historyLocation, loadHistory, recordEntry, type HistoryLocation } from './history-file'
+import { createHistoryLog, type HistoryLog } from './history-file'
 import { loadStore, saveStore, storeLocation, type StoreLocation } from './store-file'
 
 /**
@@ -34,21 +34,15 @@ import { loadStore, saveStore, storeLocation, type StoreLocation } from './store
  */
 let backups: BackupSession | null = null
 let location: StoreLocation | null = null
-let history: HistoryLocation | null = null
-/**
- * The log, held here once read. Appending is read-modify-write, so keeping the
- * list in one place is what stops two saves in quick succession from each
- * building on the same stale copy and losing a record between them.
- */
-let entries: HistoryEntry[] | null = null
+let history: HistoryLog | null = null
 
 function ensureLocation(): StoreLocation {
   if (location === null) location = storeLocation(electronApp.getPath('userData'))
   return location
 }
 
-function ensureHistoryLocation(): HistoryLocation {
-  if (history === null) history = historyLocation(electronApp.getPath('userData'))
+function ensureHistory(): HistoryLog {
+  if (history === null) history = createHistoryLog(electronApp.getPath('userData'))
   return history
 }
 
@@ -92,24 +86,12 @@ export function registerIpcHandlers(): void {
     return writeToApps(request, store, CATALOGUE, ensureBackups())
   })
 
-  ipcMain.handle(IPC.loadHistory, (): HistoryResult => {
-    const outcome = loadHistory(ensureHistoryLocation())
-    entries = outcome.entries
-    return outcome.error === undefined
-      ? { entries: outcome.entries }
-      : { entries: outcome.entries, error: outcome.error }
-  })
+  ipcMain.handle(IPC.loadHistory, (): HistoryResult => ensureHistory().load())
 
   ipcMain.handle(IPC.appendHistory, (_event, entry: NewHistoryEntry): HistoryEntry[] => {
-    // A save can land before the page that loads the log has ever been opened,
-    // so the first append reads the file rather than starting from nothing and
-    // overwriting every earlier record.
-    if (entries === null) entries = loadHistory(ensureHistoryLocation()).entries
     // Stamped here, not in the renderer: a message delivered twice would
     // otherwise mint two records claiming to be the same save.
-    const stamped = { ...entry, id: randomUUID(), at: Date.now() } as HistoryEntry
-    entries = recordEntry(ensureHistoryLocation(), entries, stamped)
-    return entries
+    return ensureHistory().append(entry, { id: randomUUID(), at: Date.now() })
   })
 
   ipcMain.handle(IPC.chooseConfigPath, async (_event, appId: unknown): Promise<string | null> => {

@@ -10,7 +10,7 @@ import {
   type TableAction,
   type TableState
 } from '../table/reducer'
-import { planRevert } from './revert'
+import { describeRevert, planRevert, type RevertPlan } from './revert'
 import type { HistoryChange, HistoryEntry } from './types'
 
 const catalogue: Catalogue = {
@@ -189,6 +189,82 @@ describe('linked rows', () => {
     expect(plan.actions[0]).toEqual({ type: 'unlinkRow', actionId: 'file.save' })
   })
 
+  /**
+   * The row was linked before the save and the save never touched that, so a
+   * revert has no business dropping the link. It still has to unlink to restore
+   * the cells individually, which is exactly why the relink has to happen.
+   */
+  it('leaves a row it only unlinked to restore cells linked again', () => {
+    const state = createTableState(
+      storeWith(
+        {
+          'file.save': {
+            vscode: { chord: 'cmd+shift+s', origin: 'user' },
+            cursor: { chord: 'cmd+shift+s', origin: 'user' },
+            webstorm: { chord: 'cmd+shift+s', origin: 'user' }
+          }
+        },
+        ['file.save']
+      )
+    )
+    const entry = saveEntry({
+      changes: [
+        change({ app: 'vscode', previous: { chord: 'cmd+s', origin: 'user' } }),
+        change({ app: 'cursor', previous: { chord: 'cmd+s', origin: 'user' } }),
+        change({ app: 'webstorm', previous: { chord: 'cmd+s', origin: 'user' } })
+      ]
+    })
+
+    const plan = planRevert(entry, state, catalogue, reduce)
+    const after = apply(state, plan.actions)
+
+    expect(effectiveLinked(after, 'file.save')).toBe(true)
+    expect(plan.needsWinner).toEqual([])
+    expect(chordAt(after, 'file.save', 'vscode')).toBe('cmd+s')
+  })
+
+  /**
+   * The same row, but the recorded values disagree, so the link cannot come
+   * back without the user choosing. Reporting it is the point: dropping a link
+   * silently is the failure this replaced.
+   */
+  it('reports a linked row whose restored chords no longer agree', () => {
+    const state = createTableState(
+      storeWith(
+        {
+          'file.save': {
+            vscode: { chord: 'cmd+shift+s', origin: 'user' },
+            cursor: { chord: 'cmd+shift+s', origin: 'user' },
+            webstorm: { chord: 'cmd+shift+s', origin: 'user' }
+          }
+        },
+        ['file.save']
+      )
+    )
+    const entry = saveEntry({
+      changes: [
+        change({ app: 'vscode', previous: { chord: 'cmd+s', origin: 'user' } }),
+        change({ app: 'cursor', previous: { chord: 'ctrl+s', origin: 'user' } }),
+        change({ app: 'webstorm', previous: { chord: 'alt+s', origin: 'user' } })
+      ]
+    })
+
+    const plan = planRevert(entry, state, catalogue, reduce)
+
+    expect(plan.needsWinner).toEqual(['Save'])
+    expect(effectiveLinked(apply(state, plan.actions), 'file.save')).toBe(false)
+  })
+
+  it('leaves an unlinked row unlinked', () => {
+    const state = createTableState(
+      storeWith({ 'file.save': { vscode: { chord: 'cmd+shift+s', origin: 'user' } } })
+    )
+    const plan = planRevert(saveEntry(), state, catalogue, reduce)
+
+    expect(plan.actions.some((a) => a.type === 'linkRow' || a.type === 'unlinkRow')).toBe(false)
+    expect(plan.needsWinner).toEqual([])
+  })
+
   it('undoes a link the save made, and restores the chords it propagated', () => {
     const state = createTableState(
       storeWith(
@@ -287,6 +363,38 @@ describe('linked rows', () => {
     })
 
     expect(planRevert(entry, state, catalogue, reduce).needsWinner).toEqual(['Gone Away'])
+  })
+})
+
+describe('describeRevert', () => {
+  const plan = (parts: Partial<RevertPlan> = {}): RevertPlan => ({
+    actions: [],
+    unseen: 0,
+    unparseable: 0,
+    needsWinner: [],
+    ...parts
+  })
+
+  it('says nothing when the revert hit no limits', () => {
+    expect(describeRevert(plan())).toEqual([])
+  })
+
+  it('agrees with itself on number', () => {
+    expect(describeRevert(plan({ unseen: 1 }))[0]).toContain('1 binding had')
+    expect(describeRevert(plan({ unseen: 1 }))[0]).toContain('it was left alone')
+    expect(describeRevert(plan({ unseen: 3 }))[0]).toContain('3 bindings had')
+    expect(describeRevert(plan({ unseen: 3 }))[0]).toContain('they were left alone')
+  })
+
+  it('names the rows it had to leave unlinked', () => {
+    const [note] = describeRevert(plan({ needsWinner: ['Save', 'Go To File'] }))
+    expect(note).toContain('Save, Go To File')
+  })
+
+  it('reports every limit it hit, not just the first', () => {
+    expect(describeRevert(plan({ unseen: 1, unparseable: 2, needsWinner: ['Save'] }))).toHaveLength(
+      3
+    )
   })
 })
 

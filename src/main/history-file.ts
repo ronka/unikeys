@@ -4,21 +4,22 @@
  * A second JSON document beside the store, for the reasons set out in
  * `shared/history/types.ts`: it grows, the reducer never reads it, and a log
  * unikeys cannot parse must not be able to take the user's bindings with it.
- *
- * The entries are cached in memory once read, so the read-modify-write a save
- * performs does not re-read the file every time and two saves in flight cannot
- * interleave into a lost record.
  */
 
 import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
+import type { HistoryResult } from '../shared/ipc'
 import {
   appendEntry,
   deserializeHistory,
+  readEntry,
   serializeHistory,
+  stampEntry,
   HISTORY_SCHEMA_VERSION,
-  type HistoryEntry
+  type HistoryEntry,
+  type HistoryStamp,
+  type NewHistoryEntry
 } from '../shared/history/types'
 import { writeAtomic } from './config-files'
 
@@ -30,13 +31,7 @@ export function historyLocation(userDataDir: string): HistoryLocation {
   return { historyPath: join(userDataDir, 'unikeys-history.json') }
 }
 
-export interface LoadHistoryOutcome {
-  entries: HistoryEntry[]
-  /** Set when an existing log could not be read, so the page can say so. */
-  error?: string
-}
-
-export function loadHistory(location: HistoryLocation): LoadHistoryOutcome {
+export function loadHistory(location: HistoryLocation): HistoryResult {
   if (!existsSync(location.historyPath)) return { entries: [] }
 
   let text: string
@@ -71,4 +66,51 @@ export function recordEntry(
   const next = appendEntry(entries, entry)
   saveHistory(location, next)
   return next
+}
+
+/**
+ * An open log: the file, plus the entries once they have been read.
+ *
+ * Appending is read-modify-write, and the cache is what saves it from re-reading
+ * the whole document on every save. Encapsulated here, in the module that owns
+ * the file, so the IPC layer holds one handle rather than a location, a cached
+ * list, and a special case for the append that happens before any load.
+ *
+ * Mirrors `createBackupSession`: a small stateful handle created once per run.
+ */
+export interface HistoryLog {
+  load(): HistoryResult
+  /** Records one save and returns the log as it now stands. */
+  append(entry: NewHistoryEntry, stamp: HistoryStamp): HistoryEntry[]
+}
+
+export function createHistoryLog(userDataDir: string): HistoryLog {
+  const location = historyLocation(userDataDir)
+  let entries: HistoryEntry[] | null = null
+
+  const ensure = (): HistoryEntry[] => {
+    if (entries === null) entries = loadHistory(location).entries
+    return entries
+  }
+
+  return {
+    load() {
+      const outcome = loadHistory(location)
+      entries = outcome.entries
+      return outcome
+    },
+
+    append(entry, stamp) {
+      const stamped = stampEntry(entry, stamp)
+      // The entry crossed a process boundary to get here and is heading for
+      // disk, so it is checked with the same reader that guards the load path.
+      // Refusing it now means someone can be told; writing it would mean it
+      // vanished silently at the next start.
+      if (readEntry(stamped) === null) {
+        throw new Error('unikeys could not make sense of what that save recorded.')
+      }
+      entries = recordEntry(location, ensure(), stamped)
+      return entries
+    }
+  }
 }

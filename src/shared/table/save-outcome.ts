@@ -10,7 +10,7 @@
 
 import type { AppId } from '../apps'
 import type { WriteResult } from '../ipc'
-import type { CellRef } from './reducer'
+import { cellKey, type CellRef } from './reducer'
 
 export type SaveOutcome =
   /** Reached the app's config file. */
@@ -38,15 +38,6 @@ export function isSettled(outcome: SaveOutcome): boolean {
 }
 
 /**
- * App first, because `AppId` is a closed set of ids that contain no colon —
- * which makes the split unambiguous however odd the action id is. A store
- * edited by hand can carry any id at all, so the key must not assume otherwise.
- */
-function key(ref: CellRef): string {
-  return `${ref.app}:${ref.actionId}`
-}
-
-/**
  * Classifies every cell the renderer sent against what the write reported.
  *
  * Precedence matters and is deliberate. A binding that never reached an adapter
@@ -62,14 +53,14 @@ function key(ref: CellRef): string {
 export function classifySaveOutcome(sent: readonly CellRef[], result: WriteResult): CellOutcome[] {
   const written = new Set<AppId>(result.written.map((app) => app.app))
   const failed = new Set<AppId>(result.failed.map((app) => app.app))
-  const dropped = new Map(result.dropped.map((drop) => [key(drop), drop.deliberate]))
-  const skipped = new Set(result.skipped.map((skip) => key(skip)))
+  const dropped = new Map(result.dropped.map((drop) => [cellKey(drop), drop.deliberate]))
+  const skipped = new Set(result.skipped.map((skip) => cellKey(skip)))
 
   const classify = (cell: CellRef): SaveOutcome => {
-    const deliberate = dropped.get(key(cell))
+    const deliberate = dropped.get(cellKey(cell))
     if (deliberate !== undefined) return deliberate ? 'settled' : 'unreadable'
     if (failed.has(cell.app)) return 'failed'
-    if (skipped.has(key(cell))) return 'unsupported'
+    if (skipped.has(cellKey(cell))) return 'unsupported'
     if (written.has(cell.app)) return 'written'
     return 'failed'
   }

@@ -12,6 +12,7 @@ import {
 } from '@shared/history/types'
 import { isSettled, type SaveOutcome } from '@shared/table/save-outcome'
 import { getStoredChord, type ChordTable } from '@shared/store/types'
+import { count } from '@shared/text'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -41,7 +42,11 @@ interface Props {
  * it before?" answerable at all.
  */
 export function HistoryPage({ entries, chords, onRevert }: Props): React.JSX.Element {
-  const [expanded, setExpanded] = useState<string | null>(entries[0]?.id ?? null)
+  // `undefined` is "the user has not chosen yet", which opens the newest entry.
+  // It cannot be a `useState` initial value: history arrives after mount, so the
+  // page opened before it lands would be stuck with nothing to expand.
+  const [chosen, setChosen] = useState<string | null | undefined>()
+  const expanded = chosen === undefined ? entries[0]?.id : chosen
 
   return (
     <>
@@ -61,7 +66,7 @@ export function HistoryPage({ entries, chords, onRevert }: Props): React.JSX.Ele
                 entry={entry}
                 chords={chords}
                 open={expanded === entry.id}
-                onToggle={() => setExpanded(expanded === entry.id ? null : entry.id)}
+                onToggle={() => setChosen(expanded === entry.id ? null : entry.id)}
                 onRevert={() => onRevert(entry)}
               />
             ))}
@@ -88,6 +93,9 @@ function Entry({
   const changes = entry.kind === 'save' ? entry.changes : []
   const failed = entry.kind === 'save' ? entry.apps.filter((app) => !app.ok) : []
   const revertible = canRevert(entry)
+  // The save itself threw. It outranks the per-app errors: if the write never
+  // returned, what each app did is not known well enough to list.
+  const fatal = entry.kind === 'save' ? entry.error : undefined
 
   // An entry a later save has overtaken can still be reverted — it just will not
   // do what the row above it says any more, so it is worth saying so.
@@ -118,9 +126,12 @@ function Entry({
           <span className="text-muted-foreground truncate text-xs">{summary(entry)}</span>
         </button>
 
-        {entry.kind === 'save' && entry.error && <Badge variant="destructive">failed</Badge>}
-        {failed.length > 0 && !((entry.kind === 'save' && entry.error) ?? false) && (
-          <Badge variant="destructive">{failed.length} app not written</Badge>
+        {fatal ? (
+          <Badge variant="destructive">failed</Badge>
+        ) : (
+          failed.length > 0 && (
+            <Badge variant="destructive">{count(failed.length, 'app')} not written</Badge>
+          )
         )}
 
         <Button
@@ -188,10 +199,10 @@ function Entry({
             </ul>
           )}
 
-          {entry.kind === 'save' && entry.error && (
+          {fatal && (
             <p className="text-destructive text-xs">
-              The save itself failed: {entry.error}. unikeys could not confirm what, if anything,
-              reached your config files.
+              The save itself failed: {fatal}. unikeys could not confirm what, if anything, reached
+              your config files.
             </p>
           )}
 
@@ -259,10 +270,6 @@ function summary(entry: HistoryEntry): string {
   if (entry.links.length > 0) parts.push(count(entry.links.length, 'link'))
 
   return parts.join(' · ')
-}
-
-function count(n: number, noun: string): string {
-  return `${n} ${noun}${n === 1 ? '' : 's'}`
 }
 
 /**

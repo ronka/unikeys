@@ -53,11 +53,8 @@ export interface HistoryApp {
   error?: string
 }
 
-export interface SaveEntry {
+export interface SaveEntryBody {
   kind: 'save'
-  id: string
-  /** Epoch milliseconds, stamped by the main process. */
-  at: number
   changes: HistoryChange[]
   links: HistoryLink[]
   apps: HistoryApp[]
@@ -70,17 +67,36 @@ export interface SaveEntry {
  * path entirely, so there are no per-cell outcomes and no apps to report — which
  * is what keeps the two kinds disjoint rather than one shape with holes in it.
  */
-export interface LinksOnlyEntry {
+export interface LinksOnlyEntryBody {
   kind: 'links-only'
-  id: string
-  at: number
   links: HistoryLink[]
 }
 
-export type HistoryEntry = SaveEntry | LinksOnlyEntry
+/**
+ * What identifies a record, as opposed to what it says.
+ *
+ * Split out because only the main process may mint it: the renderer describes
+ * what happened, main says which record that is and when. Keeping it a separate
+ * type is what lets main stamp an entry by spreading it, with no cast asserting
+ * a shape the compiler could have checked.
+ */
+export interface HistoryStamp {
+  id: string
+  /** Epoch milliseconds. */
+  at: number
+}
 
 /** An entry as the renderer submits it, before main stamps identity and time. */
-export type NewHistoryEntry = Omit<SaveEntry, 'id' | 'at'> | Omit<LinksOnlyEntry, 'id' | 'at'>
+export type NewHistoryEntry = SaveEntryBody | LinksOnlyEntryBody
+
+export type SaveEntry = HistoryStamp & SaveEntryBody
+export type LinksOnlyEntry = HistoryStamp & LinksOnlyEntryBody
+export type HistoryEntry = SaveEntry | LinksOnlyEntry
+
+/** Stamps a submitted entry, which is the only way a `HistoryEntry` is made. */
+export function stampEntry(entry: NewHistoryEntry, stamp: HistoryStamp): HistoryEntry {
+  return { ...entry, ...stamp }
+}
 
 export interface History {
   schemaVersion: number
@@ -176,7 +192,15 @@ export function deserializeHistory(text: string): DeserializeOutcome {
   }
 }
 
-function readEntry(value: unknown): HistoryEntry | null {
+/**
+ * Reads one entry, or `null` if it says nothing usable.
+ *
+ * Exported because the same check belongs at the other end too: an entry
+ * arriving over IPC is renderer-supplied data heading for disk, and validating
+ * it there means a bad record is refused while someone can still be told, rather
+ * than being written and then silently dropped on the next load.
+ */
+export function readEntry(value: unknown): HistoryEntry | null {
   if (!isRecord(value)) return null
   if (typeof value.id !== 'string' || typeof value.at !== 'number') return null
 

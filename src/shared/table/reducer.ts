@@ -194,7 +194,13 @@ export interface CellRef {
   app: AppId
 }
 
-function cellKey(ref: CellRef): string {
+/**
+ * The canonical key for a cell. A NUL cannot occur in an action id or an app id,
+ * so the join is unambiguous however odd a hand-edited store's ids are. Exported
+ * so anything keying cells uses this one rather than inventing a second format
+ * that only happens to agree with it.
+ */
+export function cellKey(ref: CellRef): string {
   return `${ref.actionId}\u0000${ref.app}`
 }
 

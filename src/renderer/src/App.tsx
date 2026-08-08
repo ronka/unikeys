@@ -4,7 +4,8 @@ import { CATALOGUE, actionById } from '@shared/catalogue'
 import { type AppId } from '@shared/apps'
 import { parseCanonical, type Chord } from '@shared/chord'
 import type { AppStatus, ImportResult, WriteResult } from '@shared/ipc'
-import { planRevert } from '@shared/history/revert'
+import { buildSaveEntry } from '@shared/history/entry'
+import { describeRevert, planRevert } from '@shared/history/revert'
 import type { HistoryEntry, NewHistoryEntry } from '@shared/history/types'
 import {
   canLinkWithoutWinner,
@@ -16,11 +17,9 @@ import {
   pendingChanges,
   pendingLinkChanges,
   propagationTargets,
-  type LinkCandidate,
-  type PendingChange,
-  type PendingLinkChange
+  type LinkCandidate
 } from '@shared/table/reducer'
-import { classifySaveOutcome, savedCells, type CellOutcome } from '@shared/table/save-outcome'
+import { savedCells } from '@shared/table/save-outcome'
 import { isCellUnseen } from '@shared/store/types'
 import { buildTableView, summarizeImport } from '@shared/table/view'
 import { type EditTarget } from './components/KeysTable'
@@ -257,9 +256,9 @@ function App(): React.JSX.Element {
     setSaving(true)
     setError(null)
     // Captured now: an edit the user makes while the write is in flight is not
-    // part of this request and must not be marked saved by it. `recorded` holds
-    // the same cells with their previous values, which is what a revert needs
-    // and what `markSaved` is about to overwrite.
+    // part of this request and must not be marked saved by it. These also hold
+    // the previous values a revert needs, which `markSaved` is about to
+    // overwrite.
     const recorded = changes
     const links = linkChanges
     const sent = recorded.map((change) => ({
@@ -270,11 +269,13 @@ function App(): React.JSX.Element {
 
     try {
       const result = await window.unikeys.write({ bindings: sent }, state.store)
-      const outcomes = classifySaveOutcome(sent, result)
+      const entry = buildSaveEntry(recorded, links, { ok: true, result })
       setWriteResult(result)
-      dispatch({ type: 'markSaved', cells: savedCells(outcomes) })
+      // Read off the entry itself, so the cells the table folds away are by
+      // construction the ones the log says were settled.
+      dispatch({ type: 'markSaved', cells: savedCells(entry.changes) })
       setOverlay('write-report')
-      record(saveEntry(recorded, links, outcomes, result))
+      record(entry)
     } catch (cause) {
       const message = (cause as Error).message
       setError(`Save failed: ${message}`)
@@ -282,7 +283,7 @@ function App(): React.JSX.Element {
       // A save that threw is exactly what someone opens History to understand,
       // so it is recorded rather than left as a banner that disappears. Nothing
       // was marked saved, so every cell is reported as not written.
-      record(saveEntry(recorded, links, failedOutcomes(sent), null, message))
+      record(buildSaveEntry(recorded, links, { ok: false, error: message }))
     } finally {
       setSaving(false)
     }
@@ -291,21 +292,7 @@ function App(): React.JSX.Element {
   const handleRevert = (entry: HistoryEntry): void => {
     const plan = planRevert(entry, state, CATALOGUE, reducer)
     for (const action of plan.actions) dispatch(action)
-
-    const notes: string[] = []
-    if (plan.unseen > 0) {
-      notes.push(
-        `${plan.unseen} binding${plan.unseen === 1 ? '' : 's'} had no earlier value in unikeys, so ${plan.unseen === 1 ? 'it was' : 'they were'} left alone`
-      )
-    }
-    if (plan.unparseable > 0) {
-      notes.push(
-        `${plan.unparseable} recorded chord${plan.unparseable === 1 ? '' : 's'} could not be read`
-      )
-    }
-    if (plan.needsWinner.length > 0) {
-      notes.push(`could not re-link ${plan.needsWinner.join(', ')} — those apps no longer agree`)
-    }
+    const notes = describeRevert(plan)
 
     if (plan.actions.length === 0) {
       setNotice(
@@ -452,57 +439,6 @@ function App(): React.JSX.Element {
       )}
     </AppShell>
   )
-}
-
-/**
- * The record of one save.
- *
- * `changes` and `outcomes` are index-aligned by construction — the write request
- * was built from `changes` in order, and `classifySaveOutcome` maps over it — so
- * they are zipped rather than re-keyed. That alignment is what makes the history
- * page and the pending badge agree: both read the same classification.
- */
-function saveEntry(
-  changes: readonly PendingChange[],
-  links: readonly PendingLinkChange[],
-  outcomes: readonly CellOutcome[],
-  result: WriteResult | null,
-  error?: string
-): NewHistoryEntry {
-  return {
-    kind: 'save',
-    changes: changes.map((change, i) => ({
-      actionId: change.actionId,
-      actionName: change.actionName,
-      app: change.app,
-      // Spread rather than assigned, so a cell unikeys had never seen stays
-      // absent instead of becoming an explicit `undefined`. The log has to tell
-      // that apart from a deliberate unbinding: only the second can be reverted.
-      ...(change.previous === undefined ? {} : { previous: change.previous }),
-      next: change.next,
-      outcome: outcomes[i]?.outcome ?? 'failed'
-    })),
-    links: links.map((link) => ({
-      actionId: link.actionId,
-      actionName: link.actionName,
-      linked: link.linked
-    })),
-    apps: [
-      ...(result?.written ?? []).map((app) => ({ app: app.app, name: app.name, ok: true })),
-      ...(result?.failed ?? []).map((app) => ({
-        app: app.app,
-        name: app.name,
-        ok: false,
-        error: app.error
-      }))
-    ],
-    ...(error === undefined ? {} : { error })
-  }
-}
-
-/** For a write that threw: nothing was marked saved, so nothing is revertible. */
-function failedOutcomes(sent: readonly { actionId: string; app: AppId }[]): CellOutcome[] {
-  return sent.map((cell) => ({ actionId: cell.actionId, app: cell.app, outcome: 'failed' }))
 }
 
 export default App
