@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import { X } from 'lucide-react'
 
 import { CATALOGUE, actionById } from '@shared/catalogue'
 import { type AppId } from '@shared/apps'
@@ -188,6 +189,14 @@ function App(): React.JSX.Element {
     [statuses]
   )
 
+  /**
+   * Which apps the unreadable banner was dismissed for, so dismissing it is an
+   * answer to what it said rather than a promise never to mention apps again. A
+   * different set of apps is a different problem, and says so.
+   */
+  const unreadableApps = unreadable.map((status) => status.app).join(',')
+  const [dismissedUnreadable, setDismissedUnreadable] = useState<string | null>(null)
+
   const view = useMemo(
     () => buildTableView(state, CATALOGUE, { search, appFilter: appFilter ?? undefined }),
     [state, search, appFilter]
@@ -328,33 +337,24 @@ function App(): React.JSX.Element {
       banners={
         <div className="empty:hidden shrink-0 space-y-2 px-6 pb-2">
           {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
+            <Banner variant="destructive" onDismiss={() => setError(null)}>
+              {error}
+            </Banner>
           )}
 
-          {notice && (
-            <Alert>
-              <AlertDescription className="flex flex-wrap items-center gap-2">
-                <span className="flex-1">{notice}</span>
-                <Button size="xs" variant="ghost" onClick={() => setNotice(null)}>
-                  Dismiss
-                </Button>
-              </AlertDescription>
-            </Alert>
-          )}
+          {notice && <Banner onDismiss={() => setNotice(null)}>{notice}</Banner>}
 
-          {unreadable.length > 0 && (
-            <Alert>
-              <AlertDescription className="flex flex-wrap items-center gap-2">
-                <span>
-                  Some apps could not be read — {unreadable.map((s) => s.name).join(', ')}.
-                </span>
+          {unreadable.length > 0 && dismissedUnreadable !== unreadableApps && (
+            <Banner
+              onDismiss={() => setDismissedUnreadable(unreadableApps)}
+              action={
                 <Button size="xs" variant="outline" onClick={() => setPage('apps')}>
                   Open Apps to see why
                 </Button>
-              </AlertDescription>
-            </Alert>
+              }
+            >
+              Some apps could not be read — {unreadable.map((s) => s.name).join(', ')}.
+            </Banner>
           )}
         </div>
       }
@@ -464,6 +464,39 @@ function App(): React.JSX.Element {
         />
       )}
     </AppShell>
+  )
+}
+
+/**
+ * A banner above the page, and the ✕ that puts it away.
+ *
+ * Every one of these is something unikeys wants to say once — a failure, a
+ * limit it hit, a config it could not read — rather than a state of the app,
+ * so every one of them can be dismissed. What dismissing *means* is the
+ * caller's business: an error is gone for good, while the unreadable-apps
+ * banner comes back the moment a different app breaks.
+ */
+function Banner({
+  variant,
+  onDismiss,
+  action,
+  children
+}: {
+  variant?: 'destructive'
+  onDismiss: () => void
+  action?: React.ReactNode
+  children: React.ReactNode
+}): React.JSX.Element {
+  return (
+    <Alert variant={variant}>
+      <AlertDescription className="flex flex-wrap items-center gap-2">
+        <span className="flex-1">{children}</span>
+        {action}
+        <Button size="xs" variant="ghost" aria-label="Dismiss" onClick={onDismiss}>
+          <X />
+        </Button>
+      </AlertDescription>
+    </Alert>
   )
 }
 

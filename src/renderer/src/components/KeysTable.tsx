@@ -1,4 +1,4 @@
-import { Link2, Pin } from 'lucide-react'
+import { Link2, Link2Off, Pin } from 'lucide-react'
 
 import type { AppId } from '@shared/apps'
 import { APPS } from '@shared/apps'
@@ -95,7 +95,12 @@ export function KeysTable({
       <thead>
         <tr>
           <th className={cn(HEAD, ACTION_COL, 'z-6')}>Action</th>
-          <th className={cn(HEAD, LINK_COL, 'link-head z-6')}>Link</th>
+          {/* The heading is read aloud but not drawn: the column is one icon
+              wide, and a word wider than its own contents would push the app
+              columns right for nothing. */}
+          <th className={cn(HEAD, LINK_COL, 'link-head z-6')}>
+            <span className="sr-only">Link</span>
+          </th>
           {view.apps.map((app) => (
             <th key={app} className={HEAD}>
               <AppHead
@@ -281,24 +286,7 @@ function Row({
           'link-cell w-[1%] px-[8px] py-[6px] whitespace-nowrap'
         )}
       >
-        <button
-          type="button"
-          className={cn(
-            'rounded-md border px-[8px] py-[2px] text-[11px]',
-            row.linked
-              ? 'border-primary bg-[var(--accent-dim)] text-foreground'
-              : 'border-input bg-card text-foreground hover:bg-accent'
-          )}
-          aria-pressed={row.linked}
-          title={
-            row.linked
-              ? 'Linked — editing any cell updates every mapped app'
-              : 'Link this row so every mapped app shares one chord'
-          }
-          onClick={() => onToggleLink(row.action.id)}
-        >
-          {row.linked ? '⛓ Linked' : 'Link'}
-        </button>
+        <LinkButton linked={row.linked} onClick={() => onToggleLink(row.action.id)} />
       </td>
 
       {apps.map((app, index) => {
@@ -348,6 +336,50 @@ function Row({
         )
       })}
     </tr>
+  )
+}
+
+/**
+ * The row's link toggle. An icon rather than the word it used to be: it repeats
+ * down every row of the table, where a labelled button is a column of the same
+ * word read forty times, and the state worth seeing at a glance is on or off
+ * rather than which of two words is showing.
+ *
+ * The tooltip is what the word used to do, and doubles as the accessible name —
+ * both states say what pressing it means, because a chain icon alone does not
+ * distinguish "these agree" from "these are held together".
+ */
+function LinkButton({
+  linked,
+  onClick
+}: {
+  linked: boolean
+  onClick: () => void
+}): React.JSX.Element {
+  const label = linked
+    ? 'Linked — editing any cell updates every mapped app'
+    : 'Link this row so every mapped app shares one chord'
+
+  return (
+    <Tooltip disableHoverableContent>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          onClick={onClick}
+          aria-pressed={linked}
+          aria-label={label}
+          className={cn(
+            'flex items-center rounded-md border px-[6px] py-[3px]',
+            linked
+              ? 'border-primary bg-[var(--accent-dim)] text-primary'
+              : 'border-input bg-card text-muted-foreground hover:bg-accent hover:text-foreground'
+          )}
+        >
+          {linked ? <Link2 className="size-3.5" /> : <Link2Off className="size-3.5" />}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="right">{label}</TooltipContent>
+    </Tooltip>
   )
 }
 

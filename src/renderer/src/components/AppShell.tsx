@@ -174,7 +174,11 @@ function ShellBody({
           instead of scrolling inside it. `min-h-0` is the same story for the
           vertical scroll. */}
       <SidebarInset className="min-h-0 min-w-0">
-        <header className="drag-region flex h-11 shrink-0 items-center gap-2 px-3">
+        {/* `pl-3` is load-bearing — the trigger's margin below subtracts it by
+            hand. The right side is free to match the pages underneath, so Save
+            lines up with the banners and headings rather than sitting nearer
+            the window edge than anything else on screen. */}
+        <header className="drag-region flex h-11 shrink-0 items-center gap-2 pl-3 pr-6">
           {/* Only when the sidebar's own header is out of reach: expanded it
               carries the trigger itself, and off-canvas on a narrow window it
               is behind a sheet that has to be openable from somewhere. The
