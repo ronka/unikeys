@@ -492,6 +492,11 @@ describe('the Warp catalogue fragment', () => {
     expect(commands['pane.focus-up']).toBe('pane_group:navigate_up')
     expect(commands['edit.copy']).toBe('terminal:copy')
     expect(commands['terminal.new']).toBe('workspace:new_tab')
+    // Warp binds cmd-a to both `terminal:select_all_blocks` and
+    // `editor_view:select_all`. The row takes the first because its peers —
+    // Ghostty's `select_all`, iTerm2's `menu:select-all` — select the
+    // terminal's contents, not the command input's.
+    expect(commands['edit.select-all']).toBe('terminal:select_all_blocks')
     expect(Object.keys(commands).length).toBeGreaterThanOrEqual(15)
   })
 
