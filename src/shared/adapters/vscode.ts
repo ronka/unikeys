@@ -1,5 +1,7 @@
 /**
- * The VSCode / Cursor adapter.
+ * The VSCode adapter, which also serves its forks — Cursor, Kiro and
+ * Antigravity. All three are Code OSS builds keeping a standard
+ * `keybindings.json`, so only the config path differs between them.
  *
  * `keybindings.json` is JSONC — a JSON array carrying `//` and block comments
  * and tolerating trailing commas — and it is a file the user hand-edits. That
@@ -382,7 +384,7 @@ function emptyContents(): string {
  * and no supported way to ask a running instance for them. So this is a
  * hand-authored table of well-known macOS defaults, which is why the report is
  * `partial` — a command missing from it simply has no default, never a wrong
- * one. Cursor is a VSCode fork and ships the same set.
+ * one. Cursor, Kiro and Antigravity are VSCode forks and ship the same set.
  *
  * Chords are written in VSCode's own notation so the table can be read against
  * a real keybindings.json, and decoded through the same path as user config.
@@ -457,10 +459,11 @@ const DEFAULT_KEYS: Record<string, string> = {
 
 const DEFAULTS_NOTE =
   'VSCode compiles its default keybindings into the application rather than storing ' +
-  'them in a readable file, so unikeys ships a curated subset of the well-known macOS ' +
-  'defaults. Commands outside that subset show no default.'
+  'them in a readable file, and its forks — Cursor, Kiro and Antigravity — inherit the ' +
+  'same set. So unikeys ships a curated subset of the well-known macOS defaults. ' +
+  'Commands outside that subset show no default.'
 
-/** Takes no `app`: Cursor is a VSCode fork and ships the same defaults. */
+/** Takes no `app`: every fork here inherits Code OSS's defaults unchanged. */
 function defaults(): DefaultsReport {
   const bindings: ParsedBinding[] = []
   for (const [command, key] of Object.entries(DEFAULT_KEYS)) {
@@ -477,7 +480,7 @@ function defaults(): DefaultsReport {
 
 export const vscodeAdapter: Adapter = {
   format: 'vscode-keybindings',
-  apps: ['vscode', 'cursor'],
+  apps: ['vscode', 'cursor', 'kiro', 'antigravity'],
   parse,
   merge,
   encodeChord,
