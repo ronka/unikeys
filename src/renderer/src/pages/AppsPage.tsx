@@ -320,8 +320,15 @@ function RequestApp(): React.JSX.Element {
  * app would read as a failed search rather than as an app nobody asked unikeys
  * to read — and attached to a file unikeys is going to write, it invites the
  * user to go and create that file by hand, which is the whole problem.
+ *
+ * An app with no standard location is a fourth claim, and the only honest thing
+ * to say about it is nothing: there was no search, so "Looked in: nowhere"
+ * under a message that has just asked the user to choose a path reads as a
+ * failure report and undercuts it.
  */
-function ConfigPath({ status }: { status: AppStatus }): React.JSX.Element {
+function ConfigPath({ status }: { status: AppStatus }): React.JSX.Element | null {
+  if (status.health === 'config-path-required') return null
+
   if (status.resolvedPath) {
     return (
       <p className="text-muted-foreground mt-1 font-mono text-xs break-all">
