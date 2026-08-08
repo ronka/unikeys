@@ -214,7 +214,13 @@ function HeadButton({
   children: React.ReactNode
 }): React.JSX.Element {
   return (
-    <Tooltip>
+    /* `disableHoverableContent`, or moving from one icon to its neighbour
+       leaves the first tooltip up: the open tooltip hangs below and to the
+       right of its icon, so the pointer's path to the next icon runs straight
+       through the grace area Radix keeps open for a pointer heading towards
+       the content. Only one tooltip shows at a time, so the second never
+       opens. Nothing in these tooltips is worth reaching for with the mouse. */
+    <Tooltip disableHoverableContent>
       <TooltipTrigger asChild>
         <button
           type="button"
