@@ -1,10 +1,14 @@
+import { useState } from 'react'
+
 import { APPS, type AppId } from '@shared/apps'
 import { formatDisplay, type Chord } from '@shared/chord'
 import type { DroppedBinding, ImportResult, WriteResult } from '@shared/ipc'
 import type { LinkCandidate } from '@shared/table/reducer'
 import type { ImportSummary } from '@shared/table/view'
+import { count } from '@shared/text'
 
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -15,11 +19,12 @@ import {
 } from '@/components/ui/dialog'
 
 /**
- * The three remaining dialogs.
+ * The dialogs.
  *
  * Each is the result of something the user just did — a link that needed a
- * winner, a first-run import, a save — rather than a place they can navigate to,
- * which is why these stayed modal when everything else became a page.
+ * winner, a copy that needs targets, a first-run import, a save — rather than a
+ * place they can navigate to, which is why these stayed modal when everything
+ * else became a page.
  */
 
 /**
@@ -108,6 +113,91 @@ export function LinkPrompt({
           </li>
         ))}
       </ul>
+    </Modal>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Handing one app's bindings to others
+// ---------------------------------------------------------------------------
+
+/**
+ * "Make these apps match that one." A copy, not a link: the panel says so
+ * outright, because the word on the button the user just pressed is the row
+ * feature's word, and the two behave differently the moment the source changes
+ * again.
+ *
+ * The count comes from `plannedCopy`, the same function that performs the copy,
+ * so the number on the button is the change that happens rather than an
+ * estimate of it. Zero is a real answer — those apps already agree — and the
+ * button says so rather than going quietly dead.
+ */
+export function CopyBindingsPrompt({
+  from,
+  candidates,
+  changeCount,
+  onCopy,
+  onClose
+}: {
+  from: AppId
+  /** The apps that can receive, in column order. */
+  candidates: AppId[]
+  changeCount: (to: AppId[]) => number
+  onCopy: (to: AppId[]) => void
+  onClose: () => void
+}): React.JSX.Element {
+  const [selected, setSelected] = useState<AppId[]>([])
+  const name = APPS[from].name
+  const changes = changeCount(selected)
+
+  return (
+    <Modal
+      title={`Copy ${name}'s keys to other apps`}
+      description={`Every app you pick takes ${name}'s chord for each action it can bind. This happens once — later edits to ${name} will not follow.`}
+      onClose={onClose}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button disabled={changes === 0} onClick={() => onCopy(selected)}>
+            {selected.length === 0
+              ? 'Copy'
+              : changes === 0
+                ? 'Already matching'
+                : `Copy ${count(changes, 'binding')}`}
+          </Button>
+        </>
+      }
+    >
+      <ul className="space-y-1">
+        {candidates.map((app) => (
+          <li key={app}>
+            <label className="hover:bg-accent flex cursor-pointer items-center gap-3 rounded-lg border p-3">
+              <Checkbox
+                checked={selected.includes(app)}
+                onCheckedChange={(checked) =>
+                  setSelected((current) =>
+                    checked === true
+                      ? [...current, app]
+                      : current.filter((chosen) => chosen !== app)
+                  )
+                }
+              />
+              <span className="flex-1 text-sm font-medium">{APPS[app].name}</span>
+              <span className="text-muted-foreground text-xs">
+                {count(changeCount([app]), 'change')}
+              </span>
+            </label>
+          </li>
+        ))}
+      </ul>
+      {/* Said once, here, rather than in the description: nothing is written
+          until the user saves, which is the same promise every other edit
+          makes and the reason a copy this large is safe to try. */}
+      <p className="text-muted-foreground text-xs">
+        Copied keys land as pending changes for you to review before saving.
+      </p>
     </Modal>
   )
 }

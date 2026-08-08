@@ -1,7 +1,10 @@
+import { Link2, Pin } from 'lucide-react'
+
 import type { AppId } from '@shared/apps'
 import { APPS } from '@shared/apps'
 import type { Chord } from '@shared/chord'
 import type { CellState, RowView, TableView } from '@shared/table/view'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { ChordInput } from './ChordInput'
 
@@ -12,6 +15,11 @@ export interface EditTarget {
 
 interface Props {
   view: TableView
+  /** The app the rows are narrowed to, or `null` for every action. */
+  appFilter: AppId | null
+  onAppFilterChange: (app: AppId | null) => void
+  /** Opens the picker for copying this app's bindings into other apps. */
+  onStartCopy: (app: AppId) => void
   editing: EditTarget | null
   onStartEdit: (target: EditTarget) => void
   onCommit: (target: EditTarget, chord: Chord | null) => void
@@ -58,6 +66,9 @@ const PINNED_CELL = 'sticky z-2 border-b border-border'
 
 export function KeysTable({
   view,
+  appFilter,
+  onAppFilterChange,
+  onStartCopy,
   editing,
   onStartEdit,
   onCommit,
@@ -87,7 +98,12 @@ export function KeysTable({
           <th className={cn(HEAD, LINK_COL, 'link-head z-6')}>Link</th>
           {view.apps.map((app) => (
             <th key={app} className={HEAD}>
-              {APPS[app].name}
+              <AppHead
+                app={app}
+                filtered={appFilter === app}
+                onToggle={() => onAppFilterChange(appFilter === app ? null : app)}
+                onCopy={() => onStartCopy(app)}
+              />
             </th>
           ))}
         </tr>
@@ -125,6 +141,103 @@ export function KeysTable({
   )
 }
 
+/**
+ * A column heading and the two things you can do to a whole column: narrow the
+ * table to what this app can bind, and hand this app's bindings to others.
+ *
+ * Both live on the column they act on rather than in a control above the table.
+ * The question each answers — "what can I bind here?", "make the rest match
+ * this" — is asked while reading this column, and the answer arrives without
+ * the eye leaving it.
+ *
+ * They are quiet rather than hidden. The pin is the only way to reach the
+ * filter, and a control that appears on hover is one most people never find.
+ *
+ * Nothing here may add vertical box: the header's height is fixed at 33px and
+ * the sticky category headings offset themselves by exactly that (see the note
+ * on `HEAD`), so a taller heading silently welds them over the first row.
+ */
+function AppHead({
+  app,
+  filtered,
+  onToggle,
+  onCopy
+}: {
+  app: AppId
+  filtered: boolean
+  onToggle: () => void
+  onCopy: () => void
+}): React.JSX.Element {
+  const name = APPS[app].name
+
+  return (
+    <span className="flex items-center gap-1">
+      <span className="mr-0.5">{name}</span>
+      <HeadButton
+        onClick={onToggle}
+        pressed={filtered}
+        label={
+          filtered
+            ? `Showing only actions ${name} can bind — click to show every action`
+            : `Show only actions ${name} can bind`
+        }
+      >
+        <Pin className={cn('size-3.5', filtered && 'fill-current')} />
+      </HeadButton>
+      <HeadButton onClick={onCopy} label={`Copy ${name}'s keys to other apps`}>
+        <Link2 className="size-3.5" />
+      </HeadButton>
+    </span>
+  )
+}
+
+/**
+ * Two icons in a 33px header say very little on their own, so both carry a
+ * tooltip rather than the native `title` they started with: a hint that takes
+ * a second to appear is one nobody waits for, and these are the only
+ * explanation the column controls get.
+ *
+ * `asChild` matters here — the trigger must *be* the button rather than wrap it
+ * in another element, or the header grows and takes the sticky category
+ * headings out of alignment with it. The label doubles as the button's
+ * accessible name, which an icon alone does not have.
+ */
+function HeadButton({
+  onClick,
+  label,
+  pressed,
+  children
+}: {
+  onClick: () => void
+  label: string
+  pressed?: boolean
+  children: React.ReactNode
+}): React.JSX.Element {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          onClick={onClick}
+          aria-label={label}
+          aria-pressed={pressed}
+          className={cn(
+            'leading-none',
+            pressed
+              ? 'text-primary'
+              : 'text-muted-foreground opacity-40 hover:text-foreground hover:opacity-100'
+          )}
+        >
+          {children}
+        </button>
+      </TooltipTrigger>
+      {/* Downwards: upwards would put it over the search box, and the column
+          it belongs to is the one below. */}
+      <TooltipContent side="bottom">{label}</TooltipContent>
+    </Tooltip>
+  )
+}
+
 function Row({
   row,
   apps,
@@ -134,7 +247,10 @@ function Row({
   onCancelEdit,
   onToggleLink,
   propagationTargets
-}: Omit<Props, 'view'> & { row: RowView; apps: AppId[] }): React.JSX.Element {
+}: Omit<Props, 'view' | 'appFilter' | 'onAppFilterChange' | 'onStartCopy'> & {
+  row: RowView
+  apps: AppId[]
+}): React.JSX.Element {
   // Agreement is the quiet state and divergence is the one worth finding, so
   // only the row marker differs — the cells themselves stay unstyled.
   const className = [

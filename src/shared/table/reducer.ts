@@ -82,6 +82,12 @@ export type TableAction =
    */
   | { type: 'linkRow'; actionId: string; winningChord?: Chord | null }
   | { type: 'unlinkRow'; actionId: string }
+  /**
+   * Copies every chord one app holds into the named apps — "make these match
+   * that one", once. It is not a link: nothing is remembered, and a later edit
+   * to `from` does not follow. See `plannedCopy` for exactly which cells move.
+   */
+  | { type: 'copyBindings'; from: AppId; to: readonly AppId[] }
   | { type: 'discardPending' }
   /**
    * Folds pending edits into the saved store after a write.
@@ -182,6 +188,54 @@ export function linkCandidates(state: TableState, action: CatalogueAction): Link
 /** True when linking needs no decision from the user. */
 export function canLinkWithoutWinner(state: TableState, action: CatalogueAction): boolean {
   return linkCandidates(state, action).length <= 1
+}
+
+/** One cell a copy would change, and the value it would take. */
+export interface PlannedCopy extends CellRef {
+  value: StoredChord
+}
+
+/**
+ * Which cells copying `from`'s bindings into `to` would actually change.
+ *
+ * The UI counts these before asking the user to commit, and the reducer applies
+ * exactly this list — so the number on the button and the change that happens
+ * can never come from two different rules.
+ *
+ * Four kinds of cell are left alone, and each is its own answer rather than an
+ * edge case: an action the source app cannot bind has nothing to copy; a source
+ * cell unikeys has never seen would copy an absence rather than a chord; a
+ * target the catalogue does not map cannot hold the binding at all; and a target
+ * that already agrees is not a change. That last one is also why a linked row
+ * never appears here — its mapped apps already hold one chord, and the source is
+ * one of them.
+ *
+ * The copied chord becomes `origin: 'user'`. Copying is a decision, and a cell
+ * that keeps an `imported` origin would be overwritten by the next import.
+ */
+export function plannedCopy(
+  state: TableState,
+  catalogue: Catalogue,
+  from: AppId,
+  to: readonly AppId[]
+): PlannedCopy[] {
+  const targets = to.filter((app) => app !== from)
+  const copies: PlannedCopy[] = []
+
+  for (const action of catalogue.actions) {
+    if (!isMapped(action, from)) continue
+    const source = effectiveChord(state, action.id, from)
+    if (source === undefined) continue
+    const value: StoredChord = { chord: source.chord, origin: 'user' }
+
+    for (const app of targets) {
+      if (!isMapped(action, app)) continue
+      if (effectiveChord(state, action.id, app)?.chord === value.chord) continue
+      copies.push({ actionId: action.id, app, value })
+    }
+  }
+
+  return copies
 }
 
 // ---------------------------------------------------------------------------
@@ -302,6 +356,14 @@ export function tableReducer(
       // dropping the id is what leaves each app holding the last shared chord
       // rather than reverting to what it held before linking.
       return setLinked(state, action.actionId, false)
+
+    case 'copyBindings':
+      // Through `writeCell` rather than straight into the overlay, so a copy
+      // obeys the same propagation rule every other edit does.
+      return plannedCopy(state, catalogue, action.from, action.to).reduce(
+        (current, copy) => writeCell(current, catalogue, copy.actionId, copy.app, copy.value),
+        state
+      )
 
     case 'discardPending':
       return { store: state.store, pending: {}, pendingLinks: {} }

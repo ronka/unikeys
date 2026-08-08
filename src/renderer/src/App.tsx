@@ -16,6 +16,7 @@ import {
   linkCandidates,
   pendingChanges,
   pendingLinkChanges,
+  plannedCopy,
   propagationTargets,
   type LinkCandidate
 } from '@shared/table/reducer'
@@ -23,7 +24,12 @@ import { savedCells } from '@shared/table/save-outcome'
 import { isCellUnseen } from '@shared/store/types'
 import { buildTableView, summarizeImport } from '@shared/table/view'
 import { type EditTarget } from './components/KeysTable'
-import { ImportSummaryPanel, LinkPrompt, WriteReport } from './components/Panels'
+import {
+  CopyBindingsPrompt,
+  ImportSummaryPanel,
+  LinkPrompt,
+  WriteReport
+} from './components/Panels'
 import { AppShell, type View } from './components/AppShell'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -49,7 +55,7 @@ function App(): React.JSX.Element {
   const [statuses, setStatuses] = useState<AppStatus[]>([])
   const [backupDirectory, setBackupDirectory] = useState('')
   const [search, setSearch] = useState('')
-  const [appFilter, setAppFilter] = useState<AppId | 'all'>('all')
+  const [appFilter, setAppFilter] = useState<AppId | null>(null)
   const [editing, setEditing] = useState<EditTarget | null>(null)
   // `page`, not `view` — `view` below is the memoised table view, which is
   // threaded through the table, the filter and the counts.
@@ -58,6 +64,8 @@ function App(): React.JSX.Element {
   const [linking, setLinking] = useState<{ actionId: string; candidates: LinkCandidate[] } | null>(
     null
   )
+  /** The app whose bindings are being handed to others, while the picker is up. */
+  const [copying, setCopying] = useState<AppId | null>(null)
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
   const [writeResult, setWriteResult] = useState<WriteResult | null>(null)
   const [history, setHistory] = useState<HistoryEntry[]>([])
@@ -181,11 +189,7 @@ function App(): React.JSX.Element {
   )
 
   const view = useMemo(
-    () =>
-      buildTableView(state, CATALOGUE, {
-        search,
-        appFilter: appFilter === 'all' ? undefined : appFilter
-      }),
+    () => buildTableView(state, CATALOGUE, { search, appFilter: appFilter ?? undefined }),
     [state, search, appFilter]
   )
   const changes = useMemo(() => pendingChanges(state, CATALOGUE), [state])
@@ -318,7 +322,9 @@ function App(): React.JSX.Element {
       saving={saving}
       onSave={() => void handleSave()}
       // ⌘B must not fire while a chord is being recorded or a modal is up.
-      shortcutBlocked={editing !== null || overlay !== 'none' || linking !== null}
+      shortcutBlocked={
+        editing !== null || overlay !== 'none' || linking !== null || copying !== null
+      }
       banners={
         <div className="empty:hidden shrink-0 space-y-2 px-6 pb-2">
           {error && (
@@ -360,6 +366,7 @@ function App(): React.JSX.Element {
           onSearchChange={setSearch}
           appFilter={appFilter}
           onAppFilterChange={setAppFilter}
+          onStartCopy={setCopying}
           editing={editing}
           onStartEdit={setEditing}
           onCommit={handleCommit}
@@ -395,7 +402,7 @@ function App(): React.JSX.Element {
             // goes with it. Clearing the state — rather than falling back
             // at render — keeps the app from silently springing back to a
             // filter the user never reselected.
-            if (!enabled && appFilter === app) setAppFilter('all')
+            if (!enabled && appFilter === app) setAppFilter(null)
             dispatch({ type: 'setAppEnabled', app, enabled })
           }}
           onChoosePath={(app) => {
@@ -435,6 +442,25 @@ function App(): React.JSX.Element {
             setLinking(null)
           }}
           onClose={() => setLinking(null)}
+        />
+      )}
+
+      {copying && (
+        <CopyBindingsPrompt
+          from={copying}
+          // The columns on screen, minus the source. A disabled app has no
+          // column, so offering it would copy into something the user cannot
+          // see the result in.
+          candidates={view.apps.filter((app) => app !== copying)}
+          changeCount={(to) => plannedCopy(state, CATALOGUE, copying, to).length}
+          onCopy={(to) => {
+            dispatch({ type: 'copyBindings', from: copying, to })
+            setCopying(null)
+            // Straight to the review step, like a revert: a copy this wide is
+            // worth reading before it reaches anyone's config.
+            setPage('pending')
+          }}
+          onClose={() => setCopying(null)}
         />
       )}
     </AppShell>

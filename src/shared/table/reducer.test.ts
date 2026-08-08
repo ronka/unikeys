@@ -17,6 +17,7 @@ import {
   hasPendingChanges,
   linkCandidates,
   pendingChanges,
+  plannedCopy,
   tableReducer,
   type TableAction,
   type TableState
@@ -398,6 +399,110 @@ describe('linking', () => {
       chord: saveAll
     })
     expect(canonicalOf(edited, 'file.save', 'vscode')).toBe('alt+cmd+s')
+  })
+})
+
+describe('copying one app’s bindings into others', () => {
+  it('copies every chord the source holds into the apps that can bind it', () => {
+    const state = createTableState(
+      storeWith({
+        'file.save': { cursor: imported('cmd+s') },
+        'edit.comment-line': { cursor: imported('cmd+/') }
+      })
+    )
+
+    const next = run(state, { type: 'copyBindings', from: 'cursor', to: ['vscode', 'ghostty'] })
+
+    expect(canonicalOf(next, 'file.save', 'vscode')).toBe('cmd+s')
+    expect(canonicalOf(next, 'file.save', 'ghostty')).toBe('cmd+s')
+    // Ghostty maps no comment-line command, so it cannot take that one.
+    expect(canonicalOf(next, 'edit.comment-line', 'vscode')).toBe('cmd+/')
+    expect(canonicalOf(next, 'edit.comment-line', 'ghostty')).toBeUndefined()
+  })
+
+  it('leaves the source, unnamed apps and unseen cells alone', () => {
+    const state = createTableState(storeWith({ 'file.save': { cursor: imported('cmd+s') } }))
+
+    const next = run(state, { type: 'copyBindings', from: 'cursor', to: ['vscode', 'cursor'] })
+
+    expect(canonicalOf(next, 'file.save', 'cursor')).toBe('cmd+s')
+    expect(canonicalOf(next, 'file.save', 'webstorm')).toBeUndefined()
+    // Nothing is known for this row, so there is no absence to spread.
+    expect(canonicalOf(next, 'terminal.split-right', 'ghostty')).toBeUndefined()
+  })
+
+  it('copies a deliberate unbinding, which is a value like any other', () => {
+    const state = createTableState(
+      storeWith({ 'file.save': { cursor: imported(null), vscode: imported('cmd+s') } })
+    )
+
+    const next = run(state, { type: 'copyBindings', from: 'cursor', to: ['vscode'] })
+
+    expect(canonicalOf(next, 'file.save', 'vscode')).toBeNull()
+  })
+
+  it('marks copied cells as the user’s, so the next import cannot undo them', () => {
+    const state = createTableState(storeWith({ 'file.save': { cursor: imported('cmd+s') } }))
+
+    const next = run(state, { type: 'copyBindings', from: 'cursor', to: ['vscode'] })
+
+    expect(effectiveChord(next, 'file.save', 'vscode')?.origin).toBe('user')
+  })
+
+  it('plans nothing when the targets already agree', () => {
+    const state = createTableState(
+      storeWith({ 'file.save': { cursor: imported('cmd+s'), vscode: imported('cmd+s') } })
+    )
+
+    expect(plannedCopy(state, catalogue, 'cursor', ['vscode'])).toEqual([])
+    expect(
+      hasPendingChanges(run(state, { type: 'copyBindings', from: 'cursor', to: ['vscode'] }))
+    ).toBe(false)
+  })
+
+  it('plans exactly the cells the copy then changes', () => {
+    const state = createTableState(
+      storeWith({
+        'file.save': { cursor: imported('cmd+s'), vscode: imported('cmd+s') },
+        'edit.comment-line': { cursor: imported('cmd+/') }
+      })
+    )
+
+    const plan = plannedCopy(state, catalogue, 'cursor', ['vscode', 'webstorm'])
+
+    expect(plan.map((copy) => `${copy.actionId}:${copy.app}`)).toEqual([
+      'file.save:webstorm',
+      'edit.comment-line:vscode',
+      'edit.comment-line:webstorm'
+    ])
+    expect(
+      pendingChanges(
+        run(state, { type: 'copyBindings', from: 'cursor', to: ['vscode', 'webstorm'] }),
+        catalogue
+      )
+    ).toHaveLength(plan.length)
+  })
+
+  it('copies what the user has pending, not what was last saved', () => {
+    const state = createTableState(storeWith({ 'file.save': { cursor: imported('cmd+s') } }))
+
+    const next = run(
+      state,
+      { type: 'setChord', actionId: 'file.save', app: 'cursor', chord: saveAll },
+      { type: 'copyBindings', from: 'cursor', to: ['vscode'] }
+    )
+
+    expect(canonicalOf(next, 'file.save', 'vscode')).toBe('alt+cmd+s')
+  })
+
+  it('has nothing to do for a linked row, whose apps already agree', () => {
+    const state = createTableState(
+      storeWith({ 'file.save': { cursor: imported('cmd+s'), vscode: imported('cmd+s') } }, [
+        'file.save'
+      ])
+    )
+
+    expect(plannedCopy(state, catalogue, 'cursor', ['vscode'])).toEqual([])
   })
 })
 
