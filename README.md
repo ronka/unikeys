@@ -13,7 +13,9 @@ Saving writes into each app's real config file, surgically — only the actions
 unikeys manages are touched, everything else is left exactly as it was, and each
 file is backed up before its first write in a session.
 
-macOS only. Personal local use; no code signing or distribution.
+macOS only. Distributed as a signed, notarized universal DMG — see
+[RELEASE.md](./RELEASE.md) for how releases are built, and
+[MAC-APP-STORE.md](./MAC-APP-STORE.md) for why it is not on the Mac App Store.
 
 ## Architecture
 

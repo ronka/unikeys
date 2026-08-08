@@ -18,6 +18,8 @@
     "build:unpack": "npm run build && electron-builder --dir",
     "build:win": "npm run build && electron-builder --win",
     "build:mac": "electron-vite build && electron-builder --mac",
+    "notarize:dmg": "xcrun notarytool submit dist/unikeys-$npm_package_version.dmg --key \"$APPLE_API_KEY\" --key-id \"$APPLE_API_KEY_ID\" --issuer \"$APPLE_API_ISSUER\" --wait && xcrun stapler staple dist/unikeys-$npm_package_version.dmg",
+    "release:mac": "npm run build:mac && npm run notarize:dmg",
     "build:linux": "electron-vite build && electron-builder --linux",
     "test": "vitest run",
     "test:watch": "vitest",

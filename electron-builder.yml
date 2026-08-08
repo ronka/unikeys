@@ -1,4 +1,4 @@
-appId: com.electron.app
+appId: com.ronkaa.unikeys
 productName: unikeys
 directories:
   buildResources: build
@@ -19,15 +19,29 @@ nsis:
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
 mac:
+  category: public.app-category.developer-tools
+  target:
+    - target: dmg
+      arch:
+        - universal
+  entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
+  hardenedRuntime: true
+  gatekeeperAssess: false
   extendInfo:
-    - NSCameraUsageDescription: Application requests access to the device's camera.
-    - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
-    - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
-    - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
-  notarize: false
+    # unikeys reads and writes other apps' config files. Application Support is
+    # not TCC-protected, but an Obsidian vault or a hand-picked config may well
+    # sit in Documents or Downloads, and macOS prompts for those by name.
+    - NSDocumentsFolderUsageDescription: unikeys needs access to read and update keybinding files stored in your Documents folder, such as an Obsidian vault.
+    - NSDownloadsFolderUsageDescription: unikeys needs access to read and update keybinding files stored in your Downloads folder.
+  notarize: true
 dmg:
   artifactName: ${name}-${version}.${ext}
+  # electron-builder notarizes and staples the .app but leaves the DMG itself
+  # untouched, and the DMG is what people download. Unsigned, Gatekeeper rejects
+  # it outright ("no usable signature"). Signing here; `npm run notarize:dmg`
+  # then notarizes and staples the image.
+  sign: true
 linux:
   target:
     - AppImage
@@ -41,5 +55,3 @@ npmRebuild: false
 publish:
   provider: generic
   url: https://example.com/auto-updates
-electronDownload:
-  mirror: https://npmmirror.com/mirrors/electron/
