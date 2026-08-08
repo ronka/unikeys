@@ -24,6 +24,14 @@ export type AppHealth =
   | 'ok'
   | 'disabled'
   | 'not-installed'
+  /**
+   * No config yet, but unikeys knows where to put one and will create it on the
+   * first save. The ordinary state of a fresh install — and the permanent state
+   * of iTerm2 until the user saves, because its config is a Dynamic Profile
+   * unikeys owns outright and no other program ever writes.
+   */
+  | 'config-not-created'
+  /** No config, and no location unikeys may create one at. */
   | 'config-not-found'
   | 'config-unreadable'
   | 'config-unparseable'
@@ -36,6 +44,12 @@ export interface AppStatus {
   enabled: boolean
   /** The path unikeys actually used, once resolved. */
   resolvedPath: string | null
+  /**
+   * Where a config that does not exist yet would be created. Present only for
+   * `config-not-created`, so the UI can name the file it is about to make
+   * instead of listing the places it failed to find one.
+   */
+  plannedPath?: string
   /** A path the user set by hand, if any. */
   overridePath: string | null
   /** Where unikeys looked, so a not-found message can say so. */

@@ -27,6 +27,7 @@ const HEALTH_LABELS: Record<AppHealth, string> = {
   ok: 'Ready',
   disabled: 'Turned off',
   'not-installed': 'Not installed',
+  'config-not-created': 'Not created yet',
   'config-not-found': 'Config not found',
   'config-unreadable': 'Config unreadable',
   'config-unparseable': 'Config could not be parsed'
@@ -35,12 +36,14 @@ const HEALTH_LABELS: Record<AppHealth, string> = {
 /**
  * Only `ok` is good news and only a config unikeys found but could not use is
  * bad news. "Not installed" and "turned off" are ordinary states of a machine
- * that does not run all six apps, so they stay neutral.
+ * that does not run all six apps, so they stay neutral — and so is a config
+ * that does not exist yet, which unikeys creates on the first save rather than
+ * asking the user to go and make.
  */
 function healthTone(health: AppHealth): { text: string; dot: string; message: string } {
   if (health === 'ok')
     return { text: 'text-agree', dot: 'bg-agree', message: 'text-muted-foreground' }
-  if (health === 'disabled' || health === 'not-installed')
+  if (health === 'disabled' || health === 'not-installed' || health === 'config-not-created')
     return { text: 'text-faint', dot: 'bg-faint', message: 'text-muted-foreground' }
   // The explanation of a config unikeys could not use is the one message worth
   // full contrast — it is the only one that asks the user to do something.
@@ -168,9 +171,11 @@ export function AppsPage({
 }
 
 /**
- * A resolved path and a list of places unikeys looked are different claims, and
- * "Looked in" attached to a merely turned-off app would read as a failed search
- * rather than as an app nobody asked unikeys to read.
+ * A resolved path, a path unikeys is about to create, and a list of places it
+ * looked are three different claims. "Looked in" attached to a merely turned-off
+ * app would read as a failed search rather than as an app nobody asked unikeys
+ * to read — and attached to a file unikeys is going to write, it invites the
+ * user to go and create that file by hand, which is the whole problem.
  */
 function ConfigPath({ status }: { status: AppStatus }): React.JSX.Element {
   if (status.resolvedPath) {
@@ -178,6 +183,15 @@ function ConfigPath({ status }: { status: AppStatus }): React.JSX.Element {
       <p className="text-muted-foreground mt-1 font-mono text-xs break-all">
         {shortenHome(status.resolvedPath)}
         {status.overridePath && <span className="text-faint"> · chosen by hand</span>}
+      </p>
+    )
+  }
+
+  if (status.plannedPath) {
+    return (
+      <p className="text-faint mt-1 font-mono text-xs break-all">
+        <span className="font-sans">Will be created at: </span>
+        {shortenHome(status.plannedPath)}
       </p>
     )
   }

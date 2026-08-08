@@ -28,6 +28,7 @@ import type {
   WrittenApp
 } from '../shared/ipc'
 import type { AppConfig, Store } from '../shared/store/types'
+import type { ReadFailure } from './config-files'
 import { BackupSession, candidatePaths, readConfig, writeAtomic, writeTarget } from './config-files'
 
 // ---------------------------------------------------------------------------
@@ -51,6 +52,48 @@ interface AppReading {
   /** User bindings keyed by the app's own command id. */
   userBindings: Map<string, ParsedBinding>
   defaults: Map<string, ParsedBinding>
+}
+
+/**
+ * Why a config could not be read, and whether that is a problem at all.
+ *
+ * A pure classification, kept out of `readApp` so the caller stays one linear
+ * pass: the four answers differ only in these three fields, and inlining them
+ * meant repeating the whole `AppReading` envelope once per answer.
+ */
+function diagnose(
+  app: AppId,
+  override: string | null,
+  read: ReadFailure,
+  installed: boolean
+): Pick<AppStatus, 'health' | 'message' | 'plannedPath'> {
+  // Checked before anything to do with a missing app: a permissions problem
+  // reported as "not installed" sends the user off to reinstall an app they
+  // already have.
+  if (read.reason === 'unreadable') {
+    return { health: 'config-unreadable', message: `Could not read ${read.path}: ${read.error}` }
+  }
+
+  if (!installed) {
+    return {
+      health: 'not-installed',
+      message: `No config found. Looked in: ${read.searched.join(', ')}`
+    }
+  }
+
+  // A missing config on an app the user has is not a failure: `planWrite`
+  // creates one on the first save. So the question here is the one the save
+  // itself will ask — is there a location unikeys may write to? Deriving the
+  // answer from `writeTarget` rather than marking the apps whose config unikeys
+  // owns is what stops the status and the save from ever disagreeing.
+  const target = writeTarget(app, override)
+  return target.ok
+    ? {
+        health: 'config-not-created',
+        plannedPath: target.path,
+        message: 'unikeys creates this file the first time you save.'
+      }
+    : { health: 'config-not-found', message: target.error }
 }
 
 function readApp(app: AppId, config: AppConfig): AppReading {
@@ -85,21 +128,8 @@ function readApp(app: AppId, config: AppConfig): AppReading {
 
   const read = readConfig(app, config.configPath)
   if (!read.ok) {
-    const health = read.reason === 'not-found' ? 'config-not-found' : 'config-unreadable'
-    const message =
-      read.reason === 'not-found'
-        ? `No config found. Looked in: ${read.searched.join(', ')}`
-        : `Could not read ${read.path}: ${read.error}`
     return {
-      // "Not installed" is only reported when the config is genuinely absent.
-      // An unreadable config must keep saying so even on an app unikeys failed
-      // to detect, otherwise a permissions problem sends the user off to
-      // reinstall an app they already have.
-      status: {
-        ...base,
-        health: !installed && read.reason === 'not-found' ? 'not-installed' : health,
-        message
-      },
+      status: { ...base, ...diagnose(app, config.configPath, read, installed) },
       userBindings: new Map(),
       defaults
     }
@@ -172,7 +202,12 @@ export function importFromApps(store: Store, catalogue: Catalogue): ImportResult
     if (reading.status.health === 'disabled') continue
     if (reading.status.health === 'ok') {
       appsRead += 1
-    } else {
+    } else if (reading.status.health !== 'config-not-created') {
+      // A config unikeys is going to create on the first save is neither read
+      // nor failed, so it is the one unhealthy state that reports nothing here:
+      // listing it under "could not read" turns the ordinary state of a fresh
+      // install into an error the user goes looking for a fix to. Note it is
+      // not `continue`d — its app's shipped defaults still import below.
       appsFailed.push({
         app,
         name: APPS[app].name,

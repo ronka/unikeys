@@ -14,10 +14,16 @@ import { basename, dirname, join } from 'node:path'
 
 import { APPS, type AppId } from '../shared/apps'
 
-export type ReadOutcome =
-  | { ok: true; path: string; contents: string }
+/**
+ * Named separately because a caller that has already ruled out success still
+ * has a four-way decision to make about *why* — and `Extract`ing the failure
+ * arms back out of the union at every such call site is noise.
+ */
+export type ReadFailure =
   | { ok: false; reason: 'not-found'; searched: string[] }
   | { ok: false; reason: 'unreadable'; path: string; error: string }
+
+export type ReadOutcome = { ok: true; path: string; contents: string } | ReadFailure
 
 /**
  * Resolves an app's config path. A manual override wins; otherwise the standard
