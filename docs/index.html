@@ -1,0 +1,984 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>unikeys — one table for every keybinding on your Mac</title>
+    <meta
+      name="description"
+      content="unikeys puts the keyboard shortcuts of VSCode, Cursor, Kiro, Antigravity, Zed, WebStorm, IntelliJ IDEA, PyCharm, Ghostty, cmux, iTerm2, Warp and Obsidian in one table. Match a row in one press, review every change, then write to each app's real config file."
+    />
+    <link rel="icon" href="./img/app-icon.png" />
+    <link rel="apple-touch-icon" href="./img/app-icon.png" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="unikeys — one table for every keybinding on your Mac" />
+    <meta
+      property="og:description"
+      content="Thirteen apps, one table. Match a row in one press, read every change before it saves."
+    />
+    <meta property="og:image" content="https://ronka.github.io/unikeys/img/og.png" />
+    <meta property="og:url" content="https://ronka.github.io/unikeys/" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&family=Space+Grotesk:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      /* ---- tokens: sampled from the app's own UI ---- */
+      :root {
+        --ground: #101114;
+        --surface: #16171b;
+        --panel: #1e2026;
+        --line: #272930;
+        --line-soft: #1f2127;
+        --text: #e7e9ee;
+        --muted: #8b8f9a;
+        --dim: #5f636e;
+        --blue: #7ba7f8;
+        --purple: #a78bfa;
+        --gold: #f2c24b; /* diverging, in the app's row accent */
+        --green: #78db89; /* agreed */
+
+        --display: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+        --body: 'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
+        --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+        --chord: ui-monospace, 'SF Mono', Menlo, 'IBM Plex Mono', monospace;
+
+        --gut: clamp(20px, 5vw, 64px);
+        --max: 1200px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        background: var(--ground);
+        color: var(--text);
+        font-family: var(--body);
+        font-size: 17px;
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+        overflow-x: hidden;
+      }
+      a {
+        color: inherit;
+      }
+      img {
+        max-width: 100%;
+        height: auto;
+        display: block;
+      }
+      :focus-visible {
+        outline: 2px solid var(--blue);
+        outline-offset: 3px;
+        border-radius: 4px;
+      }
+
+      .wrap {
+        max-width: var(--max);
+        margin: 0 auto;
+        padding: 0 var(--gut);
+      }
+
+      .eyebrow {
+        font-family: var(--mono);
+        font-size: 11.5px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--dim);
+        margin: 0 0 18px;
+      }
+
+      h1,
+      h2,
+      h3 {
+        font-family: var(--display);
+        font-weight: 700;
+        letter-spacing: -0.025em;
+        line-height: 1.04;
+        margin: 0;
+      }
+
+      /* ---- top bar ---- */
+      .bar {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        background: color-mix(in srgb, var(--ground) 88%, transparent);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid var(--line-soft);
+      }
+      .bar-in {
+        max-width: var(--max);
+        margin: 0 auto;
+        padding: 12px var(--gut);
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      .mark {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-family: var(--display);
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        text-decoration: none;
+        font-size: 17px;
+      }
+      .mark img {
+        width: 24px;
+        height: 24px;
+        border-radius: 6px;
+      }
+      .bar nav {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 22px;
+        font-family: var(--mono);
+        font-size: 13px;
+      }
+      .bar nav a {
+        color: var(--muted);
+        text-decoration: none;
+      }
+      .bar nav a:hover {
+        color: var(--text);
+      }
+      .bar .btn-sm {
+        color: var(--text);
+        border: 1px solid var(--line);
+        background: var(--panel);
+        padding: 7px 14px;
+        border-radius: 8px;
+      }
+      .bar .btn-sm:hover {
+        border-color: var(--blue);
+      }
+      @media (max-width: 720px) {
+        .bar nav .hide-sm {
+          display: none;
+        }
+      }
+
+      /* ---- hero ---- */
+      .hero {
+        /* padding-block only — the shorthand would cancel .wrap's side gutters. */
+        padding-top: clamp(56px, 10vw, 108px);
+        padding-bottom: clamp(40px, 6vw, 72px);
+      }
+      .hero h1 {
+        font-size: clamp(44px, 8.2vw, 92px);
+      }
+      .hero .lede {
+        max-width: 60ch;
+        color: var(--muted);
+        font-size: clamp(17px, 1.9vw, 20px);
+        margin: 26px 0 0;
+      }
+      .hero .lede strong {
+        color: var(--text);
+        font-weight: 500;
+      }
+
+      .cta-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 16px 20px;
+        margin-top: 34px;
+      }
+      .btn {
+        font-family: var(--body);
+        font-weight: 500;
+        font-size: 16px;
+        text-decoration: none;
+        padding: 14px 24px;
+        border-radius: 10px;
+        border: 1px solid transparent;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        transition: transform 0.12s ease, background 0.15s ease, border-color 0.15s ease;
+      }
+      .btn-primary {
+        background: var(--blue);
+        color: #0d1220;
+      }
+      .btn-primary:hover {
+        background: #98b8fa;
+        transform: translateY(-1px);
+      }
+      .btn-ghost {
+        border-color: var(--line);
+        background: var(--surface);
+        color: var(--text);
+      }
+      .btn-ghost:hover {
+        border-color: var(--dim);
+        transform: translateY(-1px);
+      }
+      .cta-note {
+        font-family: var(--mono);
+        font-size: 12.5px;
+        color: var(--dim);
+        line-height: 1.5;
+      }
+      .cta-note a {
+        color: var(--muted);
+      }
+
+      /* ---- signature: the live table ---- */
+      .demo {
+        margin-top: clamp(44px, 7vw, 80px);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: var(--surface);
+        overflow: hidden;
+      }
+      .demo-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px 12px;
+        padding: 14px 18px;
+        border-bottom: 1px solid var(--line-soft);
+        font-family: var(--mono);
+        font-size: 12.5px;
+        color: var(--muted);
+      }
+      .demo-head .count strong {
+        color: var(--gold);
+        font-weight: 500;
+      }
+      .demo-head .count.settled strong {
+        color: var(--green);
+      }
+      .chip {
+        margin-left: auto;
+        font-family: var(--mono);
+        font-size: 12px;
+        padding: 6px 12px;
+        border-radius: 7px;
+        border: 1px solid transparent;
+        color: var(--dim);
+      }
+      .chip.on {
+        color: var(--purple);
+        border-color: color-mix(in srgb, var(--purple) 34%, transparent);
+        background: color-mix(in srgb, var(--purple) 10%, transparent);
+      }
+      .reset {
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--dim);
+        background: none;
+        border: 0;
+        cursor: pointer;
+        padding: 6px 4px;
+      }
+      .reset:hover {
+        color: var(--text);
+      }
+
+      .demo-scroll {
+        overflow-x: auto;
+      }
+      table.keys {
+        border-collapse: collapse;
+        width: 100%;
+        min-width: 720px;
+      }
+      table.keys th,
+      table.keys td {
+        text-align: left;
+        padding: 0 18px;
+        height: 60px;
+        border-bottom: 1px solid var(--line-soft);
+        white-space: nowrap;
+      }
+      table.keys thead th {
+        height: 46px;
+        font-family: var(--mono);
+        font-weight: 400;
+        font-size: 12px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--dim);
+      }
+      table.keys tbody tr:last-child td {
+        border-bottom: 0;
+      }
+      .act {
+        position: relative;
+        width: 26%;
+      }
+      .act::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 8px;
+        bottom: 8px;
+        width: 3px;
+        border-radius: 2px;
+        background: var(--gold);
+        transition: background 0.35s ease;
+      }
+      tr.settled .act::before {
+        background: var(--green);
+      }
+      .act .name {
+        font-size: 15.5px;
+      }
+      .act .id {
+        font-family: var(--mono);
+        font-size: 11.5px;
+        color: var(--dim);
+      }
+      .cell {
+        font-family: var(--chord);
+        font-size: 15px;
+        color: var(--muted);
+        transition: color 0.3s ease;
+      }
+      .cell.odd {
+        color: var(--gold);
+      }
+      tr.settled .cell {
+        color: var(--green);
+      }
+      .cell.none,
+      tr.settled .cell.none {
+        color: var(--dim);
+        font-style: italic;
+        font-family: var(--body);
+        font-size: 14px;
+      }
+      .match {
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--muted);
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        padding: 7px 13px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+      .match:hover {
+        color: var(--text);
+        border-color: var(--blue);
+      }
+      .match[disabled] {
+        opacity: 0.4;
+        cursor: default;
+        border-color: var(--line-soft);
+      }
+      td.action-cell {
+        text-align: right;
+        width: 120px;
+      }
+      .demo-foot {
+        padding: 14px 18px;
+        border-top: 1px solid var(--line-soft);
+        font-size: 13.5px;
+        color: var(--dim);
+      }
+
+      /* ---- features ---- */
+      .feature {
+        padding-top: clamp(64px, 10vw, 128px);
+      }
+      .feature-in {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 34px;
+      }
+      .feature h2 {
+        font-size: clamp(30px, 4.4vw, 50px);
+      }
+      .feature p {
+        color: var(--muted);
+        max-width: 54ch;
+        margin: 18px 0 0;
+      }
+      .shot {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        overflow: hidden;
+        background: var(--surface);
+      }
+      @media (min-width: 900px) {
+        .feature-in {
+          grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+          gap: 56px;
+          align-items: center;
+        }
+        .feature.flip .copy {
+          order: 2;
+        }
+      }
+
+      /* ---- apps ---- */
+      .apps {
+        padding-top: clamp(80px, 12vw, 150px);
+      }
+      .apps h2 {
+        font-size: clamp(28px, 3.6vw, 40px);
+        max-width: 18ch;
+      }
+      .groups {
+        margin-top: 46px;
+        display: grid;
+        gap: 1px;
+        background: var(--line-soft);
+        border: 1px solid var(--line-soft);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      @media (min-width: 860px) {
+        .groups {
+          grid-template-columns: repeat(4, 1fr);
+        }
+      }
+      .group {
+        background: var(--surface);
+        padding: 24px 22px 26px;
+      }
+      .group h3 {
+        font-family: var(--mono);
+        font-weight: 400;
+        font-size: 11.5px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--dim);
+      }
+      .group ul {
+        list-style: none;
+        margin: 16px 0 0;
+        padding: 0;
+      }
+      .group li {
+        padding: 7px 0;
+        font-size: 15.5px;
+      }
+      .group li span {
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--dim);
+        display: block;
+      }
+
+      /* ---- download ---- */
+      .download {
+        padding-top: clamp(80px, 12vw, 150px);
+        padding-bottom: clamp(60px, 8vw, 100px);
+      }
+      .panel {
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: var(--surface);
+        padding: clamp(32px, 5vw, 60px);
+      }
+      .panel h2 {
+        font-size: clamp(32px, 4.6vw, 52px);
+      }
+      .panel .lede {
+        max-width: 62ch;
+        color: var(--muted);
+        font-size: clamp(17px, 1.9vw, 20px);
+      }
+      .guards {
+        list-style: none;
+        margin: 36px 0 0;
+        padding: 0;
+        display: grid;
+        gap: 20px;
+      }
+      @media (min-width: 780px) {
+        .guards {
+          grid-template-columns: repeat(3, 1fr);
+          gap: 28px;
+        }
+      }
+      .guards li {
+        border-top: 1px solid var(--line);
+        padding-top: 16px;
+        color: var(--muted);
+        font-size: 15px;
+      }
+      .guards b {
+        display: block;
+        color: var(--text);
+        font-family: var(--display);
+        font-weight: 500;
+        font-size: 17px;
+        letter-spacing: -0.01em;
+        margin-bottom: 6px;
+      }
+      .caveat {
+        margin: 40px 0 0;
+        padding: 16px 18px;
+        border-left: 2px solid var(--gold);
+        background: color-mix(in srgb, var(--gold) 5%, transparent);
+        color: var(--muted);
+        font-size: 14.5px;
+        max-width: 78ch;
+      }
+      .caveat a {
+        color: var(--text);
+      }
+
+      footer {
+        border-top: 1px solid var(--line-soft);
+        padding: 30px 0 60px;
+        font-family: var(--mono);
+        font-size: 12.5px;
+        color: var(--dim);
+      }
+      footer .wrap {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 24px;
+      }
+      footer a {
+        color: var(--muted);
+        text-decoration: none;
+      }
+      footer a:hover {
+        color: var(--text);
+      }
+      footer .right {
+        margin-left: auto;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+        * {
+          transition-duration: 0.01ms !important;
+          animation-duration: 0.01ms !important;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <header class="bar">
+      <div class="bar-in">
+        <a class="mark" href="#top"><img src="./img/app-icon.png" alt="" />unikeys</a>
+        <nav>
+          <a class="hide-sm" href="#apps">Apps</a>
+          <a class="hide-sm" href="https://github.com/ronka/unikeys">GitHub</a>
+          <!-- Version is hardcoded. Bump this href and the two below on each release. -->
+          <a
+            class="btn-sm"
+            href="https://github.com/ronka/unikeys/releases/download/v1.0.0/unikeys-1.0.0.dmg"
+            >Download</a
+          >
+        </nav>
+      </div>
+    </header>
+
+    <main id="top">
+      <section class="hero wrap">
+        <p class="eyebrow">Thirteen apps · one table</p>
+        <h1>Every shortcut,<br />side by side.</h1>
+        <p class="lede">
+          Your editor, your other editor, your terminal and your notes all disagree about
+          <span style="font-family: var(--chord)">⇧⌘P</span>. unikeys reads the real keybinding files
+          on your Mac, lays every action out as a row and every app as a column, and
+          <strong>settles a whole row with one press</strong>.
+        </p>
+
+        <div class="cta-row">
+          <a
+            class="btn btn-primary"
+            href="https://github.com/ronka/unikeys/releases/download/v1.0.0/unikeys-1.0.0.dmg"
+            >Download for macOS</a
+          >
+          <a class="btn btn-ghost" href="https://github.com/ronka/unikeys">Read the source</a>
+          <p class="cta-note">
+            Universal DMG · 266 MB · signed and notarized<br />
+            v1.0.0 — <a href="https://github.com/ronka/unikeys/releases/latest">all releases</a>
+          </p>
+        </div>
+
+        <!-- Signature element: the product's own table, live. -->
+        <div class="demo" aria-label="Interactive demonstration of the unikeys table">
+          <div class="demo-head">
+            <span class="count" id="count">5 rows · <strong>4 diverging</strong></span>
+            <span class="chip" id="chip">no pending changes</span>
+            <button class="reset" id="reset" type="button">Reset</button>
+          </div>
+          <div class="demo-scroll">
+            <table class="keys">
+              <thead>
+                <tr>
+                  <th>Action</th>
+                  <th>VSCode</th>
+                  <th>Cursor</th>
+                  <th>Antigravity</th>
+                  <th>WebStorm</th>
+                  <th>Ghostty</th>
+                  <th aria-label="Match"></th>
+                </tr>
+              </thead>
+              <tbody id="rows"></tbody>
+            </table>
+          </div>
+          <div class="demo-foot">
+            Nothing here touches your Mac. In the app, matching stages a change — pressing Save
+            writes it.
+          </div>
+        </div>
+      </section>
+
+      <section class="feature wrap">
+        <div class="feature-in">
+          <div class="copy">
+            <p class="eyebrow">The table</p>
+            <h2>One row per action.<br />One column per app.</h2>
+            <p>
+              Each row is an action. Each column is an app. Each cell is the chord that action is
+              bound to there. Thirty-eight actions across editing, navigation, terminal and window
+              management, with the ones your apps disagree about marked as you scroll.
+            </p>
+          </div>
+          <div class="shot">
+            <img
+              src="./img/01-keys.png"
+              alt="The unikeys Keys table: actions down the left, VSCode, Cursor, Kiro, Antigravity, WebStorm and Ghostty across the top, each cell showing a chord."
+              loading="lazy"
+              width="1800"
+              height="1125"
+            />
+          </div>
+        </div>
+      </section>
+
+      <section class="feature flip wrap">
+        <div class="feature-in">
+          <div class="copy">
+            <p class="eyebrow">Match</p>
+            <h2>Match a row<br />in one press.</h2>
+            <p>
+              unikeys shows you which chords are already in play and who uses each one. Pick the one
+              you want and every app that supports the action takes it. This happens once — a later
+              edit to a single cell changes that cell alone.
+            </p>
+          </div>
+          <div class="shot">
+            <img
+              src="./img/02-match.png"
+              alt="The Match dialog for Command Palette, offering ⇧⌘P used by VSCode, Cursor, Kiro, Antigravity and cmux, or ⇧⌘A used by WebStorm."
+              loading="lazy"
+              width="1800"
+              height="1125"
+            />
+          </div>
+        </div>
+      </section>
+
+      <section class="feature wrap">
+        <div class="feature-in">
+          <div class="copy">
+            <p class="eyebrow">Nothing lands by surprise</p>
+            <h2>Read every change<br />before it saves.</h2>
+            <p>
+              Edits stack up as pending changes — action, app, the chord it was on, the chord it is
+              going to. Read the list, save it, or discard the lot. Nothing reaches a config file
+              until you say so.
+            </p>
+          </div>
+          <div class="shot">
+            <img
+              src="./img/03-pending.png"
+              alt="The Pending changes dialog listing six Command Palette changes across Zed, WebStorm, IntelliJ IDEA, PyCharm, Warp and Obsidian, with Discard all and Save to apps."
+              loading="lazy"
+              width="1800"
+              height="1125"
+            />
+          </div>
+        </div>
+      </section>
+
+      <section class="feature flip wrap">
+        <div class="feature-in">
+          <div class="copy">
+            <p class="eyebrow">It knows where they live</p>
+            <h2>You choose<br />which apps.</h2>
+            <p>
+              unikeys finds each app's real config file, shows you the path, and tells you what it
+              found there. Turn an app off and it is left alone entirely. Keep your config somewhere
+              unusual? Point unikeys at it.
+            </p>
+          </div>
+          <div class="shot">
+            <img
+              src="./img/04-apps.png"
+              alt="The Apps panel showing VSCode, Cursor, Kiro, Antigravity and Zed with toggles, config file paths and a per-app status."
+              loading="lazy"
+              width="1800"
+              height="1125"
+            />
+          </div>
+        </div>
+      </section>
+
+      <section class="feature wrap">
+        <div class="feature-in">
+          <div class="copy">
+            <p class="eyebrow">Backed up, then written</p>
+            <h2>Every save<br />is reversible.</h2>
+            <p>
+              Each save is kept with what every binding was before it. Reverting loads the old values
+              back as pending changes, so you get to read the undo before it happens too. Every file
+              is backed up before its first write in a session.
+            </p>
+          </div>
+          <div class="shot">
+            <img
+              src="./img/05-history.png"
+              alt="The History panel: a save from today with three Command Palette changes across Ghostty, cmux and iTerm2, each marked written, with a Revert button."
+              loading="lazy"
+              width="1800"
+              height="1125"
+            />
+          </div>
+        </div>
+      </section>
+
+      <section class="apps wrap" id="apps">
+        <p class="eyebrow">Supported</p>
+        <h2>Thirteen apps, and where they keep their keys.</h2>
+        <div class="groups">
+          <div class="group">
+            <h3>Editors</h3>
+            <ul>
+              <li>VSCode <span>keybindings.json</span></li>
+              <li>Cursor <span>keybindings.json</span></li>
+              <li>Kiro <span>keybindings.json</span></li>
+              <li>Antigravity <span>keybindings.json</span></li>
+              <li>Zed <span>keymap.json</span></li>
+            </ul>
+          </div>
+          <div class="group">
+            <h3>JetBrains</h3>
+            <ul>
+              <li>WebStorm <span>keymaps/*.xml</span></li>
+              <li>IntelliJ IDEA <span>keymaps/*.xml</span></li>
+              <li>PyCharm <span>keymaps/*.xml</span></li>
+            </ul>
+          </div>
+          <div class="group">
+            <h3>Terminals</h3>
+            <ul>
+              <li>Ghostty <span>config</span></li>
+              <li>cmux <span>config</span></li>
+              <li>iTerm2 <span>plist</span></li>
+              <li>Warp <span>keybindings.yaml</span></li>
+            </ul>
+          </div>
+          <div class="group">
+            <h3>Notes</h3>
+            <ul>
+              <li>Obsidian <span>hotkeys.json</span></li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="download wrap">
+        <div class="panel">
+          <p class="eyebrow">macOS</p>
+          <h2>Get unikeys.</h2>
+          <p class="lede" style="margin-top: 20px">
+            A signed, notarized universal build — Apple Silicon and Intel — that opens without a
+            Gatekeeper warning. Not on the Mac App Store: a sandboxed app cannot read the config
+            files unikeys exists to edit.
+          </p>
+
+          <div class="cta-row">
+            <a
+              class="btn btn-primary"
+              href="https://github.com/ronka/unikeys/releases/download/v1.0.0/unikeys-1.0.0.dmg"
+              >Download unikeys 1.0.0</a
+            >
+            <p class="cta-note">DMG · 266 MB · macOS</p>
+          </div>
+
+          <ul class="guards">
+            <li>
+              <b>Surgical writes</b>
+              Only the actions unikeys manages are touched. Comments, ordering and formatting in
+              your files survive untouched.
+            </li>
+            <li>
+              <b>Backed up first</b>
+              Every file is copied before its first write in a session.
+            </li>
+            <li>
+              <b>Reversible</b>
+              History keeps what each binding was, and reverting comes back as pending changes to
+              review.
+            </li>
+          </ul>
+
+          <p class="caveat">
+            Honest about version 1.0: most of the format adapters were built from each app's
+            documented config format rather than tested against a live install — iTerm2 and
+            Antigravity are the exceptions so far. Read the pending list before your first save. The
+            <a href="https://github.com/ronka/unikeys#outstanding-most-fixtures-are-authored-not-captured"
+              >README says exactly which is which</a
+            >.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        <span>unikeys — macOS</span>
+        <a href="https://github.com/ronka/unikeys">Source</a>
+        <a href="https://github.com/ronka/unikeys/issues">Issues</a>
+        <a href="https://github.com/ronka/unikeys/releases">Releases</a>
+        <span class="right">Built by <a href="https://github.com/ronka">ronka</a></span>
+      </div>
+    </footer>
+
+    <script>
+      // The hero table. Chords are the real ones unikeys ships as defaults.
+      const APPS = ['vscode', 'cursor', 'antigravity', 'webstorm', 'ghostty']
+      const ROWS = [
+        {
+          name: 'Command Palette',
+          id: 'navigate.command-palette',
+          cells: { vscode: '⇧⌘P', cursor: '⇧⌘P', antigravity: '⇧⌘P', webstorm: '⇧⌘A', ghostty: null },
+          agreed: '⇧⌘P',
+        },
+        {
+          name: 'Go to Line',
+          id: 'navigate.goto-line',
+          cells: { vscode: '⌃G', cursor: '⌃G', antigravity: '⌃G', webstorm: '⌘L', ghostty: null },
+          agreed: '⌃G',
+        },
+        {
+          name: 'Format Document',
+          id: 'edit.format-document',
+          cells: { vscode: '⌥⇧F', cursor: '⌥⇧F', antigravity: '⌥⇧F', webstorm: '⌥⌘L', ghostty: null },
+          agreed: '⌥⇧F',
+        },
+        {
+          name: 'Rename Symbol',
+          id: 'edit.rename-symbol',
+          cells: { vscode: 'F2', cursor: 'F2', antigravity: 'F2', webstorm: '⇧F6', ghostty: null },
+          agreed: 'F2',
+        },
+        {
+          name: 'Toggle Line Comment',
+          id: 'edit.comment-line',
+          cells: { vscode: '⌘/', cursor: '⌘/', antigravity: '⌘/', webstorm: '⌘/', ghostty: null },
+          agreed: '⌘/',
+        },
+      ]
+
+      const tbody = document.getElementById('rows')
+      const countEl = document.getElementById('count')
+      const chipEl = document.getElementById('chip')
+
+      function diverges(row) {
+        const set = new Set(APPS.map((a) => row.cells[a]).filter(Boolean))
+        return set.size > 1
+      }
+
+      function render() {
+        tbody.innerHTML = ''
+        ROWS.forEach((row, i) => {
+          const tr = document.createElement('tr')
+          // A row that already agrees is settled too — the accent bar says so.
+          if (row.matched || !diverges(row)) tr.className = 'settled'
+
+          const head = document.createElement('td')
+          head.className = 'act'
+          head.innerHTML =
+            '<div class="name"></div><div class="id"></div>'
+          head.querySelector('.name').textContent = row.name
+          head.querySelector('.id').textContent = row.id
+          tr.appendChild(head)
+
+          APPS.forEach((app) => {
+            const td = document.createElement('td')
+            const chord = row.cells[app]
+            if (chord === null) {
+              td.className = 'cell none'
+              td.textContent = 'not bound'
+            } else {
+              td.className = 'cell'
+              // The odd one out gets the app's own "diverging" gold.
+              const others = APPS.filter((a) => a !== app).map((a) => row.cells[a]).filter(Boolean)
+              if (!row.matched && others.length && !others.includes(chord)) td.classList.add('odd')
+              td.textContent = chord
+            }
+            tr.appendChild(td)
+          })
+
+          const act = document.createElement('td')
+          act.className = 'action-cell'
+          const btn = document.createElement('button')
+          btn.className = 'match'
+          btn.type = 'button'
+          const settled = row.matched || !diverges(row)
+          btn.textContent = settled ? 'Matched' : 'Match'
+          btn.disabled = settled
+          btn.setAttribute('aria-label', 'Match ' + row.name + ' across every app')
+          btn.addEventListener('click', () => {
+            APPS.forEach((a) => {
+              if (row.cells[a] !== null) row.cells[a] = row.agreed
+            })
+            row.matched = true
+            row.staged = APPS.filter((a) => row.cells[a] !== null).length
+            render()
+          })
+          act.appendChild(btn)
+          tr.appendChild(act)
+
+          tbody.appendChild(tr)
+        })
+        updateHead()
+      }
+
+      function updateHead() {
+        const open = ROWS.filter((r) => !r.matched && diverges(r)).length
+        countEl.innerHTML =
+          ROWS.length + ' rows · <strong>' + (open ? open + ' diverging' : 'all matched') + '</strong>'
+        countEl.classList.toggle('settled', open === 0)
+        const pending = ROWS.filter((r) => r.matched).reduce((n, r) => n + (r.staged || 0), 0)
+        chipEl.textContent = pending ? pending + ' pending' : 'no pending changes'
+        chipEl.classList.toggle('on', pending > 0)
+      }
+
+      const ORIGINAL = JSON.parse(JSON.stringify(ROWS))
+      document.getElementById('reset').addEventListener('click', () => {
+        ROWS.forEach((row, i) => {
+          row.cells = { ...ORIGINAL[i].cells }
+          row.matched = false
+          row.staged = 0
+        })
+        render()
+      })
+
+      render()
+    </script>
+  </body>
+</html>
