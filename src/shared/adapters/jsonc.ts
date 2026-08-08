@@ -271,3 +271,57 @@ export function indentOfLineAt(contents: string, position: number): string {
   const before = contents.slice(lineStart, position)
   return /^[ \t]*$/.test(before) ? before : ''
 }
+
+/**
+ * The indentation of the line a node *opens* on, which is where its closing
+ * bracket will land. Unlike `indentOfLineAt` this reports the leading whitespace
+ * even when the node starts partway along the line: the `{` of
+ * `  "Keyboard Map": {` reports two spaces, because a replacement for that
+ * object has to close at the indent of `"Keyboard Map"`.
+ */
+export function openingIndent(contents: string, node: Span): string {
+  const lineStart = contents.lastIndexOf('\n', node.start - 1) + 1
+  const match = /^[ \t]*/.exec(contents.slice(lineStart, node.start))
+  return match === null ? '' : match[0]
+}
+
+/** Enough of an adapter's layout to place a child; every adapter's `Layout` supplies these. */
+export interface Placement {
+  newline: string
+  /** Indentation the children sit at. */
+  indent: string
+  /** One level of indentation, so an empty container knows where to close. */
+  unit: string
+}
+
+/**
+ * An edit appending rendered children to a container. A container that already
+ * has children gains a comma and a new line after the last one; an empty one is
+ * opened up rather than left as `{ "a": "b" }` on a single line.
+ *
+ * Shared because this is the one write every JSON adapter needs and the offsets
+ * are fiddly enough to be worth getting right once: VSCode appends entries to an
+ * array, cmux and iTerm2 append members to an object, and iTerm2 appends a whole
+ * profile to an array.
+ */
+export function appendInto(
+  container: ObjectNode | ArrayNode,
+  rendered: string[],
+  layout: Placement
+): Edit {
+  const children: Span[] = container.kind === 'object' ? container.members : container.items
+  const body = rendered.join(`,${layout.newline}${layout.indent}`)
+
+  const last = children[children.length - 1]
+  if (last !== undefined) {
+    return { start: last.end, end: last.end, text: `,${layout.newline}${layout.indent}${body}` }
+  }
+
+  const closing = container.end - 1
+  const closeIndent = layout.indent.slice(0, Math.max(0, layout.indent.length - layout.unit.length))
+  return {
+    start: closing,
+    end: closing,
+    text: `${layout.newline}${layout.indent}${body}${layout.newline}${closeIndent}`
+  }
+}

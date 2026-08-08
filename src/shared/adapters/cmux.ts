@@ -28,7 +28,15 @@ import type { AppId } from '../apps'
 import type { Chord, KeyStroke, Modifier } from '../chord'
 import { MAX_STROKES, canonicalKey, canonicalModifier, normalizeModifiers } from '../chord'
 import type { Edit, JsoncNode, Member, ObjectNode } from './jsonc'
-import { applyEdits, excerpt, indentOfLineAt, member, readDocument } from './jsonc'
+import {
+  appendInto,
+  applyEdits,
+  excerpt,
+  indentOfLineAt,
+  member,
+  openingIndent,
+  readDocument
+} from './jsonc'
 import type {
   Adapter,
   DefaultsReport,
@@ -539,40 +547,6 @@ function memberIndent(contents: string, node: ObjectNode, fallback: string): str
   return observed === '' ? fallback : observed
 }
 
-/** Indentation of the line `node` opens on, which is where its `}` will land. */
-function openingIndent(contents: string, node: ObjectNode): string {
-  const lineStart = contents.lastIndexOf('\n', node.start - 1) + 1
-  const before = contents.slice(lineStart, node.start)
-  const match = /^[ \t]*/.exec(before)
-  return match === null ? '' : match[0]
-}
-
-/**
- * An edit inserting `rendered` members into `node`. An object that already has
- * members gains a comma and a new line after the last one; an empty object is
- * opened up rather than left as `{ "a": "b" }` on one line.
- */
-function insertMembers(node: ObjectNode, layout: Layout, indent: string, rendered: string[]): Edit {
-  const body = rendered.join(`,${layout.newline}${indent}`)
-  const last = node.members[node.members.length - 1]
-
-  if (last === undefined) {
-    const closing = node.end - 1
-    const closeIndent = indent.slice(0, Math.max(0, indent.length - layout.unit.length))
-    return {
-      start: closing,
-      end: closing,
-      text: `${layout.newline}${indent}${body}${layout.newline}${closeIndent}`
-    }
-  }
-
-  return {
-    start: last.end,
-    end: last.end,
-    text: `,${layout.newline}${indent}${body}`
-  }
-}
-
 function renderBinding(command: string, value: string): string {
   return `${JSON.stringify(command)}: ${JSON.stringify(value)}`
 }
@@ -666,7 +640,7 @@ function merge(contents: string, managed: ManagedBinding[]): MergeOutcome {
 
     if (bindings !== null) {
       const indent = memberIndent(base, bindings, openingIndent(base, bindings) + layout.unit)
-      edits.push(insertMembers(bindings, layout, indent, rendered))
+      edits.push(appendInto(bindings, rendered, { ...layout, indent }))
     } else if (shortcutsObject !== null) {
       // `shortcuts` exists but has no `bindings` yet.
       const indent = memberIndent(
@@ -675,9 +649,10 @@ function merge(contents: string, managed: ManagedBinding[]): MergeOutcome {
         openingIndent(base, shortcutsObject) + layout.unit
       )
       edits.push(
-        insertMembers(shortcutsObject, layout, indent, [
-          renderNested(['bindings'], rendered, layout, indent)
-        ])
+        appendInto(shortcutsObject, [renderNested(['bindings'], rendered, layout, indent)], {
+          ...layout,
+          indent
+        })
       )
     } else {
       // Neither level exists. This is the case cmux's generated template hits:
@@ -685,9 +660,10 @@ function merge(contents: string, managed: ManagedBinding[]): MergeOutcome {
       // is a comment, so the root is a populated object with no `shortcuts`.
       const indent = memberIndent(base, root, layout.unit)
       edits.push(
-        insertMembers(root, layout, indent, [
-          renderNested(['shortcuts', 'bindings'], rendered, layout, indent)
-        ])
+        appendInto(root, [renderNested(['shortcuts', 'bindings'], rendered, layout, indent)], {
+          ...layout,
+          indent
+        })
       )
     }
   }

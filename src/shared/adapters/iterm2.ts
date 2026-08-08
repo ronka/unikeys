@@ -40,12 +40,20 @@
  * came with. When nothing has changed, `merge` emits no edits at all and the
  * file round-trips byte for byte.
  *
- * Every constant below was captured from iTerm2 3.6.11 — the action integers
- * from `sources/iTermKeyBindingAction.h` cross-checked against all 14 bindings
- * shipped in the app bundle's `DefaultGlobalKeyMap.plist` and
- * `PresetKeyMappings.plist`, the key encoding and the menu-item parameter shape
- * by driving the running app, and the menu titles and identifiers by walking its
- * menu bar. See `__fixtures__/iterm2/README.md`.
+ * **Keys are settled before anything is written.** `merge` receives only the
+ * bindings being saved, not the whole table, so most of the file belongs to
+ * commands it must leave exactly as they are — and their keys are therefore not
+ * available. `planEntries` resolves that competition up front so a command
+ * lands completely or is reported through `skipped`: a binding that cannot have
+ * its key must not leave behind the `Ignore` that was to suppress its old
+ * default, or the action ends up bound to nothing at all. Refusing one request
+ * keeps its existing entry in place, which can block another, so the contest
+ * settles rather than being decided in a single pass.
+ *
+ * Everything this file reads about iTerm2 itself — the action integers, the key
+ * encoding, the shipped defaults — was captured from a running 3.6.11 and lives
+ * in `./iterm2-capture`, so re-capturing against a later version does not mean
+ * reading the parsing and merging code below.
  */
 
 import type { AppId } from '../apps'
@@ -58,18 +66,41 @@ import {
   parseCanonical
 } from '../chord'
 import {
+  appendInto,
   applyEdits,
   excerpt,
   indentOfLineAt,
   member,
+  openingIndent,
   readDocument,
   stringMember,
+  type ArrayNode,
   type Edit,
   type JsoncNode,
   type Member,
-  type ObjectNode,
-  type Span
+  type ObjectNode
 } from './jsonc'
+import {
+  DEFAULT_CHORDS,
+  DEFAULTS_NOTE,
+  FLAG_COMMAND,
+  FLAG_CONTROL,
+  FLAG_NUMERIC_PAD,
+  FLAG_OPTION,
+  FLAG_SHIFT,
+  IGNORE,
+  ITERM2_ACTIONS,
+  ITERM2_KEYS,
+  KEY_BY_CHAR,
+  KEY_BY_SHIFTED_CHAR,
+  KNOWN_FLAGS,
+  PARENT_PROFILE_NAME,
+  TOKEN_BY_ENTRY,
+  UNIKEYS_PROFILE_GUID,
+  UNIKEYS_PROFILE_NAME,
+  entryKey,
+  type EntryValue
+} from './iterm2-capture'
 import type {
   Adapter,
   DefaultsReport,
@@ -81,244 +112,6 @@ import type {
   ParsedBinding,
   EncodeOutcome
 } from './types'
-
-// ---------------------------------------------------------------------------
-// The profile unikeys owns
-// ---------------------------------------------------------------------------
-
-/**
- * Fixed, never generated at runtime. A fresh Guid per write would make iTerm2
- * treat each save as a different profile, orphaning the previous one and losing
- * whichever one the user had selected.
- */
-export const UNIKEYS_PROFILE_GUID = '7B8E4F2A-3C6D-4E19-9A05-1D2F8C4B6E30'
-const UNIKEYS_PROFILE_NAME = 'unikeys'
-const PARENT_PROFILE_NAME = 'Default'
-
-// ---------------------------------------------------------------------------
-// Actions
-// ---------------------------------------------------------------------------
-
-/**
- * iTerm2's `KEY_ACTION_*` values. Identical at tags v3.5.0 and v3.6.0, and every
- * one of these reproduces the shipped-plist bindings in the 3.6.11 bundle.
- */
-const NEXT_SESSION = 0
-const PREVIOUS_SESSION = 2
-const SELECT_PANE_LEFT = 18
-const SELECT_PANE_RIGHT = 19
-const SELECT_PANE_ABOVE = 20
-const SELECT_PANE_BELOW = 21
-const TOGGLE_FULLSCREEN = 23
-const SELECT_MENU_ITEM = 25
-const NEW_WINDOW_WITH_PROFILE = 26
-const NEW_TAB_WITH_PROFILE = 27
-const SPLIT_HORIZONTALLY_WITH_PROFILE = 28
-const SPLIT_VERTICALLY_WITH_PROFILE = 29
-const NEXT_PANE = 30
-const PREVIOUS_PANE = 31
-
-interface ItermEntry {
-  action: number
-  /**
-   * iTerm2's parameter. Empty for actions that take none; a profile Guid for the
-   * `*_WITH_PROFILE` actions (there is no "current profile" sentinel — an
-   * unknown Guid renders as "with unavailable Profile", so unikeys passes its
-   * own, which also makes new tabs and splits inherit these bindings); and
-   * `"<title>\n<identifier>"` for `SELECT_MENU_ITEM`.
-   */
-  text: string
-  /** Human-readable, for problem and skip messages. */
-  label: string
-}
-
-/** `"<title>\n<identifier>"`, the parameter `SELECT_MENU_ITEM` looks a menu item up by. */
-function menuItem(title: string, identifier: string = title): string {
-  return `${title}\n${identifier}`
-}
-
-/**
- * The vocabulary `catalogue.json` maps to in its `iterm2` field.
- *
- * iTerm2 has no textual command names of its own, so unikeys invents stable
- * tokens: `action:` for a first-class key action, `menu:` for one driven through
- * `SELECT_MENU_ITEM`. Menu titles live here and never in the catalogue, so a
- * title correction — or a localisation fix — is a one-line change here rather
- * than a catalogue migration.
- */
-const ITERM2_ACTIONS: Record<string, ItermEntry> = {
-  'action:next-tab': { action: NEXT_SESSION, text: '', label: 'Next Tab' },
-  'action:previous-tab': { action: PREVIOUS_SESSION, text: '', label: 'Previous Tab' },
-  'action:toggle-fullscreen': { action: TOGGLE_FULLSCREEN, text: '', label: 'Toggle Fullscreen' },
-
-  // "Split Vertically" puts the new session in the right half, "Split
-  // Horizontally" in the bottom half — iTerm2 names the divider, unikeys names
-  // where the pane lands, so these two read backwards on purpose.
-  'action:split-vertically': {
-    action: SPLIT_VERTICALLY_WITH_PROFILE,
-    text: UNIKEYS_PROFILE_GUID,
-    label: 'Split Vertically'
-  },
-  'action:split-horizontally': {
-    action: SPLIT_HORIZONTALLY_WITH_PROFILE,
-    text: UNIKEYS_PROFILE_GUID,
-    label: 'Split Horizontally'
-  },
-  'action:new-tab': {
-    action: NEW_TAB_WITH_PROFILE,
-    text: UNIKEYS_PROFILE_GUID,
-    label: 'New Tab'
-  },
-  'action:new-window': {
-    action: NEW_WINDOW_WITH_PROFILE,
-    text: UNIKEYS_PROFILE_GUID,
-    label: 'New Window'
-  },
-
-  'action:select-pane-left': { action: SELECT_PANE_LEFT, text: '', label: 'Select Pane Left' },
-  'action:select-pane-right': { action: SELECT_PANE_RIGHT, text: '', label: 'Select Pane Right' },
-  'action:select-pane-above': { action: SELECT_PANE_ABOVE, text: '', label: 'Select Pane Above' },
-  'action:select-pane-below': { action: SELECT_PANE_BELOW, text: '', label: 'Select Pane Below' },
-  'action:next-pane': { action: NEXT_PANE, text: '', label: 'Select Next Pane' },
-  'action:previous-pane': { action: PREVIOUS_PANE, text: '', label: 'Select Previous Pane' },
-
-  'menu:close': { action: SELECT_MENU_ITEM, text: menuItem('Close'), label: 'Close' },
-  'menu:copy': { action: SELECT_MENU_ITEM, text: menuItem('Copy'), label: 'Copy' },
-  'menu:paste': { action: SELECT_MENU_ITEM, text: menuItem('Paste'), label: 'Paste' },
-  'menu:select-all': {
-    action: SELECT_MENU_ITEM,
-    text: menuItem('Select All'),
-    label: 'Select All'
-  },
-  'menu:clear-buffer': {
-    action: SELECT_MENU_ITEM,
-    text: menuItem('Clear Buffer'),
-    label: 'Clear Buffer'
-  },
-  'menu:make-text-bigger': {
-    action: SELECT_MENU_ITEM,
-    text: menuItem('Make Text Bigger'),
-    label: 'Make Text Bigger'
-  },
-  'menu:make-text-smaller': {
-    action: SELECT_MENU_ITEM,
-    text: menuItem('Make Text Smaller'),
-    label: 'Make Text Smaller'
-  },
-  'menu:make-text-normal-size': {
-    action: SELECT_MENU_ITEM,
-    text: menuItem('Make Text Normal Size'),
-    label: 'Make Text Normal Size'
-  }
-}
-
-export const ITERM2_ACTION_IDS: ReadonlySet<string> = new Set(Object.keys(ITERM2_ACTIONS))
-
-/**
- * The identity of an entry: its action and parameter, NUL-separated.
- *
- * NUL rather than a space because the action is a bare number and the
- * parameter is arbitrary text, so a printable separator would let
- * `(2, "9 foo")` and `(29, "foo")` collide.
- */
-export function entryKey(entry: { action: number; text: string }): string {
-  return `${entry.action}\u0000${entry.text}`
-}
-
-const TOKEN_BY_ENTRY: ReadonlyMap<string, string> = new Map(
-  Object.entries(ITERM2_ACTIONS).map(([token, entry]) => [entryKey(entry), token])
-)
-
-// ---------------------------------------------------------------------------
-// Key encoding
-// ---------------------------------------------------------------------------
-
-const FLAG_SHIFT = 0x20000
-const FLAG_CONTROL = 0x40000
-const FLAG_OPTION = 0x80000
-const FLAG_COMMAND = 0x100000
-/** Arrow keys carry this; nothing else unikeys emits does. */
-const FLAG_NUMERIC_PAD = 0x200000
-
-const KNOWN_FLAGS = FLAG_SHIFT | FLAG_CONTROL | FLAG_OPTION | FLAG_COMMAND | FLAG_NUMERIC_PAD
-
-interface ItermKey {
-  char: number
-  /**
-   * The character iTerm2 records when Shift is held. iTerm2 stores
-   * `charactersIgnoringModifiers`, which still applies Shift — ⌘⇧D is recorded
-   * as `0x44` ('D'), not `0x64` ('d'), and ⌘⇧[ as `0x7b` ('{'). Keys with no
-   * shifted form keep `char` and simply carry the Shift flag.
-   */
-  shifted?: number
-  numericPad?: true
-}
-
-const SHIFTED_DIGITS = ')!@#$%^&*('
-const SHIFTED_PUNCTUATION: Record<string, string> = {
-  '-': '_',
-  '=': '+',
-  '[': '{',
-  ']': '}',
-  '\\': '|',
-  ';': ':',
-  "'": '"',
-  ',': '<',
-  '.': '>',
-  '/': '?',
-  '`': '~'
-}
-
-const ITERM2_KEYS: Record<string, ItermKey> = (() => {
-  const keys: Record<string, ItermKey> = {}
-
-  for (const letter of 'abcdefghijklmnopqrstuvwxyz') {
-    keys[letter] = { char: letter.charCodeAt(0), shifted: letter.toUpperCase().charCodeAt(0) }
-  }
-  for (let digit = 0; digit <= 9; digit++) {
-    keys[String(digit)] = {
-      char: '0'.charCodeAt(0) + digit,
-      shifted: SHIFTED_DIGITS.charCodeAt(digit)
-    }
-  }
-  for (const [key, shifted] of Object.entries(SHIFTED_PUNCTUATION)) {
-    keys[key] = { char: key.charCodeAt(0), shifted: shifted.charCodeAt(0) }
-  }
-
-  // Shift+Tab is backtab, a character in its own right — the shipped global key
-  // map binds `0x19-0x60000` for ⌃⇧Tab.
-  keys.tab = { char: 0x9, shifted: 0x19 }
-  keys.enter = { char: 0xd }
-  keys.escape = { char: 0x1b }
-  keys.space = { char: 0x20 }
-  // The macOS split `chord.ts` documents: the key labelled "delete" on a Mac is
-  // backspace (0x7f), and forward-delete is the function key 0xf728.
-  keys.backspace = { char: 0x7f }
-  keys.delete = { char: 0xf728 }
-  keys.insert = { char: 0xf727 }
-  keys.home = { char: 0xf729 }
-  keys.end = { char: 0xf72b }
-  keys.pageup = { char: 0xf72c }
-  keys.pagedown = { char: 0xf72d }
-
-  keys.up = { char: 0xf700, numericPad: true }
-  keys.down = { char: 0xf701, numericPad: true }
-  keys.left = { char: 0xf702, numericPad: true }
-  keys.right = { char: 0xf703, numericPad: true }
-
-  for (let n = 1; n <= 20; n++) keys[`f${n}`] = { char: 0xf704 + n - 1 }
-
-  return keys
-})()
-
-const KEY_BY_CHAR: ReadonlyMap<number, string> = new Map(
-  Object.entries(ITERM2_KEYS).map(([name, key]) => [key.char, name])
-)
-const KEY_BY_SHIFTED_CHAR: ReadonlyMap<number, string> = new Map(
-  Object.entries(ITERM2_KEYS)
-    .filter(([, key]) => key.shifted !== undefined)
-    .map(([name, key]) => [key.shifted as number, name])
-)
 
 function encodeChord(c: Chord): EncodeOutcome {
   if (c.strokes.length === 0) return { ok: false, reason: 'the chord has no keystrokes' }
@@ -384,50 +177,21 @@ function decodeChord(text: string): Chord | null {
   return { strokes }
 }
 
-// ---------------------------------------------------------------------------
-// Shipped defaults
-// ---------------------------------------------------------------------------
-
 /**
- * What iTerm2 3.6.11 binds these actions to out of the box.
- *
- * Two sources, neither of them the profile key map: the app bundle's
- * `DefaultGlobalKeyMap.plist` for the tab-navigation pair, and iTerm2's menu bar
- * — captured by walking it — for the rest. iTerm2 ships an *empty* profile key
- * map (`DefaultBookmark.plist`), so there is no third source and no way to make
- * this table complete.
- *
- * Deliberately absent: `action:toggle-fullscreen`, whose menu entry reports a
- * modifier mask unikeys could not read unambiguously, and the four directional
- * pane-focus actions, which live in a third-level submenu the capture did not
- * reach. An absent entry means "not captured", never "iTerm2 leaves it unbound".
+ * A `Keyboard Map` key under the one spelling `encodeChord` emits, so two keys
+ * are compared as chords rather than as text. iTerm2's own bundle writes
+ * `f702-0x280000` where unikeys writes `0xf702-0x280000`, and its UI appends a
+ * virtual keycode; all three name the same physical chord, and treating them as
+ * different keys would let unikeys write a second mapping for a chord that is
+ * already taken. A key that does not decode keeps its source text — it still
+ * blocks, it just cannot collide with anything unikeys emits.
  */
-const DEFAULT_CHORDS: Record<string, string> = {
-  'action:next-tab': 'cmd+right',
-  'action:previous-tab': 'cmd+left',
-  'action:split-vertically': 'cmd+d',
-  'action:split-horizontally': 'cmd+shift+d',
-  'action:new-tab': 'cmd+t',
-  'action:new-window': 'cmd+n',
-  'menu:close': 'cmd+w',
-  'menu:copy': 'cmd+c',
-  'menu:paste': 'cmd+v',
-  'menu:select-all': 'cmd+a',
-  'menu:clear-buffer': 'cmd+k',
-  // iTerm2's menu shows ⌘+, but + is a shifted key: the press that fires it is
-  // ⇧⌘=, which encodes to 0x2b-0x120000. Spelling this `cmd+=` would put an
-  // Ignore on 0x3d-0x100000 — a key iTerm2 never uses — and leave ⌘+ still
-  // enlarging the text after the user had moved the binding. Verified by press.
-  'menu:make-text-bigger': 'shift+cmd+=',
-  'menu:make-text-smaller': 'cmd+-',
-  'menu:make-text-normal-size': 'cmd+0'
+function canonicalKey(key: string): string {
+  const chord = decodeChord(key)
+  if (chord === null) return key
+  const encoded = encodeChord(chord)
+  return encoded.ok ? encoded.value : key
 }
-
-const DEFAULTS_NOTE =
-  'iTerm2 ships an empty profile key map, so these defaults are captured from iTerm2 3.6.11’s ' +
-  'global key map and menu bar — two surfaces unikeys does not write. Toggle Full Screen and the ' +
-  'directional pane-focus actions are not captured. Changing a cell suppresses the one default ' +
-  'chord recorded here, so an action iTerm2 also binds elsewhere may still answer its other key.'
 
 /**
  * The chord iTerm2 ships for a token, encoded as a `Keyboard Map` key — or
@@ -441,15 +205,6 @@ function defaultEncodedKey(token: string): string | null {
   const encoded = encodeChord(chord)
   return encoded.ok ? encoded.value : null
 }
-
-/**
- * Suppressing a shipped default: iTerm2's own `{Action: 13}` (Ignore), which is
- * how unikeys stops ⌘D still splitting after the user has moved Split Right to
- * something else. Without it a profile key map only ever *adds* bindings, and a
- * changed cell would leave the original key working too — the same gap Ghostty's
- * `unbind` and VSCode's `-command` entries exist to close.
- */
-const IGNORE_ENTRY: ItermEntry = { action: 13, text: '', label: 'Ignore' }
 
 // ---------------------------------------------------------------------------
 // Reading the document
@@ -575,6 +330,16 @@ interface Layout {
   unit: string
 }
 
+/**
+ * One member of the key map unikeys intends to write: either an existing member
+ * carried across untouched, or one unikeys is rendering itself. Keeping the two
+ * apart is what lets `sameMembers` compare a kept member by identity and a
+ * written one by the action it names.
+ */
+type PlannedEntry =
+  | { kind: 'kept'; key: string; source: Member; text: string }
+  | { kind: 'written'; key: string; value: EntryValue; text: string }
+
 function detectLayout(contents: string): Layout {
   return {
     newline: contents.includes('\r\n') ? '\r\n' : '\n',
@@ -589,15 +354,8 @@ function memberIndent(contents: string, node: ObjectNode, fallback: string): str
   return observed === '' ? fallback : observed
 }
 
-function openingIndent(contents: string, node: Span): string {
-  const lineStart = contents.lastIndexOf('\n', node.start - 1) + 1
-  const before = contents.slice(lineStart, node.start)
-  const match = /^[ \t]*/.exec(before)
-  return match === null ? '' : match[0]
-}
-
-function renderEntry(key: string, entry: { action: number; text: string }): string {
-  return `${JSON.stringify(key)}: { "Action": ${entry.action}, "Text": ${JSON.stringify(entry.text)} }`
+function renderEntry(key: string, value: EntryValue): string {
+  return `${JSON.stringify(key)}: { "Action": ${value.action}, "Text": ${JSON.stringify(value.text)} }`
 }
 
 /** Renders a `Keyboard Map` object body, one member per line. */
@@ -618,19 +376,71 @@ function renderProfile(members: string[], layout: Layout, indent: string): strin
   return `{${layout.newline}${inner}${body}${layout.newline}${indent}}`
 }
 
-/** One member of the key map unikeys intends to write. */
-interface PlannedEntry {
-  key: string
-  /** `entryKey` of the action, or `raw:<source>` for a member kept verbatim. */
-  identity: string
-  /** The rendered (or original) source text of the whole member. */
-  text: string
+/**
+ * What a managed command asks the key map to say, decided without reference to
+ * which keys are free. These outcomes are order-independent and final: an
+ * unknown command or a chord iTerm2 cannot express never becomes writable later.
+ * Anything this rejects is reported through `skipped` on the way past.
+ */
+type Request =
+  | { kind: 'bind'; command: string; chord: Chord; key: string; value: EntryValue }
+  | { kind: 'unbind'; command: string }
+
+function requestFor(binding: ManagedBinding, skipped: InexpressibleChord[]): Request | null {
+  const entry = ITERM2_ACTIONS[binding.command]
+  if (entry === undefined) {
+    // A null chord for an unknown command asks for nothing, so there is nothing
+    // to report.
+    if (binding.chord !== null) {
+      skipped.push({
+        command: binding.command,
+        chord: binding.chord,
+        reason: `"${binding.command}" is not an iTerm2 action unikeys knows`
+      })
+    }
+    return null
+  }
+
+  if (binding.chord === null) return { kind: 'unbind', command: binding.command }
+
+  const encoded = encodeChord(binding.chord)
+  if (!encoded.ok) {
+    skipped.push({ command: binding.command, chord: binding.chord, reason: encoded.reason })
+    return null
+  }
+  return {
+    kind: 'bind',
+    command: binding.command,
+    chord: binding.chord,
+    key: encoded.value,
+    value: { action: entry.action, text: entry.text }
+  }
+}
+
+/**
+ * Which existing keys are still spoken for, given the requests that are going
+ * ahead. `null` marks a key held by something unikeys does not manage — a
+ * hand-added mapping, or a member it could not read.
+ */
+function occupiedKeys(
+  requests: readonly Request[],
+  holders: ReadonlyMap<string, string | null>,
+  refused: ReadonlyMap<string, string>
+): Map<string, string | null> {
+  const going = new Set(requests.filter((r) => !refused.has(r.command)).map((r) => r.command))
+  const occupied = new Map<string, string | null>()
+  for (const [key, token] of holders) {
+    // A binding this save is rewriting vacates its key; everything else stays.
+    if (token !== null && going.has(token)) continue
+    occupied.set(key, token)
+  }
+  return occupied
 }
 
 /** What unikeys wants the key map to say, given the bindings it manages. */
 interface Plan {
-  /** `key -> entry`, in the order unikeys writes them. */
-  entries: Array<[string, { action: number; text: string }]>
+  /** The members unikeys writes, in order. */
+  entries: Array<{ key: string; value: EntryValue }>
   skipped: InexpressibleChord[]
   /**
    * Keys unikeys may take over: the ones it is writing, plus the shipped
@@ -646,95 +456,137 @@ interface Plan {
   resolved: Set<string>
 }
 
-function planEntries(managed: ManagedBinding[], foreignKeys: ReadonlySet<string>): Plan {
-  const entries: Array<[string, { action: number; text: string }]> = []
+function planEntries(managed: ManagedBinding[], holders: ReadonlyMap<string, string | null>): Plan {
   const skipped: InexpressibleChord[] = []
+  const requests: Request[] = []
+  for (const binding of managed) {
+    const request = requestFor(binding, skipped)
+    if (request !== null) requests.push(request)
+  }
+
+  // Settle the fight over keys before writing anything, so a command lands
+  // completely or not at all — a binding that fails here must not leave its
+  // default-suppression behind.
+  //
+  // Refusing a request leaves *its* existing entry in place, which can in turn
+  // block another request, so one pass is not enough. Each round only ever adds
+  // refusals, so this runs at most once per request and then settles.
+  const refused = new Map<string, string>()
+  const claims = new Map<string, string>()
+  let occupied = occupiedKeys(requests, holders, refused)
+
+  for (;;) {
+    claims.clear()
+    let changed = false
+
+    for (const request of requests) {
+      if (request.kind !== 'bind' || refused.has(request.command)) continue
+
+      if (occupied.has(request.key)) {
+        const holder = occupied.get(request.key)
+        refused.set(
+          request.command,
+          holder == null
+            ? 'a mapping added by hand in iTerm2 already uses this shortcut'
+            : `${ITERM2_ACTIONS[holder].label} already uses this shortcut in iTerm2`
+        )
+        changed = true
+        continue
+      }
+
+      const clash = claims.get(request.key)
+      if (clash !== undefined) {
+        // A JSON object cannot hold the same key twice, so this is a real loss
+        // and has to reach the user rather than be silently overwritten.
+        refused.set(
+          request.command,
+          `${ITERM2_ACTIONS[clash].label} already uses this shortcut in iTerm2`
+        )
+        changed = true
+        continue
+      }
+      claims.set(request.key, request.command)
+    }
+
+    if (!changed) break
+    occupied = occupiedKeys(requests, holders, refused)
+  }
+
+  const entries: Array<{ key: string; value: EntryValue }> = []
   const owned = new Set<string>()
   const resolved = new Set<string>()
-  const claimedBy = new Map<string, string>()
-
   // Collected and applied after every binding, so an explicit binding always
   // beats a default-suppression that wants the same key.
   const suppressions: string[] = []
 
-  for (const binding of managed) {
-    const entry = ITERM2_ACTIONS[binding.command]
-    if (entry === undefined) {
-      if (binding.chord !== null) {
-        skipped.push({
-          command: binding.command,
-          chord: binding.chord,
-          reason: `"${binding.command}" is not an iTerm2 action unikeys knows`
-        })
-      }
+  for (const request of requests) {
+    const refusal = refused.get(request.command)
+    if (refusal !== undefined) {
+      // Only a `bind` is ever refused — an unbind claims no key — so there is
+      // always a chord to name.
+      const bind = request as Extract<Request, { kind: 'bind' }>
+      skipped.push({ command: bind.command, chord: bind.chord, reason: refusal })
       continue
     }
 
-    const shipped = defaultEncodedKey(binding.command)
-
-    if (binding.chord === null) {
-      // Nothing to bind: any prior entry for this action goes, and the shipped
-      // default is suppressed below so "unbound" really is unbound.
-      resolved.add(binding.command)
-      if (shipped !== null) {
-        owned.add(shipped)
-        suppressions.push(shipped)
-      }
-      continue
+    resolved.add(request.command)
+    if (request.kind === 'bind') {
+      owned.add(request.key)
+      entries.push({ key: request.key, value: request.value })
     }
 
-    const encoded = encodeChord(binding.chord)
-    if (!encoded.ok) {
-      // Left unresolved on purpose: a skip must leave the file as it was.
-      skipped.push({ command: binding.command, chord: binding.chord, reason: encoded.reason })
-      continue
-    }
-
-    const clash = claimedBy.get(encoded.value)
-    if (clash !== undefined) {
-      // A JSON object cannot hold the same key twice, so this is a real loss and
-      // has to reach the user rather than be silently overwritten.
-      skipped.push({
-        command: binding.command,
-        chord: binding.chord,
-        reason: `${ITERM2_ACTIONS[clash].label} already uses this shortcut in iTerm2`
-      })
-      continue
-    }
-
-    if (foreignKeys.has(encoded.value)) {
-      skipped.push({
-        command: binding.command,
-        chord: binding.chord,
-        reason: 'a mapping added by hand in iTerm2 already uses this shortcut'
-      })
-      continue
-    }
-
-    claimedBy.set(encoded.value, binding.command)
-    resolved.add(binding.command)
-    owned.add(encoded.value)
-    entries.push([encoded.value, { action: entry.action, text: entry.text }])
-    if (shipped !== null && shipped !== encoded.value) {
+    // Without this a profile key map only ever *adds* bindings, so a moved or
+    // cleared action would still answer its original key.
+    const shipped = defaultEncodedKey(request.command)
+    if (shipped !== null && (request.kind === 'unbind' || shipped !== request.key)) {
       owned.add(shipped)
       suppressions.push(shipped)
     }
   }
 
+  const suppressed = new Set<string>()
   for (const key of suppressions) {
-    // An explicit binding, or a mapping the user added, keeps the key.
-    if (claimedBy.has(key) || foreignKeys.has(key)) continue
-    claimedBy.set(key, 'ignore')
-    entries.push([key, { action: IGNORE_ENTRY.action, text: IGNORE_ENTRY.text }])
+    // An explicit binding, or an entry that is staying put, keeps the key.
+    if (claims.has(key) || occupied.has(key) || suppressed.has(key)) continue
+    suppressed.add(key)
+    entries.push({ key, value: IGNORE })
   }
 
   return { entries, skipped, owned, resolved }
 }
 
-/** The identity of an existing member: its action, or its source when unreadable. */
-function identityOf(base: string, entry: Member): string {
-  const read = readEntry(entry)
-  return typeof read === 'string' ? `raw:${base.slice(entry.start, entry.end)}` : entryKey(read)
+/**
+ * Where the rendered key map goes: over the existing one, or into whichever
+ * level the file is missing.
+ */
+function placeKeyboardMap(
+  base: string,
+  profiles: ArrayNode,
+  profile: ObjectNode | null,
+  map: ObjectNode | null,
+  rendered: string[],
+  layout: Layout
+): Edit {
+  if (map !== null) {
+    return {
+      start: map.start,
+      end: map.end,
+      text: renderMap(rendered, layout, openingIndent(base, map))
+    }
+  }
+
+  if (profile !== null) {
+    const indent = memberIndent(base, profile, openingIndent(base, profile) + layout.unit)
+    const text = `"Keyboard Map": ${renderMap(rendered, layout, indent)}`
+    return appendInto(profile, [text], { ...layout, indent })
+  }
+
+  const first = profiles.items[0]
+  const indent =
+    first === undefined
+      ? openingIndent(base, profiles) + layout.unit
+      : indentOfLineAt(base, first.start) || openingIndent(base, profiles) + layout.unit
+  return appendInto(profiles, [renderProfile(rendered, layout, indent)], { ...layout, indent })
 }
 
 function merge(contents: string, managed: ManagedBinding[]): MergeOutcome {
@@ -769,21 +621,22 @@ function merge(contents: string, managed: ManagedBinding[]): MergeOutcome {
   const existing =
     map === null ? [] : map.members.map((entry) => ({ entry, read: readEntry(entry) }))
 
-  // A mapping the user added by hand: one whose action unikeys has no token for,
-  // and which is not an `Ignore`. unikeys never takes such a key, so these are
-  // settled before planning rather than after it — a binding that would land on
-  // one is skipped outright and its previous entry left alone.
-  const foreignKeys = new Set(
-    existing
-      .filter(
-        ({ read }) =>
-          typeof read === 'string' ||
-          (!TOKEN_BY_ENTRY.has(entryKey(read)) && read.action !== IGNORE_ENTRY.action)
-      )
-      .map(({ entry }) => entry.name)
-  )
+  // Who holds each key already, under the spelling `encodeChord` would use.
+  // `null` is a mapping the user added by hand or a member unikeys could not
+  // read — either way it is not unikeys' to take. `Ignore` entries are left out
+  // entirely: unikeys is the only writer of those, so they never stand in the
+  // way of its own bindings.
+  const holders = new Map<string, string | null>()
+  for (const { entry, read } of existing) {
+    if (typeof read === 'string') {
+      holders.set(canonicalKey(entry.name), null)
+      continue
+    }
+    if (read.action === IGNORE.action) continue
+    holders.set(canonicalKey(entry.name), TOKEN_BY_ENTRY.get(entryKey(read)) ?? null)
+  }
 
-  const { entries, skipped, owned, resolved } = planEntries(managed, foreignKeys)
+  const { entries, skipped, owned, resolved } = planEntries(managed, holders)
 
   // Everything unikeys is not resolving this save survives verbatim — source
   // text, not a re-render — so any Version, Label or Escaping member it carries
@@ -794,93 +647,67 @@ function merge(contents: string, managed: ManagedBinding[]): MergeOutcome {
       const token = TOKEN_BY_ENTRY.get(entryKey(read))
       const isOurs =
         (token !== undefined && resolved.has(token)) ||
-        (read.action === IGNORE_ENTRY.action && owned.has(read.key))
+        (read.action === IGNORE.action && owned.has(canonicalKey(read.key)))
       if (isOurs) continue
     }
     kept.push({
+      kind: 'kept',
       key: entry.name,
-      identity: identityOf(base, entry),
+      source: entry,
       text: base.slice(entry.start, entry.end)
     })
   }
 
-  const keptKeys = new Set(kept.map((k) => k.key))
-  const written = entries
-    // `foreignKeys` is already excluded by the plan; this catches a key held by
-    // a kept unikeys entry for a command this save is not resolving.
-    .filter(([key]) => !keptKeys.has(key))
-    .map(([key, entry]) => ({ key, identity: entryKey(entry), text: renderEntry(key, entry) }))
+  // Whatever spelling a key already has in the file wins over the one
+  // `encodeChord` would pick, so re-saving a binding the file already states
+  // does not quietly renormalise `f702-0x280000` into `0xf702-0x280000`. Without
+  // this, byte-identical round-tripping would hold only for files unikeys wrote
+  // itself.
+  const spelling = new Map<string, string>()
+  for (const { entry } of existing) {
+    const canonical = canonicalKey(entry.name)
+    if (!spelling.has(canonical)) spelling.set(canonical, entry.name)
+  }
+
+  // No filtering here: `planEntries` refuses any key a kept entry still holds,
+  // and an `Ignore` that unikeys is taking over is dropped by `owned` above, so
+  // the two lists cannot name the same key.
+  const written: PlannedEntry[] = entries.map(({ key, value }) => {
+    const name = spelling.get(key) ?? key
+    return { kind: 'written', key: name, value, text: renderEntry(name, value) }
+  })
 
   const final = [...kept, ...written]
 
-  // Nothing to say. Comparing decoded identities rather than source text keeps
-  // an already-correct file byte-identical whatever formatting it was written
-  // with, which is what makes a no-op save a true no-op.
-  if (map !== null && sameMembers(base, map, final)) {
+  // Nothing to say. Comparing decoded actions rather than source text keeps an
+  // already-correct file byte-identical whatever formatting it was written with,
+  // which is what makes a no-op save a true no-op.
+  if (map !== null && sameMembers(map, final)) {
     return { ok: true, contents: base, skipped }
   }
 
-  const rendered = final.map((entry) => entry.text)
-  const edits: Edit[] = []
-  if (map !== null) {
-    edits.push({
-      start: map.start,
-      end: map.end,
-      text: renderMap(rendered, layout, openingIndent(base, map))
-    })
-  } else if (profile !== null) {
-    const indent = memberIndent(base, profile, openingIndent(base, profile) + layout.unit)
-    edits.push(
-      insertMember(
-        profile,
-        layout,
-        indent,
-        `"Keyboard Map": ${renderMap(rendered, layout, indent)}`
-      )
-    )
-  } else {
-    const array = profiles.value
-    const indent =
-      array.items[0] !== undefined
-        ? indentOfLineAt(base, array.items[0].start) || openingIndent(base, array) + layout.unit
-        : openingIndent(base, array) + layout.unit
-    const text = renderProfile(rendered, layout, indent)
-    const last = array.items[array.items.length - 1]
-    edits.push(
-      last === undefined
-        ? {
-            start: array.end - 1,
-            end: array.end - 1,
-            text: `${layout.newline}${indent}${text}${layout.newline}${openingIndent(base, array)}`
-          }
-        : { start: last.end, end: last.end, text: `,${layout.newline}${indent}${text}` }
-    )
-  }
-
-  return { ok: true, contents: applyEdits(base, edits), skipped }
+  const edit = placeKeyboardMap(
+    base,
+    profiles.value,
+    profile,
+    map,
+    final.map((entry) => entry.text),
+    layout
+  )
+  return { ok: true, contents: applyEdits(base, [edit]), skipped }
 }
 
 /** True when the key map already holds exactly these members, in this order. */
-function sameMembers(base: string, map: ObjectNode, final: PlannedEntry[]): boolean {
+function sameMembers(map: ObjectNode, final: PlannedEntry[]): boolean {
   if (map.members.length !== final.length) return false
   return map.members.every((entry, i) => {
     const planned = final[i]
-    return entry.name === planned.key && identityOf(base, entry) === planned.identity
+    // A kept member came from this very map, so identity is the member itself.
+    if (planned.kind === 'kept') return planned.source === entry
+    if (entry.name !== planned.key) return false
+    const read = readEntry(entry)
+    return typeof read !== 'string' && entryKey(read) === entryKey(planned.value)
   })
-}
-
-function insertMember(node: ObjectNode, layout: Layout, indent: string, text: string): Edit {
-  const last = node.members[node.members.length - 1]
-  if (last === undefined) {
-    const closing = node.end - 1
-    const closeIndent = indent.slice(0, Math.max(0, indent.length - layout.unit.length))
-    return {
-      start: closing,
-      end: closing,
-      text: `${layout.newline}${indent}${text}${layout.newline}${closeIndent}`
-    }
-  }
-  return { start: last.end, end: last.end, text: `,${layout.newline}${indent}${text}` }
 }
 
 function emptyContents(): string {
@@ -908,10 +735,7 @@ export const iterm2Adapter: Adapter = {
   parse,
   merge,
   encodeChord,
-
-  decodeChord(text: string): Chord | null {
-    return decodeChord(text)
-  },
+  decodeChord,
 
   defaults(app: AppId): DefaultsReport {
     if (app !== 'iterm2') {

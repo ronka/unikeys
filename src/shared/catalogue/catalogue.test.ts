@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { APP_IDS, type AppId } from '../apps'
 import { CMUX_ACTION_IDS } from '../adapters/cmux'
-import { ITERM2_ACTION_IDS } from '../adapters/iterm2'
+import { ITERM2_ACTION_IDS } from '../adapters/iterm2-capture'
 import { CATEGORIES, type CatalogueAction } from './types'
 import { ACTIONS, CATALOGUE, actionById, actionsByCategory, loadCatalogue } from './index'
 import catalogueData from './catalogue.json'

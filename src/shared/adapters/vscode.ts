@@ -18,7 +18,14 @@
 import type { Chord, KeyStroke, Modifier } from '../chord'
 import { MAX_STROKES, canonicalKey, canonicalModifier, normalizeModifiers } from '../chord'
 import type { ArrayNode, Edit, JsoncNode, ObjectNode, StringNode } from './jsonc'
-import { applyEdits, excerpt, indentOfLineAt, readDocument, stringMember } from './jsonc'
+import {
+  appendInto,
+  applyEdits,
+  excerpt,
+  indentOfLineAt,
+  readDocument,
+  stringMember
+} from './jsonc'
 import type {
   Adapter,
   DefaultsReport,
@@ -219,6 +226,8 @@ interface Entry {
 
 interface Layout {
   newline: string
+  /** One level of indentation, e.g. two spaces. */
+  unit: string
   /** Indentation of an entry within the array, e.g. two spaces. */
   itemIndent: string
   /** Indentation of a member within an entry. */
@@ -240,7 +249,7 @@ function detectLayout(contents: string, root: ArrayNode): Layout {
     if (observed.length > itemIndent.length) memberIndent = observed
   }
 
-  return { newline, itemIndent, memberIndent }
+  return { newline, unit, itemIndent, memberIndent }
 }
 
 function renderEntry(key: string | null, command: string, layout: Layout): string {
@@ -334,7 +343,9 @@ function merge(contents: string, managed: ManagedBinding[]): MergeOutcome {
     }
   }
 
-  if (appended.length > 0) edits.push(appendEdit(root, layout, appended))
+  if (appended.length > 0) {
+    edits.push(appendInto(root, appended, { ...layout, indent: layout.itemIndent }))
+  }
   return { ok: true, contents: applyEdits(base, edits), skipped }
 }
 
@@ -356,24 +367,6 @@ function collectEntries(root: ArrayNode): Entry[] {
     })
   }
   return entries
-}
-
-function appendEdit(root: ArrayNode, layout: Layout, rendered: string[]): Edit {
-  const body = rendered.join(`,${layout.newline}${layout.itemIndent}`)
-  const last = root.items[root.items.length - 1]
-
-  if (last === undefined) {
-    // Empty array: open it up rather than producing `[{ ... }]` on one line.
-    const closing = root.end - 1
-    const text = `${layout.newline}${layout.itemIndent}${body}${layout.newline}`
-    return { start: closing, end: closing, text }
-  }
-
-  return {
-    start: last.end,
-    end: last.end,
-    text: `,${layout.newline}${layout.itemIndent}${body}`
-  }
 }
 
 function emptyContents(): string {
