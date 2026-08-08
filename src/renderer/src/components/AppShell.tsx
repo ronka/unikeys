@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { AppWindow, Keyboard, ListChecks, Settings } from 'lucide-react'
+import { AppWindow, History, Keyboard, ListChecks, Settings } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/sidebar'
 
 /** The pages reachable from the sidebar. */
-export type View = 'keys' | 'pending' | 'apps' | 'settings'
+export type View = 'keys' | 'pending' | 'history' | 'apps' | 'settings'
 
 interface Props {
   page: View
@@ -39,9 +39,12 @@ interface Props {
   children: React.ReactNode
 }
 
+// Pending and History sit either side of the save: what is about to change, and
+// what did. Apps follows as the configuration rather than part of that flow.
 const NAV: { view: View; label: string; icon: typeof Keyboard }[] = [
   { view: 'keys', label: 'Keys', icon: Keyboard },
   { view: 'pending', label: 'Pending', icon: ListChecks },
+  { view: 'history', label: 'History', icon: History },
   { view: 'apps', label: 'Apps', icon: AppWindow }
 ]
 

@@ -9,6 +9,7 @@
 import type { AppId } from './apps'
 import type { DefaultsAvailability } from './adapters/types'
 import type { Catalogue } from './catalogue/types'
+import type { HistoryEntry, NewHistoryEntry } from './history/types'
 import type { ChordOrigin, Store } from './store/types'
 
 // ---------------------------------------------------------------------------
@@ -169,6 +170,16 @@ export interface WriteResult {
 }
 
 // ---------------------------------------------------------------------------
+// History
+// ---------------------------------------------------------------------------
+
+export interface HistoryResult {
+  entries: HistoryEntry[]
+  /** Set when an existing log could not be read. */
+  error?: string
+}
+
+// ---------------------------------------------------------------------------
 // Channels
 // ---------------------------------------------------------------------------
 
@@ -178,6 +189,8 @@ export const IPC = {
   importBindings: 'unikeys:import',
   persistStore: 'unikeys:persist-store',
   write: 'unikeys:write',
+  loadHistory: 'unikeys:load-history',
+  appendHistory: 'unikeys:append-history',
   chooseConfigPath: 'unikeys:choose-config-path',
   revealBackups: 'unikeys:reveal-backups',
   setThemeSource: 'unikeys:set-theme-source'
@@ -216,6 +229,19 @@ export interface UnikeysApi {
   refreshStatuses(apps: Store['apps']): Promise<AppStatus[]>
   persistStore(store: Store): Promise<void>
   write(request: WriteRequest, store: Store): Promise<WriteResult>
+  /**
+   * The save log. Kept out of `load` deliberately: a corrupt log must not be
+   * able to stop unikeys starting.
+   */
+  loadHistory(): Promise<HistoryResult>
+  /**
+   * Records one save and returns the log as it now stands.
+   *
+   * Main stamps the id and the timestamp, and applies the retention cap — so a
+   * replayed message cannot mint a duplicate id, and the renderer's copy cannot
+   * drift past the cap between restarts.
+   */
+  appendHistory(entry: NewHistoryEntry): Promise<HistoryEntry[]>
   /** Opens a file picker so a non-standard install does not block the user. */
   chooseConfigPath(app: AppId): Promise<string | null>
   revealBackups(): Promise<void>
