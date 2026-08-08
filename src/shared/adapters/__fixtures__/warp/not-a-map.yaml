@@ -1,0 +1,6 @@
+---
+# Warp's keybindings file is a map of action to binding. This is a sequence, so
+# there is nothing here to read as a binding at all.
+- "terminal:copy"
+- "terminal:paste"
+- "pane_group:add_right"

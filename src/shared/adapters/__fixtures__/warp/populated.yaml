@@ -1,0 +1,22 @@
+---
+# Warp keybindings
+
+# Panes. Quoted and bare keys both occur in the wild; Warp's own presets quote.
+"pane_group:add_right": cmd-d
+"pane_group:add_down": shift-cmd-D
+pane_group:navigate_left: alt-cmd-left
+pane_group:navigate_right : alt-cmd-right
+
+# Clipboard, with quoted values
+"terminal:copy": "cmd-c"
+'terminal:paste': 'cmd-v'
+
+# Odd spacing, a trailing comment, and a hyphen used as the key
+"workspace:new_tab":   cmd-t
+"workspace:activate_next_tab": shift-cmd-}   # the shifted character, not `]`
+"workspace:decrease_font_size": cmd--
+
+# unikeys does not model Warp's `meta` modifier, so this one is reported
+"editor_view:cut_word_right": meta-d
+
+this line is not an entry at all
