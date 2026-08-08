@@ -1,9 +1,9 @@
 import { useState } from 'react'
 
 import { APPS, type AppId } from '@shared/apps'
-import { formatDisplay, type Chord } from '@shared/chord'
+import { formatDisplay, parseCanonical, type Chord } from '@shared/chord'
 import type { DroppedBinding, ImportResult, WriteResult } from '@shared/ipc'
-import type { LinkCandidate } from '@shared/table/reducer'
+import type { LinkCandidate, PendingChange, PendingLinkChange } from '@shared/table/reducer'
 import type { ImportSummary } from '@shared/table/view'
 import { count } from '@shared/text'
 
@@ -17,14 +17,24 @@ import {
   DialogHeader,
   DialogTitle
 } from '@/components/ui/dialog'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@/components/ui/table'
 
 /**
  * The dialogs.
  *
- * Each is the result of something the user just did — a link that needed a
+ * Most are the result of something the user just did — a link that needed a
  * winner, a copy that needs targets, a first-run import, a save — rather than a
  * place they can navigate to, which is why these stayed modal when everything
- * else became a page.
+ * else became a page. Pending changes made the reverse trip: it is a last look
+ * at the save you are already reaching for, so it belongs beside that button
+ * rather than a page away from it.
  */
 
 /**
@@ -251,6 +261,104 @@ function Stat({ value, label }: { value: number; label: string }): React.JSX.Ele
       <div className="text-muted-foreground text-xs">{label}</div>
     </div>
   )
+}
+
+// ---------------------------------------------------------------------------
+// What is about to be written
+// ---------------------------------------------------------------------------
+
+/**
+ * Everything that is about to reach real config files. Shown before saving so
+ * the decision is informed rather than a leap of faith.
+ *
+ * Both ways out of a set of pending changes are here — discard them, or save
+ * them — because this is the one place that shows what either would do.
+ */
+export function PendingChangesPrompt({
+  changes,
+  linkChanges,
+  saving,
+  onSave,
+  onDiscard,
+  onClose
+}: {
+  changes: PendingChange[]
+  linkChanges: PendingLinkChange[]
+  saving: boolean
+  onSave: () => void
+  onDiscard: () => void
+  onClose: () => void
+}): React.JSX.Element {
+  const empty = changes.length === 0 && linkChanges.length === 0
+
+  return (
+    <Modal
+      title="Pending changes"
+      description="Nothing reaches your config files until you save."
+      onClose={onClose}
+      footer={
+        <>
+          <Button variant="outline" onClick={onDiscard} disabled={saving || empty}>
+            Discard all
+          </Button>
+          <Button onClick={onSave} disabled={saving || empty}>
+            {saving ? 'Saving…' : 'Save to apps'}
+          </Button>
+        </>
+      }
+    >
+      {empty ? (
+        // Reachable only if the changes go away underneath an open dialog — a
+        // revert of the last edit, say — but then it is the honest thing to say.
+        <p className="text-muted-foreground text-sm">Nothing has changed since the last save.</p>
+      ) : (
+        <div className="space-y-6">
+          {changes.length > 0 && (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Action</TableHead>
+                  <TableHead>App</TableHead>
+                  <TableHead>From</TableHead>
+                  <TableHead>To</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {changes.map((change) => (
+                  <TableRow key={`${change.actionId}:${change.app}`}>
+                    <TableCell>{change.actionName}</TableCell>
+                    <TableCell>{APPS[change.app].name}</TableCell>
+                    <TableCell className="text-faint font-mono">
+                      {describeChord(change.previous?.chord ?? null)}
+                    </TableCell>
+                    <TableCell className="text-pending font-mono">
+                      {describeChord(change.next.chord)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+
+          {linkChanges.length > 0 && (
+            <ul className="list-disc space-y-1 pl-5 text-sm">
+              {linkChanges.map((change) => (
+                <li key={change.actionId}>
+                  {change.actionName} — {change.linked ? 'linked' : 'unlinked'}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </Modal>
+  )
+}
+
+function describeChord(canonical: string | null): string {
+  if (canonical === null) return 'not bound'
+  const chord = parseCanonical(canonical)
+  return chord ? formatDisplay(chord) : canonical
 }
 
 // ---------------------------------------------------------------------------

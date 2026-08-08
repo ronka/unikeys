@@ -29,6 +29,7 @@ import {
   CopyBindingsPrompt,
   ImportSummaryPanel,
   LinkPrompt,
+  PendingChangesPrompt,
   WriteReport
 } from './components/Panels'
 import { AppShell, type View } from './components/AppShell'
@@ -37,15 +38,17 @@ import { Button } from '@/components/ui/button'
 import { AppsPage } from './pages/AppsPage'
 import { HistoryPage } from './pages/HistoryPage'
 import { KeysControls, KeysPage } from './pages/KeysPage'
-import { PendingPage } from './pages/PendingPage'
 import { SettingsPage } from './pages/SettingsPage'
 
 /**
- * What is left in modals after the sidebar took over navigation: both are the
- * result of an action the user just took, not places they can go, so neither
- * belongs in the nav.
+ * What is left in modals after the sidebar took over navigation. Two are the
+ * result of an action the user just took, not places they can go; the third —
+ * the pending review — is a step inside the save rather than a destination, and
+ * reads better next to the button than behind a nav item.
+ *
+ * One value for all three, so only ever one of them is on screen.
  */
-type Overlay = 'none' | 'summary' | 'write-report'
+type Overlay = 'none' | 'pending' | 'summary' | 'write-report'
 
 function App(): React.JSX.Element {
   // The catalogue is static shipped data, so the renderer imports it directly
@@ -319,7 +322,7 @@ function App(): React.JSX.Element {
     setNotice(notes.length > 0 ? `Reverted, except: ${notes.join('; ')}.` : null)
     // Straight to the review step: a revert is a set of pending changes like any
     // other, and it reaches disk only when the user saves it.
-    setPage('pending')
+    setOverlay('pending')
   }
 
   return (
@@ -330,6 +333,7 @@ function App(): React.JSX.Element {
       dirty={dirty}
       saving={saving}
       onSave={() => void handleSave()}
+      onShowPending={() => setOverlay('pending')}
       // ⌘B must not fire while a chord is being recorded or a modal is up.
       shortcutBlocked={
         editing !== null || overlay !== 'none' || linking !== null || copying !== null
@@ -384,19 +388,6 @@ function App(): React.JSX.Element {
         />
       )}
 
-      {page === 'pending' && (
-        <PendingPage
-          changes={changes}
-          linkChanges={linkChanges}
-          saving={saving}
-          onSave={() => void handleSave()}
-          onDiscard={() => {
-            dispatch({ type: 'discardPending' })
-            setPage('keys')
-          }}
-        />
-      )}
-
       {page === 'history' && (
         <HistoryPage entries={history} chords={state.store.chords} onRevert={handleRevert} />
       )}
@@ -426,6 +417,26 @@ function App(): React.JSX.Element {
         <SettingsPage
           backupDirectory={backupDirectory}
           onRevealBackups={() => void window.unikeys.revealBackups()}
+        />
+      )}
+
+      {overlay === 'pending' && (
+        <PendingChangesPrompt
+          changes={changes}
+          linkChanges={linkChanges}
+          saving={saving}
+          // Closed first, deliberately: `handleSave` only reaches for the write
+          // report after its `await`, so the two dialogs never swap places in a
+          // single commit — which leaves Radix's body lock behind.
+          onSave={() => {
+            setOverlay('none')
+            void handleSave()
+          }}
+          onDiscard={() => {
+            dispatch({ type: 'discardPending' })
+            setOverlay('none')
+          }}
+          onClose={() => setOverlay('none')}
         />
       )}
 
@@ -466,7 +477,7 @@ function App(): React.JSX.Element {
             setCopying(null)
             // Straight to the review step, like a revert: a copy this wide is
             // worth reading before it reaches anyone's config.
-            setPage('pending')
+            setOverlay('pending')
           }}
           onClose={() => setCopying(null)}
         />

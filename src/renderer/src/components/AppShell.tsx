@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { AppWindow, History, Keyboard, ListChecks, Settings } from 'lucide-react'
+import { AppWindow, History, Keyboard, Settings } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -11,7 +11,6 @@ import {
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
-  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
@@ -21,7 +20,7 @@ import {
 } from '@/components/ui/sidebar'
 
 /** The pages reachable from the sidebar. */
-export type View = 'keys' | 'pending' | 'history' | 'apps' | 'settings'
+export type View = 'keys' | 'history' | 'apps' | 'settings'
 
 interface Props {
   page: View
@@ -30,6 +29,8 @@ interface Props {
   dirty: boolean
   saving: boolean
   onSave: () => void
+  /** Opens the review of what is about to be saved. */
+  onShowPending: () => void
   /**
    * True while a chord editor or a modal is open, which suspends ⌘B. See
    * `useSidebarShortcut`.
@@ -44,11 +45,11 @@ interface Props {
   children: React.ReactNode
 }
 
-// Pending and History sit either side of the save: what is about to change, and
-// what did. Apps follows as the configuration rather than part of that flow.
+// History is what saving did; what it is *about* to do is not here, because it
+// belongs to the save button rather than to navigation. Apps follows as the
+// configuration rather than part of that flow.
 const NAV: { view: View; label: string; icon: typeof Keyboard }[] = [
   { view: 'keys', label: 'Keys', icon: Keyboard },
-  { view: 'pending', label: 'Pending', icon: ListChecks },
   { view: 'history', label: 'History', icon: History },
   { view: 'apps', label: 'Apps', icon: AppWindow }
 ]
@@ -72,6 +73,7 @@ export function AppShell({
   dirty,
   saving,
   onSave,
+  onShowPending,
   shortcutBlocked,
   controls,
   banners,
@@ -94,6 +96,7 @@ export function AppShell({
         dirty={dirty}
         saving={saving}
         onSave={onSave}
+        onShowPending={onShowPending}
         shortcutBlocked={shortcutBlocked}
         controls={controls}
         banners={banners}
@@ -115,6 +118,7 @@ function ShellBody({
   dirty,
   saving,
   onSave,
+  onShowPending,
   shortcutBlocked,
   controls,
   banners,
@@ -155,9 +159,6 @@ function ShellBody({
                       <Icon />
                       <span>{label}</span>
                     </SidebarMenuButton>
-                    {view === 'pending' && pendingCount > 0 && (
-                      <SidebarMenuBadge className="text-pending">{pendingCount}</SidebarMenuBadge>
-                    )}
                   </SidebarMenuItem>
                 ))}
               </SidebarMenu>
@@ -211,8 +212,17 @@ function ShellBody({
           )}
           {controls}
           <span className="flex-1" />
+          {/* Only worth offering when there is something to look at, and it sits
+              against Save because reviewing is the step before pressing it. */}
           {pendingCount > 0 && (
-            <span className="text-pending text-xs tabular-nums">{pendingCount} pending</span>
+            <Button
+              size="sm"
+              variant="outline"
+              className="no-drag text-pending tabular-nums"
+              onClick={onShowPending}
+            >
+              {pendingCount} pending
+            </Button>
           )}
           <Button
             size="sm"
