@@ -35,7 +35,7 @@ const HEALTH_LABELS: Record<AppHealth, string> = {
 /**
  * Only `ok` is good news and only a config unikeys found but could not use is
  * bad news. "Not installed" and "turned off" are ordinary states of a machine
- * that does not run all five apps, so they stay neutral.
+ * that does not run all six apps, so they stay neutral.
  */
 function healthTone(health: AppHealth): { text: string; dot: string; message: string } {
   if (health === 'ok')

@@ -72,7 +72,7 @@ export function KeysTable({
   return (
     /* The app columns are allowed to overrun the window and scroll sideways, so
        the table takes its content's width and only stretches to fill when there
-       is room to spare. Squeezing five columns into the viewport instead would
+       is room to spare. Squeezing six columns into the viewport instead would
        make every chord fight for space.
 
        `border-separate` rather than collapsed: collapsed borders belong to the

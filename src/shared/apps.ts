@@ -10,11 +10,16 @@
  * against the columns.
  */
 
-export const APP_IDS = ['vscode', 'cursor', 'webstorm', 'ghostty', 'cmux'] as const
+export const APP_IDS = ['vscode', 'cursor', 'webstorm', 'ghostty', 'cmux', 'iterm2'] as const
 
 export type AppId = (typeof APP_IDS)[number]
 
-export type FormatId = 'vscode-keybindings' | 'jetbrains-keymap' | 'ghostty-config' | 'cmux-config'
+export type FormatId =
+  | 'vscode-keybindings'
+  | 'jetbrains-keymap'
+  | 'ghostty-config'
+  | 'cmux-config'
+  | 'iterm2-dynamic-profile'
 
 export interface AppDescriptor {
   id: AppId
@@ -91,6 +96,23 @@ export const APPS: Record<AppId, AppDescriptor> = {
     configPaths: ['.config/cmux/cmux.json'],
     installPaths: ['/Applications/cmux.app', '~/Applications/cmux.app'],
     reloadHint: 'Reload cmux config with ⌘⇧, or restart cmux.'
+  },
+  iterm2: {
+    id: 'iterm2',
+    name: 'iTerm2',
+    format: 'iterm2-dynamic-profile',
+    // Not iTerm2's real preferences: those are a binary plist, and iTerm2
+    // overwrites them from memory when it quits. This is a Dynamic Profile —
+    // a JSON file unikeys owns outright, which iTerm2 watches and reloads live.
+    configPaths: ['Library/Application Support/iTerm2/DynamicProfiles/unikeys.json'],
+    // The bundle is called iTerm.app, not iTerm2.app.
+    installPaths: ['/Applications/iTerm.app', '~/Applications/iTerm.app'],
+    // A Dynamic Profile is a new profile, not an edit to the user's, and iTerm2
+    // gives it no way to declare itself the default — so unlike every other app
+    // here, one manual step stands between a successful write and any effect.
+    reloadHint:
+      'iTerm2 reloads this file immediately, but the bindings only apply to its "unikeys" ' +
+      'profile. Once, in iTerm2: Settings → Profiles → unikeys → Other Actions → Set as Default.'
   }
 }
 

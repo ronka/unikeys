@@ -1,6 +1,6 @@
 # unikeys
 
-One table for every keybinding across VSCode, Cursor, WebStorm and Ghostty.
+One table for every keybinding across VSCode, Cursor, WebStorm, Ghostty, cmux and iTerm2.
 
 Each **row** is an action. Each **column** is an app. Each **cell** is the chord that
 action is bound to in that app. Edit any cell, or **link** a row so every app that
@@ -45,16 +45,22 @@ npm run lint
 npm run build:mac
 ```
 
-## Outstanding: fixtures are authored, not captured
+## Outstanding: most fixtures are authored, not captured
 
-This repo was developed on Linux with none of the four apps installed. The test
+This repo was developed on Linux with none of the editor apps installed. The test
 fixtures in `src/shared/adapters/__fixtures__/` and each adapter's shipped-defaults
 table were **authored from the documented formats rather than captured from a real
 Mac**. Each fixture directory has a `README.md` saying so.
 
+**iTerm2 is the exception.** Its fixtures, action table and key encoding were captured
+from a real iTerm2 3.6.11 — the action integers cross-checked against the bindings
+shipped inside the app bundle, the key encoding and menu-item parameter settled by
+driving the running app, and `captured-3.6.11.json` confirmed line by line to behave as
+intended in a live session. See `__fixtures__/iterm2/README.md`.
+
 The value of the adapter seam is entirely in matching reality, so before trusting
-unikeys with a real config, replace the fixtures with genuine captures from a Mac and
-re-run `npm test`. Tickets 03 and 04 ask for exactly this.
+unikeys with a real config, replace the remaining fixtures with genuine captures from a
+Mac and re-run `npm test`. Tickets 03 and 04 ask for exactly this.
 
 Shipped defaults are a related gap: VSCode compiles its defaults into the application
 and JetBrains ships them inside the app bundle, so both adapters carry a hand-authored

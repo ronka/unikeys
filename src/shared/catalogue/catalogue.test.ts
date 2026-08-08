@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { APP_IDS, type AppId } from '../apps'
 import { CMUX_ACTION_IDS } from '../adapters/cmux'
+import { ITERM2_ACTION_IDS } from '../adapters/iterm2'
 import { CATEGORIES, type CatalogueAction } from './types'
 import { ACTIONS, CATALOGUE, actionById, actionsByCategory, loadCatalogue } from './index'
 import catalogueData from './catalogue.json'
@@ -70,6 +71,20 @@ describe('the shipped catalogue', () => {
       expect(CMUX_ACTION_IDS.has(command), `${action.id} maps unknown cmux id "${command}"`).toBe(
         true
       )
+    }
+  })
+
+  it('only maps iTerm2 tokens the adapter knows', () => {
+    // iTerm2 has no textual command names, so these tokens are unikeys' own
+    // invention and only mean anything if the adapter can resolve them to an
+    // (Action, Text) pair. A typo here would write a binding that does nothing.
+    for (const action of ACTIONS) {
+      const command = action.commands.iterm2
+      if (command === undefined) continue
+      expect(
+        ITERM2_ACTION_IDS.has(command),
+        `${action.id} maps unknown iTerm2 token "${command}"`
+      ).toBe(true)
     }
   })
 

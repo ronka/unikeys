@@ -336,7 +336,7 @@ function tokenizeStroke(text: string): string[] {
 
 /**
  * Renders a chord with the macOS symbols the user sees in menus, so chords from
- * four apps can be compared without mentally translating four notations.
+ * six apps can be compared without mentally translating six notations.
  */
 export function formatDisplay(c: Chord): string {
   return c.strokes.map(formatStrokeDisplay).join(' ')

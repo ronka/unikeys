@@ -152,7 +152,7 @@ function App(): React.JSX.Element {
   }, [state.store.apps])
 
   // An app the user simply does not have is not a problem to warn about — it is
-  // the normal state of any machine that does not run all five. Only apps that
+  // the normal state of any machine that does not run all six. Only apps that
   // are present but unreadable belong in the banner.
   const unreadable = useMemo(
     () => statuses.filter((s) => s.enabled && s.health !== 'ok' && s.health !== 'not-installed'),

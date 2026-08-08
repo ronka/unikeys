@@ -1,5 +1,5 @@
 /**
- * Reading from and writing to the four apps.
+ * Reading from and writing to the supported apps.
  *
  * This module owns the two pipelines that connect unikeys' store to the real
  * world: the non-destructive first-run import, and the transactional save.

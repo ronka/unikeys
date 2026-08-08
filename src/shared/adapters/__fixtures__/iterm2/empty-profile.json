@@ -1,0 +1,10 @@
+{
+  "Profiles": [
+    {
+      "Name": "unikeys",
+      "Guid": "7B8E4F2A-3C6D-4E19-9A05-1D2F8C4B6E30",
+      "Dynamic Profile Parent Name": "Default",
+      "Keyboard Map": {}
+    }
+  ]
+}

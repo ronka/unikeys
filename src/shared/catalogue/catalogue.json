@@ -39,7 +39,8 @@
         "vscode": "editor.action.clipboardCopyAction",
         "cursor": "editor.action.clipboardCopyAction",
         "webstorm": "$Copy",
-        "ghostty": "copy_to_clipboard"
+        "ghostty": "copy_to_clipboard",
+        "iterm2": "menu:copy"
       }
     },
     {
@@ -50,7 +51,8 @@
         "vscode": "editor.action.clipboardPasteAction",
         "cursor": "editor.action.clipboardPasteAction",
         "webstorm": "$Paste",
-        "ghostty": "paste_from_clipboard"
+        "ghostty": "paste_from_clipboard",
+        "iterm2": "menu:paste"
       }
     },
     {
@@ -61,7 +63,8 @@
         "vscode": "editor.action.selectAll",
         "cursor": "editor.action.selectAll",
         "webstorm": "$SelectAll",
-        "ghostty": "select_all"
+        "ghostty": "select_all",
+        "iterm2": "menu:select-all"
       }
     },
     {
@@ -197,7 +200,8 @@
         "cursor": "workbench.action.nextEditor",
         "webstorm": "NextTab",
         "ghostty": "next_tab",
-        "cmux": "nextSurface"
+        "cmux": "nextSurface",
+        "iterm2": "action:next-tab"
       }
     },
     {
@@ -209,7 +213,8 @@
         "cursor": "workbench.action.previousEditor",
         "webstorm": "PreviousTab",
         "ghostty": "previous_tab",
-        "cmux": "prevSurface"
+        "cmux": "prevSurface",
+        "iterm2": "action:previous-tab"
       }
     },
     {
@@ -220,7 +225,8 @@
         "vscode": "workbench.action.newWindow",
         "cursor": "workbench.action.newWindow",
         "ghostty": "new_window",
-        "cmux": "newWindow"
+        "cmux": "newWindow",
+        "iterm2": "action:new-window"
       }
     },
     {
@@ -232,7 +238,8 @@
         "cursor": "workbench.action.closeActiveEditor",
         "webstorm": "CloseContent",
         "ghostty": "close_surface",
-        "cmux": "closeTab"
+        "cmux": "closeTab",
+        "iterm2": "menu:close"
       }
     },
     {
@@ -244,7 +251,8 @@
         "cursor": "workbench.action.toggleFullScreen",
         "webstorm": "ToggleFullScreen",
         "ghostty": "toggle_fullscreen",
-        "cmux": "toggleFullScreen"
+        "cmux": "toggleFullScreen",
+        "iterm2": "action:toggle-fullscreen"
       }
     },
     {
@@ -256,7 +264,8 @@
         "cursor": "workbench.action.splitEditorRight",
         "webstorm": "SplitVertically",
         "ghostty": "new_split:right",
-        "cmux": "splitRight"
+        "cmux": "splitRight",
+        "iterm2": "action:split-vertically"
       }
     },
     {
@@ -268,7 +277,8 @@
         "cursor": "workbench.action.splitEditorDown",
         "webstorm": "SplitHorizontally",
         "ghostty": "new_split:down",
-        "cmux": "splitDown"
+        "cmux": "splitDown",
+        "iterm2": "action:split-horizontally"
       }
     },
     {
@@ -279,7 +289,8 @@
         "vscode": "workbench.action.focusLeftGroup",
         "cursor": "workbench.action.focusLeftGroup",
         "ghostty": "goto_split:left",
-        "cmux": "focusLeft"
+        "cmux": "focusLeft",
+        "iterm2": "action:select-pane-left"
       }
     },
     {
@@ -290,7 +301,8 @@
         "vscode": "workbench.action.focusRightGroup",
         "cursor": "workbench.action.focusRightGroup",
         "ghostty": "goto_split:right",
-        "cmux": "focusRight"
+        "cmux": "focusRight",
+        "iterm2": "action:select-pane-right"
       }
     },
     {
@@ -301,7 +313,8 @@
         "vscode": "workbench.action.focusAboveGroup",
         "cursor": "workbench.action.focusAboveGroup",
         "ghostty": "goto_split:up",
-        "cmux": "focusUp"
+        "cmux": "focusUp",
+        "iterm2": "action:select-pane-above"
       }
     },
     {
@@ -312,7 +325,8 @@
         "vscode": "workbench.action.focusBelowGroup",
         "cursor": "workbench.action.focusBelowGroup",
         "ghostty": "goto_split:down",
-        "cmux": "focusDown"
+        "cmux": "focusDown",
+        "iterm2": "action:select-pane-below"
       }
     },
     {
@@ -324,7 +338,8 @@
         "cursor": "workbench.action.focusNextGroup",
         "webstorm": "NextSplitter",
         "ghostty": "goto_split:next",
-        "cmux": "focusNextPane"
+        "cmux": "focusNextPane",
+        "iterm2": "action:next-pane"
       }
     },
     {
@@ -336,7 +351,8 @@
         "cursor": "workbench.action.focusPreviousGroup",
         "webstorm": "PrevSplitter",
         "ghostty": "goto_split:previous",
-        "cmux": "focusPreviousPane"
+        "cmux": "focusPreviousPane",
+        "iterm2": "action:previous-pane"
       }
     },
     {
@@ -348,7 +364,8 @@
         "cursor": "editor.action.fontZoomIn",
         "webstorm": "EditorIncreaseFontSize",
         "ghostty": "increase_font_size:1",
-        "cmux": "increaseWorkspaceTerminalFontSize"
+        "cmux": "increaseWorkspaceTerminalFontSize",
+        "iterm2": "menu:make-text-bigger"
       }
     },
     {
@@ -360,7 +377,8 @@
         "cursor": "editor.action.fontZoomOut",
         "webstorm": "EditorDecreaseFontSize",
         "ghostty": "decrease_font_size:1",
-        "cmux": "decreaseWorkspaceTerminalFontSize"
+        "cmux": "decreaseWorkspaceTerminalFontSize",
+        "iterm2": "menu:make-text-smaller"
       }
     },
     {
@@ -372,7 +390,8 @@
         "cursor": "editor.action.fontZoomReset",
         "webstorm": "EditorResetFontSize",
         "ghostty": "reset_font_size",
-        "cmux": "resetWorkspaceTerminalFontSize"
+        "cmux": "resetWorkspaceTerminalFontSize",
+        "iterm2": "menu:make-text-normal-size"
       }
     },
     {
@@ -392,7 +411,8 @@
       "commands": {
         "vscode": "workbench.action.terminal.new",
         "cursor": "workbench.action.terminal.new",
-        "cmux": "newSurface"
+        "cmux": "newSurface",
+        "iterm2": "action:new-tab"
       }
     },
     {
@@ -403,7 +423,8 @@
         "vscode": "workbench.action.terminal.clear",
         "cursor": "workbench.action.terminal.clear",
         "ghostty": "clear_screen",
-        "cmux": "clearScreenKeepScrollback"
+        "cmux": "clearScreenKeepScrollback",
+        "iterm2": "menu:clear-buffer"
       }
     },
     {

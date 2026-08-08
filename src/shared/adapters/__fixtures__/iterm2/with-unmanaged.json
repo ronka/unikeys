@@ -1,0 +1,20 @@
+{
+  "Profiles": [
+    {
+      "Name": "unikeys",
+      "Guid": "7B8E4F2A-3C6D-4E19-9A05-1D2F8C4B6E30",
+      "Dynamic Profile Parent Name": "Default",
+      "Keyboard Map": {
+        "f702-0x280000": { "Action": 11, "Text": "0x1b 0x1b 0x5b 0x44" },
+        "0x7a-0x100000-0x6": { "Action": 12, "Text": "hello", "Version": 1, "Label": "greet" },
+        "0x75-0x140000": { "Action": 29, "Text": "7B8E4F2A-3C6D-4E19-9A05-1D2F8C4B6E30" },
+        "0x9-0x40000": { "Action": 32, "Text": "" }
+      }
+    },
+    {
+      "Name": "Something else the user keeps here",
+      "Guid": "0BE2A1C4-5F73-4A18-8D06-9C31E7B2F450",
+      "Keyboard Map": { "0x6a-0x100000": { "Action": 12, "Text": "not unikeys" } }
+    }
+  ]
+}

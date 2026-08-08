@@ -1,7 +1,7 @@
 /**
  * A tolerant JSONC reader, shared by the adapters whose apps store keybindings
- * in JSON-with-comments — VSCode/Cursor's `keybindings.json` and cmux's
- * `cmux.json`.
+ * in JSON-with-comments — VSCode/Cursor's `keybindings.json`, cmux's
+ * `cmux.json`, and iTerm2's dynamic profile.
  *
  * Two properties matter, and both exist because these are files the user hand
  * edits:

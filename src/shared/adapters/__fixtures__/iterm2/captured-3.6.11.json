@@ -1,0 +1,17 @@
+{
+  "Profiles": [
+    {
+      "Name": "unikeys",
+      "Guid": "7B8E4F2A-3C6D-4E19-9A05-1D2F8C4B6E30",
+      "Dynamic Profile Parent Name": "Default",
+      "Keyboard Map": {
+        "0x75-0x140000": { "Action": 29, "Text": "7B8E4F2A-3C6D-4E19-9A05-1D2F8C4B6E30" },
+        "0x61-0x140000": { "Action": 27, "Text": "7B8E4F2A-3C6D-4E19-9A05-1D2F8C4B6E30" },
+        "0x65-0x140000": { "Action": 25, "Text": "Clear Buffer\nClear Buffer" },
+        "0x64-0x100000": { "Action": 13, "Text": "" },
+        "0x74-0x100000": { "Action": 13, "Text": "" },
+        "0x6b-0x100000": { "Action": 13, "Text": "" }
+      }
+    }
+  ]
+}

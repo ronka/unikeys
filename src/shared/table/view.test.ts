@@ -40,7 +40,7 @@ const actionsById = Object.fromEntries(catalogue.actions.map((action) => [action
  * an app is a deliberate edit here — a derived list would quietly extend these
  * cases to a column none of them was written for.
  */
-const ALL_APPS = ['vscode', 'cursor', 'webstorm', 'ghostty', 'cmux'] as const
+const ALL_APPS = ['vscode', 'cursor', 'webstorm', 'ghostty', 'cmux', 'iterm2'] as const
 
 function storeWith(chords: Store['chords'], linkedActions: string[] = []): Store {
   return { ...createEmptyStore(), chords, linkedActions }
@@ -244,12 +244,13 @@ describe('the table view', () => {
 
     const view = buildTableView(state, catalogue)
 
-    expect(view.apps).toEqual(['vscode', 'webstorm', 'ghostty', 'cmux'])
+    expect(view.apps).toEqual(['vscode', 'webstorm', 'ghostty', 'cmux', 'iterm2'])
     expect(Object.keys(view.groups[0].rows[0].cells)).toEqual([
       'vscode',
       'webstorm',
       'ghostty',
-      'cmux'
+      'cmux',
+      'iterm2'
     ])
   })
 

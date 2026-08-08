@@ -10,6 +10,7 @@
 import { APPS, type AppId, type FormatId } from '../apps'
 import { cmuxAdapter } from './cmux'
 import { ghosttyAdapter } from './ghostty'
+import { iterm2Adapter } from './iterm2'
 import { jetbrainsAdapter } from './jetbrains'
 import type { Adapter } from './types'
 import { vscodeAdapter } from './vscode'
@@ -18,7 +19,8 @@ export const ADAPTERS: Record<FormatId, Adapter> = {
   'vscode-keybindings': vscodeAdapter,
   'jetbrains-keymap': jetbrainsAdapter,
   'ghostty-config': ghosttyAdapter,
-  'cmux-config': cmuxAdapter
+  'cmux-config': cmuxAdapter,
+  'iterm2-dynamic-profile': iterm2Adapter
 }
 
 export function adapterFor(app: AppId): Adapter {
