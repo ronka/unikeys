@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { AppId } from '../apps'
 import type { WriteResult } from '../ipc'
-import type { PendingChange, PendingLinkChange } from '../table/reducer'
+import type { PendingChange } from '../table/reducer'
 import { savedCells } from '../table/save-outcome'
 import { buildSaveEntry } from './entry'
 
@@ -36,7 +36,7 @@ const ok = (write: WriteResult) => ({ ok: true, result: write }) as const
 
 describe('buildSaveEntry', () => {
   it('records what each cell was and became, with the outcome the write reported', () => {
-    const entry = buildSaveEntry([change()], [], ok(result({ written: [wrote('vscode')] })))
+    const entry = buildSaveEntry([change()], ok(result({ written: [wrote('vscode')] })))
 
     expect(entry).toMatchObject({
       kind: 'save',
@@ -64,7 +64,6 @@ describe('buildSaveEntry', () => {
         change({ app: 'cursor' }),
         change({ app: 'cmux', actionId: 'nav.go-to-file' })
       ],
-      [],
       ok(
         result({
           written: [wrote('vscode')],
@@ -92,7 +91,6 @@ describe('buildSaveEntry', () => {
         change({ app: 'vscode', previous: undefined }),
         change({ app: 'cursor', previous: { chord: null, origin: 'user' } })
       ],
-      [],
       ok(result({ written: [wrote('vscode'), wrote('cursor')] }))
     )
 
@@ -105,7 +103,6 @@ describe('buildSaveEntry', () => {
   it('records the apps that were written and the ones that were not', () => {
     const entry = buildSaveEntry(
       [change()],
-      [],
       ok(
         result({
           written: [wrote('vscode')],
@@ -121,15 +118,8 @@ describe('buildSaveEntry', () => {
     expect(entry.error).toBeUndefined()
   })
 
-  it('carries link changes through', () => {
-    const links: PendingLinkChange[] = [{ actionId: 'file.save', actionName: 'Save', linked: true }]
-    const entry = buildSaveEntry([], links, ok(result()))
-
-    expect(entry.links).toEqual([{ actionId: 'file.save', actionName: 'Save', linked: true }])
-  })
-
   describe('a write that threw', () => {
-    const entry = buildSaveEntry([change({ app: 'vscode' }), change({ app: 'cursor' })], [], {
+    const entry = buildSaveEntry([change({ app: 'vscode' }), change({ app: 'cursor' })], {
       ok: false,
       error: 'spawn EPERM'
     })
@@ -152,7 +142,6 @@ describe('buildSaveEntry', () => {
   it('agrees with the cells the table marks saved', () => {
     const entry = buildSaveEntry(
       [change({ app: 'vscode' }), change({ app: 'cursor' })],
-      [],
       ok(
         result({
           written: [wrote('vscode')],

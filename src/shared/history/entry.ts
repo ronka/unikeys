@@ -8,7 +8,7 @@
  */
 
 import type { WriteResult } from '../ipc'
-import type { PendingChange, PendingLinkChange } from '../table/reducer'
+import type { PendingChange } from '../table/reducer'
 import { classifySaveOutcome } from '../table/save-outcome'
 import type { SaveEntryBody } from './types'
 
@@ -34,7 +34,6 @@ export type WriteAttempt = { ok: true; result: WriteResult } | { ok: false; erro
  */
 export function buildSaveEntry(
   changes: readonly PendingChange[],
-  links: readonly PendingLinkChange[],
   attempt: WriteAttempt
 ): SaveEntryBody {
   const outcomes = attempt.ok
@@ -54,11 +53,6 @@ export function buildSaveEntry(
       previous: change.previous,
       next: change.next,
       outcome: outcomes[i].outcome
-    })),
-    links: links.map((link) => ({
-      actionId: link.actionId,
-      actionName: link.actionName,
-      linked: link.linked
     })),
     apps: attempt.ok
       ? [

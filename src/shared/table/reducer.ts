@@ -4,11 +4,13 @@
  *
  * Two product decisions live here and nowhere else:
  *
- * 1. **Linked-row propagation.** Editing any cell of a linked row writes the
- *    same chord to every app the catalogue maps for that action, and to no
- *    other app — a linked editor action must never try to bind itself in the
- *    terminal. This is the feature the app is named for; it is implemented in
- *    this module only, so the UI can never diverge from it.
+ * 1. **Matching a row is one shot.** Matching writes one chord into every app
+ *    the catalogue maps for that action, and into no other app — an editor
+ *    action must never try to bind itself in the terminal. It is a copy, not a
+ *    subscription: nothing is remembered afterwards, and a later edit to one
+ *    cell changes that cell alone. This is the row-wide twin of `copyBindings`,
+ *    and it is implemented in this module only, so the UI can never diverge
+ *    from it.
  * 2. **Pending edits are held apart from the saved store.** The UI can show the
  *    user exactly what would be written before anything reaches disk, and
  *    discarding is a matter of dropping the overlay rather than undoing edits.
@@ -32,24 +34,15 @@ import {
 // State
 // ---------------------------------------------------------------------------
 
-/**
- * Unsaved link/unlink changes, keyed by action id. A key is present only while
- * the desired state differs from the saved store, so an entry is always a real
- * change the user would see in the pending-changes view.
- */
-export type PendingLinks = Record<string, boolean>
-
 export interface TableState {
   /** Last saved state. Only `markSaved` and `importBindings` change it. */
   store: Store
   /** Overlay of unsaved chord edits, same shape as `store.chords`. */
   pending: ChordTable
-  /** Overlay of unsaved link/unlink changes. */
-  pendingLinks: PendingLinks
 }
 
 export function createTableState(store: Store = createEmptyStore()): TableState {
-  return { store, pending: {}, pendingLinks: {} }
+  return { store, pending: {} }
 }
 
 // ---------------------------------------------------------------------------
@@ -76,16 +69,19 @@ export type TableAction =
   | { type: 'setChord'; actionId: string; app: AppId; chord: Chord }
   | { type: 'clearChord'; actionId: string; app: AppId }
   /**
+   * Gives every app the catalogue maps for this action the same chord — "make
+   * this row agree", once. Nothing is remembered afterwards: a later edit to one
+   * cell changes that cell alone. See `plannedMatch` for which cells move.
+   *
    * `winningChord` is required when the row's mapped apps disagree; omit it only
    * when they already agree. `null` is a legitimate winner meaning "unbound
    * everywhere", so absence and `null` mean different things here.
    */
-  | { type: 'linkRow'; actionId: string; winningChord?: Chord | null }
-  | { type: 'unlinkRow'; actionId: string }
+  | { type: 'matchRow'; actionId: string; winningChord?: Chord | null }
   /**
    * Copies every chord one app holds into the named apps — "make these match
-   * that one", once. It is not a link: nothing is remembered, and a later edit
-   * to `from` does not follow. See `plannedCopy` for exactly which cells move.
+   * that one", once. The column-wide twin of `matchRow`, and equally one-shot: a
+   * later edit to `from` does not follow. See `plannedCopy` for which cells move.
    */
   | { type: 'copyBindings'; from: AppId; to: readonly AppId[] }
   | { type: 'discardPending' }
@@ -97,9 +93,6 @@ export type TableAction =
    * user's work: an app whose write failed, a chord the app's format could not
    * express, and an edit made while the save was already in flight. Omit
    * `cells` entirely to fold everything.
-   *
-   * Pending link changes are always folded — linking is unikeys' own state, not
-   * something a config file can reject.
    */
   | { type: 'markSaved'; cells?: readonly CellRef[] }
   | { type: 'importBindings'; payload: ImportPayload }
@@ -127,14 +120,8 @@ export function effectiveChord(
   return state.store.chords[actionId]?.[app]
 }
 
-/** Pending overlaid on saved — whether the row propagates edits. */
-export function effectiveLinked(state: TableState, actionId: string): boolean {
-  if (actionId in state.pendingLinks) return state.pendingLinks[actionId]
-  return state.store.linkedActions.includes(actionId)
-}
-
 export function hasPendingChanges(state: TableState): boolean {
-  return Object.keys(state.pending).length > 0 || Object.keys(state.pendingLinks).length > 0
+  return Object.keys(state.pending).length > 0
 }
 
 /** The apps the user has switched on. Disabled apps get no column and no write. */
@@ -143,21 +130,21 @@ export function enabledApps(store: Store): AppId[] {
 }
 
 /**
- * The apps a row propagates to: the ones the catalogue maps, whether or not
- * they are currently enabled. A disabled app is not written to disk, but its
- * stored chord still belongs to the linked row — otherwise re-enabling an app
- * would silently reintroduce a stale, unlinked chord.
+ * The apps a row can bind: the ones the catalogue maps, whether or not they are
+ * currently enabled. A disabled app is not written to disk, but matching still
+ * gives it the row's chord — otherwise re-enabling an app would bring back a
+ * stale binding the user thought they had settled.
  */
-export function propagationTargets(action: CatalogueAction): AppId[] {
+export function mappedApps(action: CatalogueAction): AppId[] {
   return APP_IDS.filter((app) => isMapped(action, app))
 }
 
 /**
  * The distinct chords a row currently holds, so the UI can ask which one wins
- * before linking. Cells unikeys knows nothing about are skipped; an explicit
+ * before matching. Cells unikeys knows nothing about are skipped; an explicit
  * unbinding is a real answer and is offered as a candidate.
  */
-export interface LinkCandidate {
+export interface MatchCandidate {
   chord: Chord | null
   /** Canonical form, or `null` for an unbound candidate. Handy as a React key. */
   canonical: string | null
@@ -165,9 +152,9 @@ export interface LinkCandidate {
   apps: AppId[]
 }
 
-export function linkCandidates(state: TableState, action: CatalogueAction): LinkCandidate[] {
-  const candidates: LinkCandidate[] = []
-  for (const app of propagationTargets(action)) {
+export function matchCandidates(state: TableState, action: CatalogueAction): MatchCandidate[] {
+  const candidates: MatchCandidate[] = []
+  for (const app of mappedApps(action)) {
     const stored = effectiveChord(state, action.id, app)
     if (stored === undefined) continue
     const canonical = stored.chord
@@ -185,14 +172,57 @@ export function linkCandidates(state: TableState, action: CatalogueAction): Link
   return candidates
 }
 
-/** True when linking needs no decision from the user. */
-export function canLinkWithoutWinner(state: TableState, action: CatalogueAction): boolean {
-  return linkCandidates(state, action).length <= 1
+/** True when matching needs no decision from the user. */
+export function canMatchWithoutWinner(state: TableState, action: CatalogueAction): boolean {
+  return matchCandidates(state, action).length <= 1
 }
 
-/** One cell a copy would change, and the value it would take. */
-export interface PlannedCopy extends CellRef {
+/** One cell a copy or a match would change, and the value it would take. */
+export interface PlannedWrite extends CellRef {
   value: StoredChord
+}
+
+/**
+ * Which cells matching a row would change, given the chord that wins.
+ *
+ * A mapped cell unikeys has never seen counts as a change: an app that gained a
+ * column after the row was last matched is exactly the cell the user is pressing
+ * the button to fill. A cell that already holds the winning chord does not, so
+ * matching never rewrites an `imported` origin into a `user` one for nothing.
+ *
+ * The button is enabled from this list and the reducer applies it, so what the
+ * row says it will do and what it does come from one rule.
+ */
+export function plannedMatch(
+  state: TableState,
+  action: CatalogueAction,
+  winner: Chord | null
+): PlannedWrite[] {
+  const value: StoredChord = {
+    chord: winner === null ? null : formatCanonical(winner),
+    origin: 'user'
+  }
+  return mappedApps(action)
+    .filter((app) => effectiveChord(state, action.id, app)?.chord !== value.chord)
+    .map((app) => ({ actionId: action.id, app, value }))
+}
+
+/**
+ * What pressing Match on this row would do, so the button can say which it is
+ * rather than being a press with no visible result — the failure a link toggle
+ * whose two states looked identical had.
+ *
+ * `empty` and `settled` both leave nothing to do, and they are kept apart
+ * because only one of them means the apps agree: a row unikeys holds no chord
+ * for anywhere is not a row that has been settled.
+ */
+export type RowMatchState = 'available' | 'settled' | 'empty'
+
+export function rowMatchState(state: TableState, action: CatalogueAction): RowMatchState {
+  const candidates = matchCandidates(state, action)
+  if (candidates.length === 0) return 'empty'
+  if (candidates.length > 1) return 'available'
+  return plannedMatch(state, action, candidates[0].chord).length === 0 ? 'settled' : 'available'
 }
 
 /**
@@ -206,9 +236,9 @@ export interface PlannedCopy extends CellRef {
  * edge case: an action the source app cannot bind has nothing to copy; a source
  * cell unikeys has never seen would copy an absence rather than a chord; a
  * target the catalogue does not map cannot hold the binding at all; and a target
- * that already agrees is not a change. That last one is also why a linked row
- * never appears here — its mapped apps already hold one chord, and the source is
- * one of them.
+ * that already agrees is not a change. That last one is also why a row that was
+ * just matched never appears here — its mapped apps already hold one chord, and
+ * the source is one of them.
  *
  * The copied chord becomes `origin: 'user'`. Copying is a decision, and a cell
  * that keeps an `imported` origin would be overwritten by the next import.
@@ -218,9 +248,9 @@ export function plannedCopy(
   catalogue: Catalogue,
   from: AppId,
   to: readonly AppId[]
-): PlannedCopy[] {
+): PlannedWrite[] {
   const targets = to.filter((app) => app !== from)
-  const copies: PlannedCopy[] = []
+  const copies: PlannedWrite[] = []
 
   for (const action of catalogue.actions) {
     if (!isMapped(action, from)) continue
@@ -304,21 +334,6 @@ export function pendingChanges(state: TableState, catalogue: Catalogue): Pending
   return changes
 }
 
-export interface PendingLinkChange {
-  actionId: string
-  actionName: string
-  linked: boolean
-}
-
-export function pendingLinkChanges(state: TableState, catalogue: Catalogue): PendingLinkChange[] {
-  const names = new Map(catalogue.actions.map((action) => [action.id, action.name]))
-  return Object.keys(state.pendingLinks).map((actionId) => ({
-    actionId,
-    actionName: names.get(actionId) ?? actionId,
-    linked: state.pendingLinks[actionId]
-  }))
-}
-
 // ---------------------------------------------------------------------------
 // The reducer
 // ---------------------------------------------------------------------------
@@ -335,7 +350,7 @@ export function tableReducer(
 ): TableState {
   switch (action.type) {
     case 'setChord':
-      return writeCell(state, catalogue, action.actionId, action.app, {
+      return writeCell(state, action.actionId, action.app, {
         chord: formatCanonical(action.chord),
         origin: 'user'
       })
@@ -343,48 +358,40 @@ export function tableReducer(
     case 'clearChord':
       // An unbinding is a value, not an absence: the app must be told to drop
       // the binding, which is why this is `chord: null` and not a deletion.
-      return writeCell(state, catalogue, action.actionId, action.app, {
+      return writeCell(state, action.actionId, action.app, {
         chord: null,
         origin: 'user'
       })
 
-    case 'linkRow':
-      return linkRow(state, catalogue, action.actionId, action)
-
-    case 'unlinkRow':
-      // Nothing else to do. Linking kept every mapped cell equal, so simply
-      // dropping the id is what leaves each app holding the last shared chord
-      // rather than reverting to what it held before linking.
-      return setLinked(state, action.actionId, false)
+    case 'matchRow':
+      return matchRow(state, catalogue, action.actionId, action)
 
     case 'copyBindings':
-      // Through `writeCell` rather than straight into the overlay, so a copy
-      // obeys the same propagation rule every other edit does.
+      // Through `writeCell` rather than straight into the overlay, so a copy is
+      // pruned against the saved store like every other edit.
       return plannedCopy(state, catalogue, action.from, action.to).reduce(
-        (current, copy) => writeCell(current, catalogue, copy.actionId, copy.app, copy.value),
+        (current, copy) => writeCell(current, copy.actionId, copy.app, copy.value),
         state
       )
 
     case 'discardPending':
-      return { store: state.store, pending: {}, pendingLinks: {} }
+      return { store: state.store, pending: {} }
 
     case 'markSaved': {
       const saved = action.cells === undefined ? null : new Set(action.cells.map(cellKey))
       return {
         store: {
           ...state.store,
-          chords: foldPending(state.store.chords, state.pending, saved),
-          linkedActions: foldPendingLinks(state.store.linkedActions, state.pendingLinks)
+          chords: foldPending(state.store.chords, state.pending, saved)
         },
         // Anything that did not reach disk stays pending, so the table keeps
         // showing it as unsaved and the next save retries it.
-        pending: retainUnsaved(state.pending, saved),
-        pendingLinks: {}
+        pending: retainUnsaved(state.pending, saved)
       }
     }
 
     case 'hydrate':
-      return { store: action.store, pending: {}, pendingLinks: {} }
+      return { store: action.store, pending: {} }
 
     case 'importBindings':
       return importBindings(state, action.payload)
@@ -411,33 +418,19 @@ export function createTableReducer(
 // Transitions
 // ---------------------------------------------------------------------------
 
-/**
- * Writes one cell, or — when the row is linked — the same value to every mapped
- * app in the row. The edited app is written even if the catalogue does not map
- * it, because the user explicitly asked for that cell; propagation is what is
- * restricted to mapped apps.
- */
+/** Writes one cell. Nothing follows it: matching is the only row-wide edit. */
 function writeCell(
   state: TableState,
-  catalogue: Catalogue,
   actionId: string,
   app: AppId,
   value: StoredChord
 ): TableState {
-  const action = catalogue.actions.find((candidate) => candidate.id === actionId)
-  const targets =
-    action && effectiveLinked(state, actionId) ? propagationTargets(action) : ([] as AppId[])
-  const apps = targets.includes(app) ? targets : [app, ...targets]
-
-  let pending = state.pending
-  for (const target of apps) {
-    pending = setPending(state.store.chords, pending, actionId, target, value)
-  }
+  const pending = setPending(state.store.chords, state.pending, actionId, app, value)
   if (pending === state.pending) return state
   return { ...state, pending }
 }
 
-function linkRow(
+function matchRow(
   state: TableState,
   catalogue: Catalogue,
   actionId: string,
@@ -446,7 +439,7 @@ function linkRow(
   const action = catalogue.actions.find((candidate) => candidate.id === actionId)
   if (!action) return state
 
-  const candidates = linkCandidates(state, action)
+  const candidates = matchCandidates(state, action)
   const explicit = 'winningChord' in request && request.winningChord !== undefined
 
   let winner: Chord | null
@@ -460,38 +453,20 @@ function linkRow(
   } else if (candidates.length === 1) {
     winner = candidates[0].chord
   } else {
-    // Nothing to share yet; link the empty row and let the first edit fill it.
-    return setLinked(state, actionId, true)
+    // Nothing to spread: unikeys holds no chord for any app in this row.
+    return state
   }
 
-  const value: StoredChord = {
-    chord: winner === null ? null : formatCanonical(winner),
-    origin: 'user'
-  }
-  let pending = state.pending
-  for (const target of propagationTargets(action)) {
-    // A cell that already holds the winning chord is left untouched so linking
-    // does not rewrite an imported origin into a user one for no reason.
-    const current = effectiveChord(state, actionId, target)
-    if (current !== undefined && current.chord === value.chord) continue
-    pending = setPending(state.store.chords, pending, actionId, target, value)
-  }
-
-  return setLinked({ ...state, pending }, actionId, true)
+  return plannedMatch(state, action, winner).reduce(
+    (current, write) => writeCell(current, write.actionId, write.app, write.value),
+    state
+  )
 }
 
 function importBindings(state: TableState, payload: ImportPayload): TableState {
   const chords: ChordTable = { ...state.store.chords }
 
-  const linked = new Set(state.store.linkedActions)
-
   for (const binding of payload.bindings) {
-    // A linked row is a decision the user made about the whole row. Importing
-    // into one of its cells would knock that cell out of sync with the rest and
-    // leave the row rendering as linked *and* divergent, with nothing pending
-    // to explain it.
-    if (linked.has(binding.actionId)) continue
-
     const existing = chords[binding.actionId]?.[binding.app]
     // Anything the user set inside unikeys outranks what an app's config or
     // defaults say; import fills cells in, it never overwrites a decision.
@@ -569,14 +544,6 @@ function setPending(
   return { ...pending, [actionId]: { ...current, [app]: value } }
 }
 
-function setLinked(state: TableState, actionId: string, linked: boolean): TableState {
-  const saved = state.store.linkedActions.includes(actionId)
-  const pendingLinks = { ...state.pendingLinks }
-  if (saved === linked) delete pendingLinks[actionId]
-  else pendingLinks[actionId] = linked
-  return { ...state, pendingLinks }
-}
-
 function foldPending(
   saved: ChordTable,
   pending: ChordTable,
@@ -614,15 +581,6 @@ function filterRow(
       ([app]) => savedCells.has(cellKey({ actionId, app: app as AppId })) === keepSaved
     )
   )
-}
-
-function foldPendingLinks(saved: readonly string[], pendingLinks: PendingLinks): string[] {
-  const linked = new Set(saved)
-  for (const [actionId, isLinkedNow] of Object.entries(pendingLinks)) {
-    if (isLinkedNow) linked.add(actionId)
-    else linked.delete(actionId)
-  }
-  return [...linked]
 }
 
 // ---------------------------------------------------------------------------

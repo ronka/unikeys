@@ -1,9 +1,9 @@
 /**
  * unikeys' own persisted state.
  *
- * unikeys is the source of truth: it maintains its own store of chords, linked
- * state and app configuration, and apps are write targets. There is no two-way
- * sync and no drift detection.
+ * unikeys is the source of truth: it maintains its own store of chords and app
+ * configuration, and apps are write targets. There is no two-way sync and no
+ * drift detection.
  *
  * Chords are held here in canonical string form (see `formatCanonical`), never
  * in any app's notation — notation is an adapter concern.
@@ -50,12 +50,6 @@ export interface Store {
   schemaVersion: number
   apps: Record<AppId, AppConfig>
   chords: ChordTable
-  /**
-   * Action ids whose row is linked. Linking keeps every mapped app's chord
-   * equal; unlinking simply drops the id, which is what leaves each app holding
-   * the last shared chord rather than reverting.
-   */
-  linkedActions: string[]
   firstRunCompleted: boolean
 }
 
@@ -66,7 +60,6 @@ export function createEmptyStore(): Store {
       APP_IDS.map((id) => [id, { enabled: true, configPath: null } satisfies AppConfig])
     ) as Record<AppId, AppConfig>,
     chords: {},
-    linkedActions: [],
     firstRunCompleted: false
   }
 }
@@ -122,13 +115,14 @@ export function deserializeStore(text: string): DeserializeOutcome {
   }
 
   const base = createEmptyStore()
+  // A store written while rows could be linked still carries `linkedActions`.
+  // It is read past rather than migrated: linking was unikeys' own state and
+  // never reached anyone's config, so dropping it leaves every app holding the
+  // chord it already had — exactly what unlinking used to do.
   const store: Store = {
     schemaVersion: STORE_SCHEMA_VERSION,
     apps: { ...base.apps },
     chords: isRecord(data.chords) ? (data.chords as ChordTable) : {},
-    linkedActions: Array.isArray(data.linkedActions)
-      ? data.linkedActions.filter((id): id is string => typeof id === 'string')
-      : [],
     firstRunCompleted: data.firstRunCompleted === true
   }
 
@@ -162,8 +156,4 @@ export function getStoredChord(
   app: AppId
 ): StoredChord | undefined {
   return chords[actionId]?.[app]
-}
-
-export function isLinked(store: Store, actionId: string): boolean {
-  return store.linkedActions.includes(actionId)
 }

@@ -24,7 +24,14 @@ import {
   type Category
 } from '../catalogue/types'
 import type { ChordOrigin } from '../store/types'
-import { chordOf, effectiveChord, effectiveLinked, enabledApps, type TableState } from './reducer'
+import {
+  chordOf,
+  effectiveChord,
+  enabledApps,
+  rowMatchState,
+  type RowMatchState,
+  type TableState
+} from './reducer'
 
 // ---------------------------------------------------------------------------
 // Cells
@@ -71,9 +78,16 @@ export interface RowView {
   action: CatalogueAction
   /** One entry per enabled app, in `APP_IDS` order. */
   cells: Partial<Record<AppId, CellState>>
-  linked: boolean
   divergent: boolean
   hasPending: boolean
+  /**
+   * What the row's Match button would do.
+   *
+   * Not derivable from `divergent`, which only compares the columns on screen:
+   * a mapped app the user has switched off still takes the row's chord, so a
+   * row can look settled and still have something to match.
+   */
+  match: RowMatchState
 }
 
 export function buildRowView(
@@ -90,10 +104,9 @@ export function buildRowView(
     comparable.length > 1 &&
     comparable.some((app) => cellKey(cells[app]) !== cellKey(cells[comparable[0]]))
 
-  const hasPending =
-    apps.some((app) => isCellPending(state, action.id, app)) || action.id in state.pendingLinks
+  const hasPending = apps.some((app) => isCellPending(state, action.id, app))
 
-  return { action, cells, linked: effectiveLinked(state, action.id), divergent, hasPending }
+  return { action, cells, divergent, hasPending, match: rowMatchState(state, action) }
 }
 
 /**

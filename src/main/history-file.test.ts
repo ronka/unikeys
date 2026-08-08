@@ -3,12 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import {
-  HISTORY_LIMIT,
-  type HistoryEntry,
-  type NewHistoryEntry,
-  type SaveEntry
-} from '../shared/history/types'
+import { HISTORY_LIMIT, type HistoryEntry, type NewHistoryEntry } from '../shared/history/types'
 import { createHistoryLog, historyLocation, loadHistory, recordEntry } from './history-file'
 
 let dir: string
@@ -20,7 +15,7 @@ afterEach(() => {
   rmSync(dir, { recursive: true, force: true })
 })
 
-function entry(id: string): SaveEntry {
+function entry(id: string): HistoryEntry {
   return {
     kind: 'save',
     id,
@@ -35,7 +30,6 @@ function entry(id: string): SaveEntry {
         outcome: 'written'
       }
     ],
-    links: [],
     apps: [{ app: 'vscode', name: 'VS Code', ok: true }]
   }
 }
@@ -79,8 +73,8 @@ describe('the history file', () => {
 describe('an open log', () => {
   /** An entry as the renderer submits it: everything but the stamp. */
   function body(): NewHistoryEntry {
-    const { changes, links, apps } = entry('ignored')
-    return { kind: 'save', changes, links, apps }
+    const { changes, apps } = entry('ignored')
+    return { kind: 'save', changes, apps }
   }
 
   it('stamps what the renderer submits rather than trusting it', () => {
@@ -130,7 +124,7 @@ describe('an open log', () => {
    */
   it('refuses an entry it could not read back, and writes nothing', () => {
     const log = createHistoryLog(dir)
-    const nonsense = { kind: 'save', changes: [], links: [], apps: [] } as NewHistoryEntry
+    const nonsense = { kind: 'save', changes: [], apps: [] } as NewHistoryEntry
 
     expect(() => log.append(nonsense, { id: 'a', at: 1 })).toThrow()
     expect(loadHistory(historyLocation(dir)).entries).toEqual([])
@@ -141,7 +135,7 @@ describe('an open log', () => {
     log.append(body(), { id: 'good', at: 1 })
 
     expect(() =>
-      log.append({ kind: 'save', changes: [], links: [], apps: [] }, { id: 'bad', at: 2 })
+      log.append({ kind: 'save', changes: [], apps: [] }, { id: 'bad', at: 2 })
     ).toThrow()
     expect(log.append(body(), { id: 'next', at: 3 }).map((e) => e.id)).toEqual(['next', 'good'])
   })

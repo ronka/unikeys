@@ -4,8 +4,10 @@ One table for every keybinding across VSCode, Cursor, Kiro, Antigravity, Zed, We
 IntelliJ IDEA, PyCharm, Ghostty, cmux, iTerm2, Warp and Obsidian.
 
 Each **row** is an action. Each **column** is an app. Each **cell** is the chord that
-action is bound to in that app. Edit any cell, or **link** a row so every app that
-supports the action shares one chord and stays in sync as you keep tweaking.
+action is bound to in that app. Edit any cell, or press **Match** to give every app
+that supports the action the same chord. Matching happens once, like the column-wide
+copy in each app's header — a later edit to one cell changes that cell alone, and
+pressing Match again settles the row afresh.
 
 Saving writes into each app's real config file, surgically — only the actions
 unikeys manages are touched, everything else is left exactly as it was, and each
@@ -17,14 +19,14 @@ macOS only. Personal local use; no code signing or distribution.
 
 The layering exists to make the risky parts testable without mocking anything.
 
-| Layer                 | Where                   | Rule                                                      |
-| --------------------- | ----------------------- | --------------------------------------------------------- |
-| Canonical chord model | `src/shared/chord.ts`   | One internal representation; app notation never leaks out |
-| Adapters              | `src/shared/adapters/`  | Pure `string → string`. No filesystem, no Electron        |
-| Action catalogue      | `src/shared/catalogue/` | Shipped data, validated at startup                        |
-| Table reducer         | `src/shared/table/`     | Pure. Linked-row propagation lives here and nowhere else  |
-| File + write pipeline | `src/main/`             | The only code that touches `fs`                           |
-| UI                    | `src/renderer/src/`     | Pure UI behind a typed IPC surface                        |
+| Layer                 | Where                   | Rule                                                         |
+| --------------------- | ----------------------- | ------------------------------------------------------------ |
+| Canonical chord model | `src/shared/chord.ts`   | One internal representation; app notation never leaks out    |
+| Adapters              | `src/shared/adapters/`  | Pure `string → string`. No filesystem, no Electron           |
+| Action catalogue      | `src/shared/catalogue/` | Shipped data, validated at startup                           |
+| Table reducer         | `src/shared/table/`     | Pure. Which cells a match writes lives here and nowhere else |
+| File + write pipeline | `src/main/`             | The only code that touches `fs`                              |
+| UI                    | `src/renderer/src/`     | Pure UI behind a typed IPC surface                           |
 
 Two consequences worth knowing:
 

@@ -15,8 +15,7 @@ interface Props {
   onStartEdit: (target: EditTarget) => void
   onCommit: (target: EditTarget, chord: Chord | null) => void
   onCancelEdit: () => void
-  onToggleLink: (actionId: string) => void
-  propagationTargets: (actionId: string) => AppId[]
+  onMatchRow: (actionId: string) => void
 }
 
 /**
@@ -32,8 +31,7 @@ export function KeysPage({
   onStartEdit,
   onCommit,
   onCancelEdit,
-  onToggleLink,
-  propagationTargets
+  onMatchRow
 }: Props): React.JSX.Element {
   return (
     <div className="min-h-0 min-w-0 flex-1 overflow-auto">
@@ -46,8 +44,7 @@ export function KeysPage({
         onStartEdit={onStartEdit}
         onCommit={onCommit}
         onCancelEdit={onCancelEdit}
-        onToggleLink={onToggleLink}
-        propagationTargets={propagationTargets}
+        onMatchRow={onMatchRow}
       />
     </div>
   )

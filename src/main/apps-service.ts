@@ -401,8 +401,8 @@ function groupByApp(request: WriteRequest, catalogue: Catalogue, store: Store): 
     }
 
     // An app the user does not have is not a failure to report and retry: there
-    // is no config to write and no action they can take. Without this, editing a
-    // linked row leaves a cell pending forever for an app they will never
+    // is no config to write and no action they can take. Without this, matching
+    // a row leaves a cell pending forever for an app they will never
     // install. The chord still lands in unikeys' store, so it is there if they
     // do. A manual path overrides detection — the user pointing unikeys at a
     // config is a stronger statement than an app missing from /Applications.

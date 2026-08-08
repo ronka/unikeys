@@ -40,12 +40,6 @@ export interface HistoryChange {
   outcome: SaveOutcome
 }
 
-export interface HistoryLink {
-  actionId: string
-  actionName: string
-  linked: boolean
-}
-
 export interface HistoryApp {
   app: AppId
   name: string
@@ -56,20 +50,9 @@ export interface HistoryApp {
 export interface SaveEntryBody {
   kind: 'save'
   changes: HistoryChange[]
-  links: HistoryLink[]
   apps: HistoryApp[]
   /** Set when the write itself threw, so nothing can be said about disk. */
   error?: string
-}
-
-/**
- * A save that only linked or unlinked rows. It short-circuits before the write
- * path entirely, so there are no per-cell outcomes and no apps to report — which
- * is what keeps the two kinds disjoint rather than one shape with holes in it.
- */
-export interface LinksOnlyEntryBody {
-  kind: 'links-only'
-  links: HistoryLink[]
 }
 
 /**
@@ -87,11 +70,9 @@ export interface HistoryStamp {
 }
 
 /** An entry as the renderer submits it, before main stamps identity and time. */
-export type NewHistoryEntry = SaveEntryBody | LinksOnlyEntryBody
+export type NewHistoryEntry = SaveEntryBody
 
-export type SaveEntry = HistoryStamp & SaveEntryBody
-export type LinksOnlyEntry = HistoryStamp & LinksOnlyEntryBody
-export type HistoryEntry = SaveEntry | LinksOnlyEntry
+export type HistoryEntry = HistoryStamp & SaveEntryBody
 
 /** Stamps a submitted entry, which is the only way a `HistoryEntry` is made. */
 export function stampEntry(entry: NewHistoryEntry, stamp: HistoryStamp): HistoryEntry {
@@ -124,7 +105,6 @@ export function appendEntry(entries: readonly HistoryEntry[], entry: HistoryEntr
  * untouched, so "reverting" it would push a change that was never applied.
  */
 export function revertibleChanges(entry: HistoryEntry): HistoryChange[] {
-  if (entry.kind !== 'save') return []
   return entry.changes.filter(
     (change) => isSettled(change.outcome) && change.previous !== undefined
   )
@@ -136,7 +116,6 @@ export function revertibleChanges(entry: HistoryEntry): HistoryChange[] {
  * some of its cells is worse than one that says how many it left alone.
  */
 export function unrevertibleChanges(entry: HistoryEntry): HistoryChange[] {
-  if (entry.kind !== 'save') return []
   return entry.changes.filter(
     (change) => isSettled(change.outcome) && change.previous === undefined
   )
@@ -144,7 +123,7 @@ export function unrevertibleChanges(entry: HistoryEntry): HistoryChange[] {
 
 /** True when there is anything at all to put back. */
 export function canRevert(entry: HistoryEntry): boolean {
-  return revertibleChanges(entry).length > 0 || entry.links.length > 0
+  return revertibleChanges(entry).length > 0
 }
 
 // ---------------------------------------------------------------------------
@@ -203,29 +182,25 @@ export function deserializeHistory(text: string): DeserializeOutcome {
 export function readEntry(value: unknown): HistoryEntry | null {
   if (!isRecord(value)) return null
   if (typeof value.id !== 'string' || typeof value.at !== 'number') return null
-
-  const links = Array.isArray(value.links) ? value.links.map(readLink).filter(isPresent) : []
-
-  if (value.kind === 'links-only') {
-    // An entry with nothing in it says nothing; dropping it keeps the page from
-    // showing blank rows for records that lost their contents.
-    if (links.length === 0) return null
-    return { kind: 'links-only', id: value.id, at: value.at, links }
-  }
+  // A log written while rows could be linked also holds `links`, and entries
+  // whose only content was one. Both are read past: they recorded a change to
+  // unikeys' own state that no longer exists, and a `links-only` entry has
+  // nothing left to say once its links are gone, so it falls out below.
   if (value.kind !== 'save') return null
 
   const changes = Array.isArray(value.changes)
     ? value.changes.map(readChange).filter(isPresent)
     : []
   const apps = Array.isArray(value.apps) ? value.apps.map(readApp).filter(isPresent) : []
-  if (changes.length === 0 && links.length === 0) return null
+  // An entry with nothing in it says nothing; dropping it keeps the page from
+  // showing blank rows for records that lost their contents.
+  if (changes.length === 0) return null
 
   return {
     kind: 'save',
     id: value.id,
     at: value.at,
     changes,
-    links,
     apps,
     ...(typeof value.error === 'string' ? { error: value.error } : {})
   }
@@ -276,16 +251,6 @@ function readOutcome(value: unknown): SaveOutcome {
   // An unrecognised outcome falls back to `failed`, which is the reading that
   // cannot invent a revert: it keeps the cell out of `revertibleChanges`.
   return OUTCOMES.includes(value as SaveOutcome) ? (value as SaveOutcome) : 'failed'
-}
-
-function readLink(value: unknown): HistoryLink | null {
-  if (!isRecord(value)) return null
-  if (typeof value.actionId !== 'string' || typeof value.linked !== 'boolean') return null
-  return {
-    actionId: value.actionId,
-    actionName: typeof value.actionName === 'string' ? value.actionName : value.actionId,
-    linked: value.linked
-  }
 }
 
 function readApp(value: unknown): HistoryApp | null {

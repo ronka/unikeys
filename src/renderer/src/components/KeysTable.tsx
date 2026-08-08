@@ -1,8 +1,9 @@
-import { Link2, Link2Off, Pin } from 'lucide-react'
+import { Check, Combine, Copy, Minus, Pin } from 'lucide-react'
 
 import type { AppId } from '@shared/apps'
 import { APPS } from '@shared/apps'
 import type { Chord } from '@shared/chord'
+import type { RowMatchState } from '@shared/table/reducer'
 import type { CellState, RowView, TableView } from '@shared/table/view'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
@@ -24,16 +25,15 @@ interface Props {
   onStartEdit: (target: EditTarget) => void
   onCommit: (target: EditTarget, chord: Chord | null) => void
   onCancelEdit: () => void
-  onToggleLink: (actionId: string) => void
-  /** Every app a linked row's edit will reach, for expressibility warnings. */
-  propagationTargets: (actionId: string) => AppId[]
+  /** Gives every app that can bind the action the row's chord, once. */
+  onMatchRow: (actionId: string) => void
 }
 
 /*
  * Sticky layering, bottom to top: the pinned action columns (z-2), then category
  * headings (z-3), then an open chord editor (z-4), then the header row (z-5),
  * then the header's own pinned corner (z-6). A pinned heading has to outrank the
- * pinned columns, or the rows sliding under it push their action name and link
+ * pinned columns, or the rows sliding under it push their action name and match
  * button back through it — which reads as a half-drawn row welded below the
  * header. The editor sits above both deliberately: it opens leftwards, straight
  * over them. The whole ladder stays below z-10, which is the sidebar.
@@ -47,21 +47,21 @@ const HEAD =
   'sticky top-0 z-5 h-[33px] border-b border-input bg-card px-[10px] py-0 text-left font-semibold whitespace-nowrap text-muted-foreground'
 
 /* Both leading columns stay put while the app columns scroll: which action a row
-   is, and whether it is linked, are what make a chord four columns to the right
-   mean anything.
+   is, and whether its apps already agree, are what make a chord four columns to
+   the right mean anything.
 
-   The width is fixed rather than a minimum so the link column's `left` offset is
-   exact — under auto layout the action column's width follows its content and
+   The width is fixed rather than a minimum so the match column's `left` offset
+   is exact — under auto layout the action column's width follows its content and
    the two would drift apart. */
 const ACTION_COL = 'w-[240px] min-w-[240px] left-0'
-const LINK_COL = 'left-[240px]'
+const MATCH_COL = 'left-[240px]'
 
 /* Opaque backgrounds, the row tint and the divergence markers live in
    `@layer utilities` in main.css — see the note there. They cannot be utilities
    on these elements because they compose with each other by specificity, which
-   is also why `action-cell` and `link-cell` stay as real class names: the CSS
+   is also why `action-cell` and `match-cell` stay as real class names: the CSS
    has to tell the two apart, since only the action cell carries the divergence
-   marker and only the link cell carries the end-of-pinned-columns separator. */
+   marker and only the match cell carries the end-of-pinned-columns separator. */
 const PINNED_CELL = 'sticky z-2 border-b border-border'
 
 export function KeysTable({
@@ -73,8 +73,7 @@ export function KeysTable({
   onStartEdit,
   onCommit,
   onCancelEdit,
-  onToggleLink,
-  propagationTargets
+  onMatchRow
 }: Props): React.JSX.Element {
   if (view.rowCount === 0) {
     return <p className="text-muted-foreground p-10 text-center">No actions match your filters.</p>
@@ -98,8 +97,8 @@ export function KeysTable({
           {/* The heading is read aloud but not drawn: the column is one icon
               wide, and a word wider than its own contents would push the app
               columns right for nothing. */}
-          <th className={cn(HEAD, LINK_COL, 'link-head z-6')}>
-            <span className="sr-only">Link</span>
+          <th className={cn(HEAD, MATCH_COL, 'match-head z-6')}>
+            <span className="sr-only">Match</span>
           </th>
           {view.apps.map((app) => (
             <th key={app} className={HEAD}>
@@ -136,8 +135,7 @@ export function KeysTable({
               onStartEdit={onStartEdit}
               onCommit={onCommit}
               onCancelEdit={onCancelEdit}
-              onToggleLink={onToggleLink}
-              propagationTargets={propagationTargets}
+              onMatchRow={onMatchRow}
             />
           ))}
         </tbody>
@@ -190,7 +188,7 @@ function AppHead({
         <Pin className={cn('size-3.5', filtered && 'fill-current')} />
       </HeadButton>
       <HeadButton onClick={onCopy} label={`Copy ${name}'s keys to other apps`}>
-        <Link2 className="size-3.5" />
+        <Copy className="size-3.5" />
       </HeadButton>
     </span>
   )
@@ -256,8 +254,7 @@ function Row({
   onStartEdit,
   onCommit,
   onCancelEdit,
-  onToggleLink,
-  propagationTargets
+  onMatchRow
 }: Omit<Props, 'view' | 'appFilter' | 'onAppFilterChange' | 'onStartCopy'> & {
   row: RowView
   apps: AppId[]
@@ -282,11 +279,11 @@ function Row({
       <td
         className={cn(
           PINNED_CELL,
-          LINK_COL,
-          'link-cell w-[1%] px-[8px] py-[6px] whitespace-nowrap'
+          MATCH_COL,
+          'match-cell w-[1%] px-[8px] py-[6px] whitespace-nowrap'
         )}
       >
-        <LinkButton linked={row.linked} onClick={() => onToggleLink(row.action.id)} />
+        <MatchButton state={row.match} onClick={() => onMatchRow(row.action.id)} />
       </td>
 
       {apps.map((app, index) => {
@@ -326,7 +323,7 @@ function Row({
               >
                 <ChordInput
                   value={cell?.kind === 'bound' ? cell.chord : null}
-                  targets={row.linked ? propagationTargets(row.action.id) : [app]}
+                  targets={[app]}
                   onCommit={(chord) => onCommit({ actionId: row.action.id, app }, chord)}
                   onCancel={onCancelEdit}
                 />
@@ -339,43 +336,58 @@ function Row({
   )
 }
 
+const MATCH_LABELS: Record<RowMatchState, string> = {
+  available: 'Give every app that can bind this the same chord — once, as a pending change',
+  settled: 'Every app that can bind this already has the same chord',
+  empty: 'Nothing to spread yet — no app has a chord for this action'
+}
+
 /**
- * The row's link toggle. An icon rather than the word it used to be: it repeats
- * down every row of the table, where a labelled button is a column of the same
- * word read forty times, and the state worth seeing at a glance is on or off
- * rather than which of two words is showing.
+ * The row's Match button: give every app that can bind this action the same
+ * chord, once. An icon rather than the word, because it repeats down every row
+ * and a labelled button is a column of the same word read forty times.
  *
- * The tooltip is what the word used to do, and doubles as the accessible name —
- * both states say what pressing it means, because a chain icon alone does not
- * distinguish "these agree" from "these are held together".
+ * A row with nothing to do says so by going quiet rather than accepting a press
+ * with no visible result — which is what made the link toggle it replaced feel
+ * broken. `aria-disabled` rather than `disabled`, and the press is refused in
+ * the handler instead: Chromium drops mouse events on a disabled control, so
+ * the tooltip explaining why it is quiet would be the one state that could
+ * never be read. It is the accessible name too, since no icon explains itself.
  */
-function LinkButton({
-  linked,
+function MatchButton({
+  state,
   onClick
 }: {
-  linked: boolean
+  state: RowMatchState
   onClick: () => void
 }): React.JSX.Element {
-  const label = linked
-    ? 'Linked — editing any cell updates every mapped app'
-    : 'Link this row so every mapped app shares one chord'
+  const idle = state !== 'available'
+  const label = MATCH_LABELS[state]
 
   return (
     <Tooltip disableHoverableContent>
       <TooltipTrigger asChild>
         <button
           type="button"
-          onClick={onClick}
-          aria-pressed={linked}
+          onClick={() => !idle && onClick()}
+          aria-disabled={idle}
           aria-label={label}
           className={cn(
             'flex items-center rounded-md border px-[6px] py-[3px]',
-            linked
-              ? 'border-primary bg-[var(--accent-dim)] text-primary'
+            idle
+              ? 'text-faint cursor-default border-transparent bg-transparent'
               : 'border-input bg-card text-muted-foreground hover:bg-accent hover:text-foreground'
           )}
         >
-          {linked ? <Link2 className="size-3.5" /> : <Link2Off className="size-3.5" />}
+          {state === 'available' ? (
+            <Combine className="size-3.5" />
+          ) : state === 'settled' ? (
+            // A tick is "these agree"; an empty row has agreed to nothing, so a
+            // dash rather than a claim the table cannot back up.
+            <Check className="size-3.5" />
+          ) : (
+            <Minus className="size-3.5" />
+          )}
         </button>
       </TooltipTrigger>
       <TooltipContent side="right">{label}</TooltipContent>

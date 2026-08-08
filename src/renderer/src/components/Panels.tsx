@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { APPS, type AppId } from '@shared/apps'
 import { formatDisplay, parseCanonical, type Chord } from '@shared/chord'
 import type { DroppedBinding, ImportResult, WriteResult } from '@shared/ipc'
-import type { LinkCandidate, PendingChange, PendingLinkChange } from '@shared/table/reducer'
+import type { MatchCandidate, PendingChange } from '@shared/table/reducer'
 import type { ImportSummary } from '@shared/table/view'
 import { count } from '@shared/text'
 
@@ -29,7 +29,7 @@ import {
 /**
  * The dialogs.
  *
- * Most are the result of something the user just did — a link that needed a
+ * Most are the result of something the user just did — a match that needed a
  * winner, a copy that needs targets, a first-run import, a save — rather than a
  * place they can navigate to, which is why these stayed modal when everything
  * else became a page. Pending changes made the reverse trip: it is a last look
@@ -78,29 +78,29 @@ function Modal({
 }
 
 // ---------------------------------------------------------------------------
-// Choosing a winning chord when linking a divergent row
+// Choosing a winning chord when matching a divergent row
 // ---------------------------------------------------------------------------
 
 /**
- * Linking a row whose apps disagree asks which chord wins. The reducer never
+ * Matching a row whose apps disagree asks which chord wins. The reducer never
  * picks, because silently choosing would discard the binding the user actually
  * wanted.
  */
-export function LinkPrompt({
+export function MatchRowPrompt({
   actionName,
   candidates,
   onChoose,
   onClose
 }: {
   actionName: string
-  candidates: LinkCandidate[]
+  candidates: MatchCandidate[]
   onChoose: (chord: Chord | null) => void
   onClose: () => void
 }): React.JSX.Element {
   return (
     <Modal
-      title={`Link “${actionName}”`}
-      description="These apps currently disagree. Which chord should they all use?"
+      title={`Match “${actionName}” everywhere`}
+      description="These apps currently disagree. Which chord should they all take? This happens once — a later edit to one app will not follow."
       onClose={onClose}
       footer={
         <Button variant="outline" onClick={onClose}>
@@ -132,10 +132,9 @@ export function LinkPrompt({
 // ---------------------------------------------------------------------------
 
 /**
- * "Make these apps match that one." A copy, not a link: the panel says so
- * outright, because the word on the button the user just pressed is the row
- * feature's word, and the two behave differently the moment the source changes
- * again.
+ * "Make these apps match that one." The column-wide twin of the row's Match
+ * button, and equally one-shot — the panel says so outright, because a copy this
+ * wide is easy to mistake for a standing arrangement.
  *
  * The count comes from `plannedCopy`, the same function that performs the copy,
  * so the number on the button is the change that happens rather than an
@@ -276,20 +275,18 @@ function Stat({ value, label }: { value: number; label: string }): React.JSX.Ele
  */
 export function PendingChangesPrompt({
   changes,
-  linkChanges,
   saving,
   onSave,
   onDiscard,
   onClose
 }: {
   changes: PendingChange[]
-  linkChanges: PendingLinkChange[]
   saving: boolean
   onSave: () => void
   onDiscard: () => void
   onClose: () => void
 }): React.JSX.Element {
-  const empty = changes.length === 0 && linkChanges.length === 0
+  const empty = changes.length === 0
 
   return (
     <Modal
@@ -312,44 +309,33 @@ export function PendingChangesPrompt({
         // revert of the last edit, say — but then it is the honest thing to say.
         <p className="text-muted-foreground text-sm">Nothing has changed since the last save.</p>
       ) : (
-        <div className="space-y-6">
-          {changes.length > 0 && (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Action</TableHead>
-                  <TableHead>App</TableHead>
-                  <TableHead>From</TableHead>
-                  <TableHead>To</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {changes.map((change) => (
-                  <TableRow key={`${change.actionId}:${change.app}`}>
-                    <TableCell>{change.actionName}</TableCell>
-                    <TableCell>{APPS[change.app].name}</TableCell>
-                    <TableCell className="text-faint font-mono">
-                      {describeChord(change.previous?.chord ?? null)}
-                    </TableCell>
-                    <TableCell className="text-pending font-mono">
-                      {describeChord(change.next.chord)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-
-          {linkChanges.length > 0 && (
-            <ul className="list-disc space-y-1 pl-5 text-sm">
-              {linkChanges.map((change) => (
-                <li key={change.actionId}>
-                  {change.actionName} — {change.linked ? 'linked' : 'unlinked'}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Action</TableHead>
+              <TableHead>App</TableHead>
+              <TableHead>From</TableHead>
+              <TableHead>To</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {changes.map((change) => (
+              <TableRow key={`${change.actionId}:${change.app}`}>
+                <TableCell>{change.actionName}</TableCell>
+                <TableCell>{APPS[change.app].name}</TableCell>
+                <TableCell className="text-faint font-mono">
+                  {/* Deliberately not `?? null`: a cell unikeys has never seen
+                      is not the same as one that is deliberately unbound, and
+                      only the second is a value the app was ever told about. */}
+                  {change.previous === undefined ? 'not set' : describeChord(change.previous.chord)}
+                </TableCell>
+                <TableCell className="text-pending font-mono">
+                  {describeChord(change.next.chord)}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       )}
     </Modal>
   )
@@ -366,8 +352,8 @@ function describeChord(canonical: string | null): string {
 // ---------------------------------------------------------------------------
 
 /**
- * One line per app and reason rather than one per binding. A save that touches
- * ten linked rows drops ten bindings for an app the user does not have, and
+ * One line per app and reason rather than one per binding. A save that matched
+ * ten rows drops ten bindings for an app the user does not have, and
  * listing each of them by raw action id buries the one thing worth reading.
  */
 function groupDropped(

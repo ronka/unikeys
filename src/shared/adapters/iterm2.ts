@@ -116,7 +116,7 @@ import type {
 function encodeChord(c: Chord): EncodeOutcome {
   if (c.strokes.length === 0) return { ok: false, reason: 'the chord has no keystrokes' }
   if (c.strokes.length > 1) {
-    // Reachable: MAX_STROKES is 2, and a linked row can propagate a VSCode or
+    // Reachable: MAX_STROKES is 2, and matching a row can carry a VSCode or
     // JetBrains two-keystroke chord straight into this column.
     return { ok: false, reason: 'iTerm2 key mappings are a single keystroke' }
   }

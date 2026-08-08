@@ -18,7 +18,7 @@ import { Input } from '@/components/ui/input'
 interface Props {
   /** The chord currently in the cell, or `null` when unbound. */
   value: Chord | null
-  /** Which apps this edit will land in — every app in a linked row. */
+  /** Which apps this edit will land in. An edit is one cell, so one app. */
   targets: readonly AppId[]
   onCommit: (chord: Chord | null) => void
   onCancel: () => void

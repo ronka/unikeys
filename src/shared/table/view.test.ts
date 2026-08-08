@@ -45,8 +45,8 @@ const actionsById = Object.fromEntries(catalogue.actions.map((action) => [action
  */
 const ALL_APPS = APP_IDS
 
-function storeWith(chords: Store['chords'], linkedActions: string[] = []): Store {
-  return { ...createEmptyStore(), chords, linkedActions }
+function storeWith(chords: Store['chords']): Store {
+  return { ...createEmptyStore(), chords }
 }
 
 function run(state: TableState, ...actions: TableAction[]): TableState {
@@ -148,7 +148,7 @@ describe('divergence', () => {
     expect(buildRowView(state, actionsById['nav.go-to-file'], ALL_APPS).divergent).toBe(true)
   })
 
-  it('does not diverge when a linked row has settled', () => {
+  it('does not diverge once a row has been matched', () => {
     const state = run(
       createTableState(
         storeWith({
@@ -158,12 +158,28 @@ describe('divergence', () => {
           }
         })
       ),
-      { type: 'linkRow', actionId: 'file.save', winningChord: chord(stroke('s', 'cmd')) }
+      { type: 'matchRow', actionId: 'file.save', winningChord: chord(stroke('s', 'cmd')) }
     )
 
     const row = buildRowView(state, actionsById['file.save'], ALL_APPS)
-    expect(row.linked).toBe(true)
     expect(row.divergent).toBe(false)
+    // Nothing left for the Match button to do, which is what greys it out.
+    expect(row.match).toBe('settled')
+  })
+
+  /**
+   * `divergent` only compares the columns on screen, so a row can look settled
+   * while a switched-off app still holds nothing — and Match is what fills it.
+   * Reading the button's state off divergence would have hidden that.
+   */
+  it('is unsettled by a mapped app with no column on screen', () => {
+    const state = createTableState(
+      storeWith({ 'file.save': { vscode: { chord: 'cmd+s', origin: 'imported' } } })
+    )
+
+    const row = buildRowView(state, actionsById['file.save'], ['vscode'])
+    expect(row.divergent).toBe(false)
+    expect(row.match).toBe('available')
   })
 })
 

@@ -75,7 +75,6 @@ describe('upgrading a six-app store', () => {
     const { store } = loadStore(loc(), installs())
 
     expect(store.chords['edit.save'].vscode?.chord).toBe('cmd+s')
-    expect(store.linkedActions).toEqual(['edit.save'])
     expect(store.firstRunCompleted).toBe(true)
   })
 

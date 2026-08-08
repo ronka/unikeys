@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { X } from 'lucide-react'
 
 import { CATALOGUE, actionById } from '@shared/catalogue'
@@ -9,17 +9,14 @@ import { buildSaveEntry } from '@shared/history/entry'
 import { describeRevert, planRevert } from '@shared/history/revert'
 import type { HistoryEntry, NewHistoryEntry } from '@shared/history/types'
 import {
-  canLinkWithoutWinner,
+  canMatchWithoutWinner,
   createTableReducer,
   createTableState,
-  effectiveLinked,
   hasPendingChanges,
-  linkCandidates,
+  matchCandidates,
   pendingChanges,
-  pendingLinkChanges,
   plannedCopy,
-  propagationTargets,
-  type LinkCandidate
+  type MatchCandidate
 } from '@shared/table/reducer'
 import { savedCells } from '@shared/table/save-outcome'
 import { isCellUnseen } from '@shared/store/types'
@@ -28,7 +25,7 @@ import { type EditTarget } from './components/KeysTable'
 import {
   CopyBindingsPrompt,
   ImportSummaryPanel,
-  LinkPrompt,
+  MatchRowPrompt,
   PendingChangesPrompt,
   WriteReport
 } from './components/Panels'
@@ -65,9 +62,11 @@ function App(): React.JSX.Element {
   // threaded through the table, the filter and the counts.
   const [page, setPage] = useState<View>('keys')
   const [overlay, setOverlay] = useState<Overlay>('none')
-  const [linking, setLinking] = useState<{ actionId: string; candidates: LinkCandidate[] } | null>(
-    null
-  )
+  /** The row whose apps disagree, while the pick-a-chord dialog is up. */
+  const [matching, setMatching] = useState<{
+    actionId: string
+    candidates: MatchCandidate[]
+  } | null>(null)
   /** The app whose bindings are being handed to others, while the picker is up. */
   const [copying, setCopying] = useState<AppId | null>(null)
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
@@ -161,9 +160,9 @@ function App(): React.JSX.Element {
     }
   }, [])
 
-  // Linked rows and app configuration are part of the saved store, so they are
-  // persisted as they change — that is what makes unikeys a sync tool rather
-  // than a one-off bulk edit.
+  // App configuration is part of the saved store rather than a pending edit —
+  // switching an app off is not something you review before saving — so it is
+  // persisted as it changes.
   useEffect(() => {
     if (!loaded.current) return
     void window.unikeys.persistStore(state.store).catch((cause: Error) => {
@@ -206,17 +205,9 @@ function App(): React.JSX.Element {
     [state, search, appFilter]
   )
   const changes = useMemo(() => pendingChanges(state, CATALOGUE), [state])
-  const linkChanges = useMemo(() => pendingLinkChanges(state, CATALOGUE), [state])
 
-  // Link changes count too: a row that was only linked still needs saving, and
-  // gating on chord edits alone made linking impossible to persist.
   const dirty = hasPendingChanges(state)
-  const pendingCount = changes.length + linkChanges.length
-
-  const targetsFor = useCallback((actionId: string): AppId[] => {
-    const action = actionById(actionId)
-    return action ? propagationTargets(action) : []
-  }, [])
+  const pendingCount = changes.length
 
   const handleCommit = (target: EditTarget, chord: Chord | null): void => {
     dispatch(
@@ -227,22 +218,17 @@ function App(): React.JSX.Element {
     setEditing(null)
   }
 
-  const handleToggleLink = (actionId: string): void => {
-    if (effectiveLinked(state, actionId)) {
-      dispatch({ type: 'unlinkRow', actionId })
-      return
-    }
-
+  const handleMatchRow = (actionId: string): void => {
     const action = actionById(actionId)
     if (!action) return
 
-    if (canLinkWithoutWinner(state, action)) {
-      dispatch({ type: 'linkRow', actionId })
+    if (canMatchWithoutWinner(state, action)) {
+      dispatch({ type: 'matchRow', actionId })
       return
     }
     // The apps disagree, so the user picks the winner rather than unikeys
     // silently discarding one of their bindings.
-    setLinking({ actionId, candidates: linkCandidates(state, action) })
+    setMatching({ actionId, candidates: matchCandidates(state, action) })
   }
 
   // Recording must never be able to cost the user a save: it runs after
@@ -257,18 +243,7 @@ function App(): React.JSX.Element {
   }
 
   const handleSave = async (): Promise<void> => {
-    // Linking is unikeys' own state, so a row that was only linked or unlinked
-    // has nothing to write. Without this it could never be saved at all, and
-    // the link would be lost on restart.
-    if (changes.length === 0) {
-      if (linkChanges.length > 0) {
-        dispatch({ type: 'markSaved', cells: [] })
-        // Recorded here too, or the one path that persists a bare link would be
-        // the one save with no history entry — and nothing to revert it from.
-        record({ kind: 'links-only', links: linkChanges })
-      }
-      return
-    }
+    if (changes.length === 0) return
 
     setSaving(true)
     setError(null)
@@ -277,7 +252,6 @@ function App(): React.JSX.Element {
     // the previous values a revert needs, which `markSaved` is about to
     // overwrite.
     const recorded = changes
-    const links = linkChanges
     const sent = recorded.map((change) => ({
       actionId: change.actionId,
       app: change.app,
@@ -286,7 +260,7 @@ function App(): React.JSX.Element {
 
     try {
       const result = await window.unikeys.write({ bindings: sent }, state.store)
-      const entry = buildSaveEntry(recorded, links, { ok: true, result })
+      const entry = buildSaveEntry(recorded, { ok: true, result })
       setWriteResult(result)
       // Read off the entry itself, so the cells the table folds away are by
       // construction the ones the log says were settled.
@@ -300,14 +274,14 @@ function App(): React.JSX.Element {
       // A save that threw is exactly what someone opens History to understand,
       // so it is recorded rather than left as a banner that disappears. Nothing
       // was marked saved, so every cell is reported as not written.
-      record(buildSaveEntry(recorded, links, { ok: false, error: message }))
+      record(buildSaveEntry(recorded, { ok: false, error: message }))
     } finally {
       setSaving(false)
     }
   }
 
   const handleRevert = (entry: HistoryEntry): void => {
-    const plan = planRevert(entry, state, CATALOGUE, reducer)
+    const plan = planRevert(entry)
     for (const action of plan.actions) dispatch(action)
     const notes = describeRevert(plan)
 
@@ -337,7 +311,7 @@ function App(): React.JSX.Element {
       onShowPending={() => setOverlay('pending')}
       // ⌘B must not fire while a chord is being recorded or a modal is up.
       shortcutBlocked={
-        editing !== null || overlay !== 'none' || linking !== null || copying !== null
+        editing !== null || overlay !== 'none' || matching !== null || copying !== null
       }
       controls={
         page === 'keys' ? (
@@ -384,8 +358,7 @@ function App(): React.JSX.Element {
           onStartEdit={setEditing}
           onCommit={handleCommit}
           onCancelEdit={() => setEditing(null)}
-          onToggleLink={handleToggleLink}
-          propagationTargets={targetsFor}
+          onMatchRow={handleMatchRow}
         />
       )}
 
@@ -424,7 +397,6 @@ function App(): React.JSX.Element {
       {overlay === 'pending' && (
         <PendingChangesPrompt
           changes={changes}
-          linkChanges={linkChanges}
           saving={saving}
           // Closed first, deliberately: `handleSave` only reaches for the write
           // report after its `await`, so the two dialogs never swap places in a
@@ -453,15 +425,15 @@ function App(): React.JSX.Element {
         <WriteReport result={writeResult} onClose={() => setOverlay('none')} />
       )}
 
-      {linking && (
-        <LinkPrompt
-          actionName={actionById(linking.actionId)?.name ?? linking.actionId}
-          candidates={linking.candidates}
+      {matching && (
+        <MatchRowPrompt
+          actionName={actionById(matching.actionId)?.name ?? matching.actionId}
+          candidates={matching.candidates}
           onChoose={(chord) => {
-            dispatch({ type: 'linkRow', actionId: linking.actionId, winningChord: chord })
-            setLinking(null)
+            dispatch({ type: 'matchRow', actionId: matching.actionId, winningChord: chord })
+            setMatching(null)
           }}
-          onClose={() => setLinking(null)}
+          onClose={() => setMatching(null)}
         />
       )}
 

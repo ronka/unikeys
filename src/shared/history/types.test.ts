@@ -25,8 +25,8 @@ function change(parts: Partial<HistoryChange> = {}): HistoryChange {
   }
 }
 
-function entry(parts: Partial<Extract<HistoryEntry, { kind: 'save' }>> = {}): HistoryEntry {
-  return { kind: 'save', id: 'a', at: 1, changes: [change()], links: [], apps: [], ...parts }
+function entry(parts: Partial<HistoryEntry> = {}): HistoryEntry {
+  return { kind: 'save', id: 'a', at: 1, changes: [change()], apps: [], ...parts }
 }
 
 describe('appendEntry', () => {
@@ -77,15 +77,8 @@ describe('what an entry can put back', () => {
     )
   })
 
-  it('can revert a links-only entry', () => {
-    const e: HistoryEntry = {
-      kind: 'links-only',
-      id: 'a',
-      at: 1,
-      links: [{ actionId: 'file.save', actionName: 'Save', linked: true }]
-    }
-    expect(canRevert(e)).toBe(true)
-    expect(revertibleChanges(e)).toEqual([])
+  it('cannot revert an entry whose every cell was new to unikeys', () => {
+    expect(canRevert(entry({ changes: [change({ previous: undefined })] }))).toBe(false)
   })
 })
 
@@ -105,7 +98,7 @@ describe('serialisation', () => {
     expect(outcome.ok).toBe(true)
     if (!outcome.ok) return
     const restored = outcome.history.entries[0]
-    expect(restored.kind === 'save' && 'previous' in restored.changes[0]).toBe(false)
+    expect('previous' in restored.changes[0]).toBe(false)
     expect(unrevertibleChanges(restored)).toHaveLength(1)
   })
 
@@ -143,6 +136,36 @@ describe('serialisation', () => {
     expect(outcome.ok).toBe(true)
     if (!outcome.ok) return
     expect(revertibleChanges(outcome.history.entries[0])).toEqual([])
+  })
+
+  /**
+   * A log written while rows could be linked. Its `links` are read past, and an
+   * entry that held nothing else drops out rather than rendering as a blank
+   * record of a feature that no longer exists.
+   */
+  it('reads a log written before matching replaced linking', () => {
+    const text = JSON.stringify({
+      schemaVersion: 1,
+      entries: [
+        {
+          ...entry({ id: 'save' }),
+          links: [{ actionId: 'file.save', actionName: 'Save', linked: true }]
+        },
+        {
+          kind: 'links-only',
+          id: 'links-only',
+          at: 2,
+          links: [{ actionId: 'file.save', actionName: 'Save', linked: false }]
+        }
+      ]
+    })
+    const outcome = deserializeHistory(text)
+    expect(outcome.ok).toBe(true)
+    if (!outcome.ok) return
+
+    expect(outcome.history.entries.map((e) => e.id)).toEqual(['save'])
+    expect(outcome.history.entries[0]).not.toHaveProperty('links')
+    expect(revertibleChanges(outcome.history.entries[0])).toHaveLength(1)
   })
 
   it('caps a log that was longer on disk', () => {

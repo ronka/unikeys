@@ -115,7 +115,7 @@ type BindingOutcome = { ok: true; binding: ObsidianBinding } | { ok: false; reas
 function encodeBinding(c: Chord): BindingOutcome {
   if (c.strokes.length === 0) return { ok: false, reason: 'chord has no keystrokes' }
   if (c.strokes.length > 1) {
-    // Reachable: a linked row can propagate a VSCode or JetBrains two-keystroke
+    // Reachable: matching a row can carry a VSCode or JetBrains two-keystroke
     // chord straight into this column.
     return { ok: false, reason: 'Obsidian hotkeys are one keystroke; it has no key sequences' }
   }

@@ -90,12 +90,11 @@ function Entry({
   onToggle: () => void
   onRevert: () => void
 }): React.JSX.Element {
-  const changes = entry.kind === 'save' ? entry.changes : []
-  const failed = entry.kind === 'save' ? entry.apps.filter((app) => !app.ok) : []
+  const failed = entry.apps.filter((app) => !app.ok)
   const revertible = canRevert(entry)
   // The save itself threw. It outranks the per-app errors: if the write never
   // returned, what each app did is not known well enough to list.
-  const fatal = entry.kind === 'save' ? entry.error : undefined
+  const fatal = entry.error
 
   // An entry a later save has overtaken can still be reverted — it just will not
   // do what the row above it says any more, so it is worth saying so.
@@ -152,7 +151,7 @@ function Entry({
 
       {open && (
         <div className="space-y-3 border-t px-3 py-3">
-          {changes.length > 0 && (
+          {entry.changes.length > 0 && (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -164,7 +163,7 @@ function Entry({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {changes.map((change) => (
+                {entry.changes.map((change) => (
                   <TableRow key={`${change.actionId}:${change.app}`}>
                     <TableCell>{change.actionName}</TableCell>
                     <TableCell>{APPS[change.app].name}</TableCell>
@@ -177,16 +176,6 @@ function Entry({
                 ))}
               </TableBody>
             </Table>
-          )}
-
-          {entry.links.length > 0 && (
-            <ul className="list-disc space-y-1 pl-5 text-sm">
-              {entry.links.map((link) => (
-                <li key={link.actionId}>
-                  {link.actionName} — {link.linked ? 'linked' : 'unlinked'}
-                </li>
-              ))}
-            </ul>
           )}
 
           {failed.length > 0 && (
@@ -258,16 +247,12 @@ function describe(canonical: string | null): string {
 
 function summary(entry: HistoryEntry): string {
   const parts: string[] = []
+  const settled = entry.changes.filter((change) => isSettled(change.outcome))
 
-  if (entry.kind === 'save') {
-    const settled = entry.changes.filter((change) => isSettled(change.outcome))
-    if (entry.changes.length > 0) parts.push(count(entry.changes.length, 'change'))
+  if (entry.changes.length > 0) parts.push(count(entry.changes.length, 'change'))
 
-    const apps = [...new Set(settled.map((change) => APPS[change.app].name))]
-    if (apps.length > 0) parts.push(apps.join(', '))
-  }
-
-  if (entry.links.length > 0) parts.push(count(entry.links.length, 'link'))
+  const apps = [...new Set(settled.map((change) => APPS[change.app].name))]
+  if (apps.length > 0) parts.push(apps.join(', '))
 
   return parts.join(' · ')
 }

@@ -34,7 +34,7 @@ export interface CatalogueAction {
   /**
    * At most one command per app. An absent key is meaningful: the action has no
    * equivalent in that app, so the cell renders as not-applicable rather than
-   * unbound, and linking skips it.
+   * unbound, and a row match skips it.
    */
   commands: Partial<Record<AppId, string>>
   origin?: ActionOrigin
@@ -154,9 +154,4 @@ function isCategory(value: unknown): value is Category {
 /** True when the catalogue maps this action to a command in this app. */
 export function isMapped(action: CatalogueAction, app: AppId): boolean {
   return action.commands[app] !== undefined
-}
-
-/** The apps a linked row should propagate to: the mapped ones, and no others. */
-export function mappedApps(action: CatalogueAction, enabled: readonly AppId[]): AppId[] {
-  return enabled.filter((app) => isMapped(action, app))
 }

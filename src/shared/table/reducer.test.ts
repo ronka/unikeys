@@ -12,14 +12,14 @@ import {
   type StoredChord
 } from '../store/types'
 import {
-  canLinkWithoutWinner,
+  canMatchWithoutWinner,
   createTableState,
   effectiveChord,
-  effectiveLinked,
   hasPendingChanges,
-  linkCandidates,
+  matchCandidates,
   pendingChanges,
   plannedCopy,
+  rowMatchState,
   tableReducer,
   type TableAction,
   type TableState
@@ -67,8 +67,8 @@ function run(state: TableState, ...actions: TableAction[]): TableState {
   return actions.reduce((current, action) => tableReducer(current, action, catalogue), state)
 }
 
-function storeWith(chords: Store['chords'], linkedActions: string[] = []): Store {
-  return { ...createEmptyStore(), chords, linkedActions }
+function storeWith(chords: Store['chords']): Store {
+  return { ...createEmptyStore(), chords }
 }
 
 function imported(canonical: string | null): StoredChord {
@@ -84,7 +84,7 @@ function canonicalOf(
 }
 
 describe('editing a cell', () => {
-  it('touches only the edited cell in an unlinked row', () => {
+  it('touches only the edited cell, whatever the rest of the row holds', () => {
     const state = createTableState(
       storeWith({ 'file.save': { vscode: imported('cmd+s'), cursor: imported('cmd+s') } })
     )
@@ -101,21 +101,22 @@ describe('editing a cell', () => {
     expect(canonicalOf(next, 'file.save', 'webstorm')).toBeUndefined()
   })
 
-  it('propagates to every mapped app in a linked row, and no unmapped app', () => {
-    const state = createTableState(storeWith({}, ['edit.comment-line']))
+  it('does not follow a row that was matched a moment ago', () => {
+    // The whole of the one-shot rule: matching settles the row, and the next
+    // edit is an ordinary edit to one cell rather than a change to all of them.
+    const state = createTableState(
+      storeWith({ 'edit.comment-line': { vscode: imported('cmd+/') } })
+    )
 
-    const next = run(state, {
-      type: 'setChord',
-      actionId: 'edit.comment-line',
-      app: 'vscode',
-      chord: chord(stroke('/', 'cmd'))
-    })
+    const next = run(
+      state,
+      { type: 'matchRow', actionId: 'edit.comment-line' },
+      { type: 'setChord', actionId: 'edit.comment-line', app: 'vscode', chord: save }
+    )
 
-    expect(canonicalOf(next, 'edit.comment-line', 'vscode')).toBe('cmd+/')
+    expect(canonicalOf(next, 'edit.comment-line', 'vscode')).toBe('cmd+s')
     expect(canonicalOf(next, 'edit.comment-line', 'cursor')).toBe('cmd+/')
     expect(canonicalOf(next, 'edit.comment-line', 'webstorm')).toBe('cmd+/')
-    // Ghostty has no line-comment command, so a linked row must skip it.
-    expect(canonicalOf(next, 'edit.comment-line', 'ghostty')).toBeUndefined()
   })
 
   it('records a user origin for edits', () => {
@@ -132,28 +133,21 @@ describe('editing a cell', () => {
     })
   })
 
-  it('clears a cell to an explicit unbinding, propagating in a linked row', () => {
+  it('clears a cell to an explicit unbinding rather than deleting it', () => {
     const state = createTableState(
-      storeWith(
-        {
-          'edit.comment-line': {
-            vscode: imported('cmd+/'),
-            cursor: imported('cmd+/'),
-            webstorm: imported('cmd+/')
-          }
-        },
-        ['edit.comment-line']
-      )
+      storeWith({
+        'edit.comment-line': { vscode: imported('cmd+/'), cursor: imported('cmd+/') }
+      })
     )
 
     const next = run(state, { type: 'clearChord', actionId: 'edit.comment-line', app: 'cursor' })
 
-    for (const app of ['vscode', 'cursor', 'webstorm'] as const) {
-      expect(effectiveChord(next, 'edit.comment-line', app)).toEqual({
-        chord: null,
-        origin: 'user'
-      })
-    }
+    // The app has to be told to drop the binding, so an unbinding is a value.
+    expect(effectiveChord(next, 'edit.comment-line', 'cursor')).toEqual({
+      chord: null,
+      origin: 'user'
+    })
+    expect(canonicalOf(next, 'edit.comment-line', 'vscode')).toBe('cmd+/')
   })
 
   it('leaves the saved store untouched and does not mutate its input', () => {
@@ -168,7 +162,7 @@ describe('editing a cell', () => {
   })
 })
 
-describe('linking', () => {
+describe('matching a row', () => {
   it('reports the distinct existing chords of a divergent row', () => {
     const state = createTableState(
       storeWith({
@@ -180,12 +174,12 @@ describe('linking', () => {
       })
     )
 
-    const candidates = linkCandidates(state, catalogue.actions[0])
+    const candidates = matchCandidates(state, catalogue.actions[0])
 
     expect(candidates.map((candidate) => candidate.canonical)).toEqual(['cmd+s', 'ctrl+s'])
     expect(candidates[0].apps).toEqual(['vscode', 'cursor'])
     expect(candidates[1].apps).toEqual(['webstorm'])
-    expect(canLinkWithoutWinner(state, catalogue.actions[0])).toBe(false)
+    expect(canMatchWithoutWinner(state, catalogue.actions[0])).toBe(false)
   })
 
   it('refuses to pick a winner for a divergent row', () => {
@@ -193,10 +187,9 @@ describe('linking', () => {
       storeWith({ 'file.save': { vscode: imported('cmd+s'), webstorm: imported('ctrl+s') } })
     )
 
-    const next = run(state, { type: 'linkRow', actionId: 'file.save' })
+    const next = run(state, { type: 'matchRow', actionId: 'file.save' })
 
     expect(next).toBe(state)
-    expect(effectiveLinked(next, 'file.save')).toBe(false)
   })
 
   it('applies the winning chord to every mapped app', () => {
@@ -205,25 +198,24 @@ describe('linking', () => {
     )
 
     const next = run(state, {
-      type: 'linkRow',
+      type: 'matchRow',
       actionId: 'file.save',
       winningChord: parseCanonical('ctrl+s')!
     })
 
-    expect(effectiveLinked(next, 'file.save')).toBe(true)
     for (const app of ['vscode', 'cursor', 'webstorm', 'ghostty'] as const) {
       expect(canonicalOf(next, 'file.save', app)).toBe('ctrl+s')
     }
   })
 
   /**
-   * The other linking tests run against the small fixture catalogue above, so
+   * The other matching tests run against the small fixture catalogue above, so
    * none of them says what happens at thirteen columns. This one runs against
-   * the shipped catalogue: with the table this wide a linked row reaches across
+   * the shipped catalogue: with the table this wide a match reaches across
    * categories at once — editors, terminals and Obsidian — and the apps it
    * reaches are exactly the mapped ones, never the whole column set.
    */
-  it('propagates a linked row across every mapped app of the shipped thirteen', () => {
+  it('reaches every mapped app of the shipped thirteen, and no other', () => {
     const action = ACTIONS.find((candidate) => candidate.id === 'navigate.command-palette')!
     const mapped = APP_IDS.filter((app) => action.commands[app] !== undefined)
     const unmapped = APP_IDS.filter((app) => action.commands[app] === undefined)
@@ -240,21 +232,20 @@ describe('linking', () => {
     const next = tableReducer(
       state,
       {
-        type: 'linkRow',
+        type: 'matchRow',
         actionId: 'navigate.command-palette',
         winningChord: parseCanonical('cmd+k')!
       },
       CATALOGUE
     )
 
-    expect(effectiveLinked(next, 'navigate.command-palette')).toBe(true)
     for (const app of mapped) {
       expect(
         effectiveChord(next, 'navigate.command-palette', app)?.chord,
-        `${app} did not receive the linked chord`
+        `${app} did not receive the row's chord`
       ).toBe('cmd+k')
     }
-    // An unmapped app has no cell to fill, so linking must not invent one.
+    // An unmapped app has no cell to fill, so matching must not invent one.
     for (const app of unmapped) {
       expect(
         effectiveChord(next, 'navigate.command-palette', app),
@@ -274,23 +265,42 @@ describe('linking', () => {
       })
     )
 
-    expect(canLinkWithoutWinner(state, catalogue.actions[2])).toBe(true)
+    expect(canMatchWithoutWinner(state, catalogue.actions[2])).toBe(true)
+    expect(rowMatchState(state, catalogue.actions[2])).toBe('settled')
 
-    const next = run(state, { type: 'linkRow', actionId: 'edit.comment-line' })
+    const next = run(state, { type: 'matchRow', actionId: 'edit.comment-line' })
 
-    expect(effectiveLinked(next, 'edit.comment-line')).toBe(true)
     // Nothing changed, so nothing is pending and the imported origins survive.
     expect(pendingChanges(next, catalogue)).toEqual([])
     expect(effectiveChord(next, 'edit.comment-line', 'vscode')).toEqual(imported('cmd+/'))
   })
 
-  it('fills in mapped apps that had nothing when the rest agree', () => {
+  /**
+   * The case a standing link never handled: an app unikeys gained a column for
+   * after the row was settled. Its cell is empty, so the row is not finished
+   * even though every app that has a chord agrees — and pressing Match is what
+   * fills it.
+   */
+  it('fills a mapped app that has no chord yet, and says so beforehand', () => {
     const state = createTableState(storeWith({ 'file.save': { vscode: imported('cmd+s') } }))
 
-    const next = run(state, { type: 'linkRow', actionId: 'file.save' })
+    expect(canMatchWithoutWinner(state, catalogue.actions[0])).toBe(true)
+    expect(rowMatchState(state, catalogue.actions[0])).toBe('available')
+
+    const next = run(state, { type: 'matchRow', actionId: 'file.save' })
 
     expect(canonicalOf(next, 'file.save', 'ghostty')).toBe('cmd+s')
     expect(effectiveChord(next, 'file.save', 'ghostty')?.origin).toBe('user')
+    expect(rowMatchState(next, catalogue.actions[0])).toBe('settled')
+  })
+
+  it('has nothing to spread for a row unikeys knows nothing about', () => {
+    const state = createTableState(createEmptyStore())
+
+    // 'empty', not 'settled': no app agreed to anything, and a tick claiming
+    // they had would be a row lying about itself.
+    expect(rowMatchState(state, catalogue.actions[0])).toBe('empty')
+    expect(run(state, { type: 'matchRow', actionId: 'file.save' })).toBe(state)
   })
 
   it('accepts an explicit unbinding as the winner', () => {
@@ -298,53 +308,32 @@ describe('linking', () => {
       storeWith({ 'file.save': { vscode: imported('cmd+s'), webstorm: imported('ctrl+s') } })
     )
 
-    const next = run(state, { type: 'linkRow', actionId: 'file.save', winningChord: null })
+    const next = run(state, { type: 'matchRow', actionId: 'file.save', winningChord: null })
 
     for (const app of ['vscode', 'cursor', 'webstorm', 'ghostty'] as const) {
       expect(canonicalOf(next, 'file.save', app)).toBeNull()
     }
   })
 
-  it('leaves every app on the last shared chord when unlinked', () => {
-    // Each app starts somewhere different; linking settles them on cmd+s, a
-    // later edit moves them all to alt+cmd+s, and unlinking must not revert.
+  it('lands as pending changes, so a match is reviewed before it is written', () => {
     const state = createTableState(
-      storeWith({
-        'file.save': {
-          vscode: imported('cmd+s'),
-          cursor: imported('ctrl+s'),
-          webstorm: imported('f2'),
-          ghostty: imported('cmd+enter')
-        }
-      })
+      storeWith({ 'file.save': { vscode: imported('cmd+s'), webstorm: imported('ctrl+s') } })
     )
 
-    const next = run(
-      state,
-      { type: 'linkRow', actionId: 'file.save', winningChord: save },
-      { type: 'setChord', actionId: 'file.save', app: 'webstorm', chord: saveAll },
-      { type: 'unlinkRow', actionId: 'file.save' }
-    )
+    const next = run(state, { type: 'matchRow', actionId: 'file.save', winningChord: save })
 
-    expect(effectiveLinked(next, 'file.save')).toBe(false)
-    for (const app of ['vscode', 'cursor', 'webstorm', 'ghostty'] as const) {
-      expect(canonicalOf(next, 'file.save', app)).toBe('alt+cmd+s')
-    }
+    expect(next.store).toBe(state.store)
+    // VSCode already held the winner, so it is not rewritten just to promote
+    // its origin; the other three are the change the user reviews.
+    expect(pendingChanges(next, catalogue).map((change) => change.app)).toEqual([
+      'cursor',
+      'webstorm',
+      'ghostty'
+    ])
   })
+})
 
-  it('stops propagating once a row is unlinked', () => {
-    const state = createTableState(storeWith({}, ['file.save']))
-
-    const next = run(
-      state,
-      { type: 'unlinkRow', actionId: 'file.save' },
-      { type: 'setChord', actionId: 'file.save', app: 'vscode', chord: save }
-    )
-
-    expect(canonicalOf(next, 'file.save', 'vscode')).toBe('cmd+s')
-    expect(canonicalOf(next, 'file.save', 'cursor')).toBeUndefined()
-  })
-
+describe('saving', () => {
   it('marks only the apps that were actually written, keeping the rest pending', () => {
     const edited = run(
       createTableState(),
@@ -409,7 +398,6 @@ describe('linking', () => {
 
     const fromDisk = run(
       createTableState(),
-      { type: 'linkRow', actionId: 'file.save' },
       { type: 'setChord', actionId: 'file.save', app: 'cursor', chord: saveAll },
       { type: 'markSaved' }
     ).store
@@ -419,35 +407,48 @@ describe('linking', () => {
     // The pending edit was made against a different store, so it is dropped
     // rather than silently reinterpreted against this one.
     expect(hasPendingChanges(hydrated)).toBe(false)
-    expect(effectiveLinked(hydrated, 'file.save')).toBe(true)
-    expect(canonicalOf(hydrated, 'file.save', 'vscode')).toBe('alt+cmd+s')
+    expect(canonicalOf(hydrated, 'file.save', 'cursor')).toBe('alt+cmd+s')
+    expect(canonicalOf(hydrated, 'file.save', 'vscode')).toBeUndefined()
   })
 
   it('survives a store serialise/deserialise round trip', () => {
-    const state = createTableState(createEmptyStore())
-    const linked = run(
-      state,
-      { type: 'linkRow', actionId: 'file.save' },
-      { type: 'setChord', actionId: 'file.save', app: 'vscode', chord: save },
+    const matched = run(
+      createTableState(storeWith({ 'file.save': { vscode: imported('cmd+s') } })),
+      { type: 'matchRow', actionId: 'file.save' },
       { type: 'markSaved' }
     )
 
-    const outcome = deserializeStore(serializeStore(linked.store))
+    const outcome = deserializeStore(serializeStore(matched.store))
     expect(outcome.ok).toBe(true)
     if (!outcome.ok) return
 
     const reloaded = createTableState(outcome.store)
-    expect(effectiveLinked(reloaded, 'file.save')).toBe(true)
-    expect(canonicalOf(reloaded, 'file.save', 'webstorm')).toBe('cmd+s')
+    for (const app of ['vscode', 'cursor', 'webstorm', 'ghostty'] as const) {
+      expect(canonicalOf(reloaded, 'file.save', app)).toBe('cmd+s')
+    }
+  })
 
-    // And the row is still linked in behaviour, not just in the flag.
-    const edited = run(reloaded, {
-      type: 'setChord',
-      actionId: 'file.save',
-      app: 'ghostty',
-      chord: saveAll
+  /**
+   * A store written while rows could be linked. The flag is read past rather
+   * than migrated: the cells it kept equal are still equal, which is the state
+   * the user was looking at, and nothing in the table asks about it any more.
+   */
+  it('reads a store written before matching replaced linking', () => {
+    const legacy = JSON.stringify({
+      schemaVersion: 1,
+      apps: {},
+      chords: { 'file.save': { vscode: { chord: 'cmd+s', origin: 'user' } } },
+      linkedActions: ['file.save'],
+      firstRunCompleted: true
     })
-    expect(canonicalOf(edited, 'file.save', 'vscode')).toBe('alt+cmd+s')
+
+    const outcome = deserializeStore(legacy)
+    expect(outcome.ok).toBe(true)
+    if (!outcome.ok) return
+
+    expect(outcome.store).not.toHaveProperty('linkedActions')
+    expect(outcome.store.chords['file.save'].vscode?.chord).toBe('cmd+s')
+    expect(outcome.store.firstRunCompleted).toBe(true)
   })
 })
 
@@ -544,12 +545,11 @@ describe('copying one app’s bindings into others', () => {
     expect(canonicalOf(next, 'file.save', 'vscode')).toBe('alt+cmd+s')
   })
 
-  it('has nothing to do for a linked row, whose apps already agree', () => {
-    const state = createTableState(
-      storeWith({ 'file.save': { cursor: imported('cmd+s'), vscode: imported('cmd+s') } }, [
-        'file.save'
-      ])
-    )
+  it('has nothing to do for a row that was just matched', () => {
+    const state = run(createTableState(storeWith({ 'file.save': { cursor: imported('cmd+s') } })), {
+      type: 'matchRow',
+      actionId: 'file.save'
+    })
 
     expect(plannedCopy(state, catalogue, 'cursor', ['vscode'])).toEqual([])
   })
@@ -558,28 +558,18 @@ describe('copying one app’s bindings into others', () => {
 describe('pending changes', () => {
   it('lists every edit since the last save, with previous and next values', () => {
     const state = createTableState(
-      storeWith({ 'file.save': { vscode: imported('cmd+s'), cursor: imported('cmd+s') } }, [
-        'file.save'
-      ])
+      storeWith({ 'file.save': { vscode: imported('cmd+s'), cursor: imported('cmd+s') } })
     )
 
-    const next = run(state, {
-      type: 'setChord',
-      actionId: 'file.save',
-      app: 'cursor',
-      chord: saveAll
-    })
+    const next = run(
+      state,
+      { type: 'setChord', actionId: 'file.save', app: 'cursor', chord: saveAll },
+      { type: 'setChord', actionId: 'file.save', app: 'webstorm', chord: saveAll }
+    )
     const changes = pendingChanges(next, catalogue)
 
     expect(hasPendingChanges(next)).toBe(true)
     expect(changes).toEqual([
-      {
-        actionId: 'file.save',
-        actionName: 'Save',
-        app: 'vscode',
-        previous: imported('cmd+s'),
-        next: { chord: 'alt+cmd+s', origin: 'user' }
-      },
       {
         actionId: 'file.save',
         actionName: 'Save',
@@ -591,13 +581,6 @@ describe('pending changes', () => {
         actionId: 'file.save',
         actionName: 'Save',
         app: 'webstorm',
-        previous: undefined,
-        next: { chord: 'alt+cmd+s', origin: 'user' }
-      },
-      {
-        actionId: 'file.save',
-        actionName: 'Save',
-        app: 'ghostty',
         previous: undefined,
         next: { chord: 'alt+cmd+s', origin: 'user' }
       }
@@ -620,14 +603,13 @@ describe('pending changes', () => {
   })
 
   it('discards back to exactly the saved state', () => {
-    const store = storeWith({ 'file.save': { vscode: imported('cmd+s') } }, ['edit.comment-line'])
+    const store = storeWith({ 'file.save': { vscode: imported('cmd+s') } })
     const state = createTableState(store)
 
     const next = run(
       state,
       { type: 'setChord', actionId: 'file.save', app: 'vscode', chord: saveAll },
-      { type: 'linkRow', actionId: 'file.save' },
-      { type: 'unlinkRow', actionId: 'edit.comment-line' },
+      { type: 'matchRow', actionId: 'file.save' },
       { type: 'discardPending' }
     )
 
@@ -642,26 +624,13 @@ describe('pending changes', () => {
     const next = run(
       state,
       { type: 'setChord', actionId: 'file.save', app: 'vscode', chord: saveAll },
-      { type: 'linkRow', actionId: 'edit.comment-line' },
       { type: 'markSaved' }
     )
 
     expect(hasPendingChanges(next)).toBe(false)
     expect(next.store.chords['file.save'].vscode).toEqual({ chord: 'alt+cmd+s', origin: 'user' })
-    expect(next.store.linkedActions).toEqual(['edit.comment-line'])
     // The pre-save state is untouched, so a failed write can keep its overlay.
     expect(state.store.chords['file.save'].vscode).toEqual(imported('cmd+s'))
-  })
-
-  it('records an unlink of a saved row as a pending change', () => {
-    const state = createTableState(storeWith({}, ['file.save']))
-    const next = run(state, { type: 'unlinkRow', actionId: 'file.save' })
-
-    expect(hasPendingChanges(next)).toBe(true)
-    expect(effectiveLinked(next, 'file.save')).toBe(false)
-
-    const saved = run(next, { type: 'markSaved' })
-    expect(saved.store.linkedActions).toEqual([])
   })
 })
 

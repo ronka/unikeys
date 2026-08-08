@@ -1,7 +1,8 @@
 /*
  * The table is dense and read-heavy, so this leans on plain semantic markup and
- * a small set of tokens rather than a grid library. Divergence, linking and
- * chord origin all have to be readable at a glance without reading every cell.
+ * a small set of tokens rather than a grid library. Divergence, pending edits
+ * and chord origin all have to be readable at a glance without reading every
+ * cell.
  */
 
 @import 'tailwindcss';
@@ -221,7 +222,7 @@
   /* Opaque, because the row tint lives on the `tr` and does not paint under a
      sticky cell — see the `.row-pending` overrides below. */
   .keys-table .action-cell,
-  .keys-table .link-cell {
+  .keys-table .match-cell {
     background: var(--bg);
   }
 
@@ -245,15 +246,15 @@
      on top of and would otherwise vanish exactly where it is pinned. Must follow
      the plain `.action-cell` rule above — equal specificity, so order decides. */
   .row-pending .action-cell,
-  .row-pending .link-cell {
+  .row-pending .match-cell {
     background: color-mix(in srgb, var(--pending) 8%, var(--bg));
   }
 
   /* Marks where the pinned columns end and the scrolling ones begin. It goes on
-     the link cell rather than the action cell, whose `box-shadow` is already
+     the match cell rather than the action cell, whose `box-shadow` is already
      spoken for by the divergence marker. */
-  .keys-table .link-cell,
-  .keys-table thead .link-head {
+  .keys-table .match-cell,
+  .keys-table thead .match-head {
     box-shadow: 1px 0 0 var(--border);
   }
 }

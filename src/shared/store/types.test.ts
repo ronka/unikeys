@@ -42,7 +42,6 @@ describe('deserializeStore', () => {
       expect(outcome.store.apps[app], `${app} has no config`).toBeDefined()
     }
     expect(outcome.store.chords['edit.save'].vscode?.chord).toBe('cmd+s')
-    expect(outcome.store.linkedActions).toEqual(['edit.save'])
     expect(outcome.store.firstRunCompleted).toBe(true)
   })
 
