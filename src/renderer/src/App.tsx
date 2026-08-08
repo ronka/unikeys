@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 
 import { CATALOGUE, actionById } from '@shared/catalogue'
-import { APPS, type AppId } from '@shared/apps'
+import { type AppId } from '@shared/apps'
 import { parseCanonical, type Chord } from '@shared/chord'
 import type { AppStatus, ImportResult, WriteResult } from '@shared/ipc'
 import type { CellRef } from '@shared/table/reducer'
@@ -19,11 +19,22 @@ import {
 } from '@shared/table/reducer'
 import { isCellUnseen } from '@shared/store/types'
 import { buildTableView, summarizeImport } from '@shared/table/view'
-import { AppSettings } from './components/AppSettings'
-import { KeysTable, type EditTarget } from './components/KeysTable'
-import { ImportSummaryPanel, LinkPrompt, PendingChanges, WriteReport } from './components/Panels'
+import { type EditTarget } from './components/KeysTable'
+import { ImportSummaryPanel, LinkPrompt, WriteReport } from './components/Panels'
+import { AppShell, type View } from './components/AppShell'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { AppsPage } from './pages/AppsPage'
+import { KeysPage } from './pages/KeysPage'
+import { PendingPage } from './pages/PendingPage'
+import { SettingsPage } from './pages/SettingsPage'
 
-type Overlay = 'none' | 'settings' | 'pending' | 'summary' | 'write-report'
+/**
+ * What is left in modals after the sidebar took over navigation: both are the
+ * result of an action the user just took, not places they can go, so neither
+ * belongs in the nav.
+ */
+type Overlay = 'none' | 'summary' | 'write-report'
 
 function App(): React.JSX.Element {
   // The catalogue is static shipped data, so the renderer imports it directly
@@ -36,6 +47,9 @@ function App(): React.JSX.Element {
   const [search, setSearch] = useState('')
   const [appFilter, setAppFilter] = useState<AppId | 'all'>('all')
   const [editing, setEditing] = useState<EditTarget | null>(null)
+  // `page`, not `view` — `view` below is the memoised table view, which is
+  // threaded through the table, the filter and the counts.
+  const [page, setPage] = useState<View>('keys')
   const [overlay, setOverlay] = useState<Overlay>('none')
   const [linking, setLinking] = useState<{ actionId: string; candidates: LinkCandidate[] } | null>(
     null
@@ -226,58 +240,45 @@ function App(): React.JSX.Element {
   }
 
   return (
-    <div className="app">
-      <header className="toolbar">
-        <h1>unikeys</h1>
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search actions…"
-          aria-label="Search actions"
-        />
-        <select
-          value={appFilter}
-          onChange={(e) => setAppFilter(e.target.value as AppId | 'all')}
-          aria-label="Filter by app"
-        >
-          <option value="all">All apps</option>
-          {/* The enabled columns, not `APP_IDS` — an app with no column would
-              filter the table against something the user cannot see. */}
-          {view.apps.map((app) => (
-            <option key={app} value={app}>
-              {APPS[app].name}
-            </option>
-          ))}
-        </select>
-        <span className="muted">
-          {view.rowCount} rows · {view.divergentCount} diverging
-        </span>
-        <span className="spacer" />
-        {pendingCount > 0 && <span className="pending-count">{pendingCount} pending</span>}
-        <button type="button" onClick={() => setOverlay('pending')}>
-          Review changes
-        </button>
-        <button type="button" className="primary" onClick={handleSave} disabled={saving || !dirty}>
-          {saving ? 'Saving…' : 'Save'}
-        </button>
-        <button type="button" onClick={() => setOverlay('settings')}>
-          Apps
-        </button>
-      </header>
+    <AppShell
+      page={page}
+      onNavigate={setPage}
+      pendingCount={pendingCount}
+      dirty={dirty}
+      saving={saving}
+      onSave={() => void handleSave()}
+      // ⌘B must not fire while a chord is being recorded or a modal is up.
+      shortcutBlocked={editing !== null || overlay !== 'none' || linking !== null}
+      banners={
+        <div className="empty:hidden shrink-0 space-y-2 px-6 pb-2">
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
 
-      {error && <div className="banner banner-error">{error}</div>}
-
-      {unreadable.length > 0 && (
-        <div className="banner banner-info">
-          Some apps could not be read — {unreadable.map((s) => s.name).join(', ')}. Open{' '}
-          <strong>Apps</strong> to see why.
+          {unreadable.length > 0 && (
+            <Alert>
+              <AlertDescription className="flex flex-wrap items-center gap-2">
+                <span>
+                  Some apps could not be read — {unreadable.map((s) => s.name).join(', ')}.
+                </span>
+                <Button size="xs" variant="outline" onClick={() => setPage('apps')}>
+                  Open Apps to see why
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
         </div>
-      )}
-
-      <div className="scroll">
-        <KeysTable
+      }
+    >
+      {page === 'keys' && (
+        <KeysPage
           view={view}
+          search={search}
+          onSearchChange={setSearch}
+          appFilter={appFilter}
+          onAppFilterChange={setAppFilter}
           editing={editing}
           onStartEdit={setEditing}
           onCommit={handleCommit}
@@ -285,47 +286,46 @@ function App(): React.JSX.Element {
           onToggleLink={handleToggleLink}
           propagationTargets={targetsFor}
         />
-      </div>
-
-      {overlay === 'settings' && (
-        <div className="panel" role="dialog" aria-modal="true" aria-label="Apps">
-          <div className="panel-body">
-            <AppSettings
-              statuses={statuses}
-              store={state.store}
-              backupDirectory={backupDirectory}
-              onToggle={(app, enabled) => {
-                // Disabling the filtered app drops its column, so the filter
-                // goes with it. Clearing the state — rather than falling back
-                // at render — keeps the app from silently springing back to a
-                // filter the user never reselected.
-                if (!enabled && appFilter === app) setAppFilter('all')
-                dispatch({ type: 'setAppEnabled', app, enabled })
-              }}
-              onChoosePath={(app) => {
-                void window.unikeys.chooseConfigPath(app).then((path) => {
-                  if (path) dispatch({ type: 'setAppConfigPath', app, path })
-                })
-              }}
-              onClearPath={(app) => dispatch({ type: 'setAppConfigPath', app, path: null })}
-              onRevealBackups={() => void window.unikeys.revealBackups()}
-              onClose={() => setOverlay('none')}
-            />
-          </div>
-        </div>
       )}
 
-      {overlay === 'pending' && (
-        <PendingChanges
+      {page === 'pending' && (
+        <PendingPage
           changes={changes}
           linkChanges={linkChanges}
           saving={saving}
           onSave={() => void handleSave()}
           onDiscard={() => {
             dispatch({ type: 'discardPending' })
-            setOverlay('none')
+            setPage('keys')
           }}
-          onClose={() => setOverlay('none')}
+        />
+      )}
+
+      {page === 'apps' && (
+        <AppsPage
+          statuses={statuses}
+          store={state.store}
+          onToggle={(app, enabled) => {
+            // Disabling the filtered app drops its column, so the filter
+            // goes with it. Clearing the state — rather than falling back
+            // at render — keeps the app from silently springing back to a
+            // filter the user never reselected.
+            if (!enabled && appFilter === app) setAppFilter('all')
+            dispatch({ type: 'setAppEnabled', app, enabled })
+          }}
+          onChoosePath={(app) => {
+            void window.unikeys.chooseConfigPath(app).then((path) => {
+              if (path) dispatch({ type: 'setAppConfigPath', app, path })
+            })
+          }}
+          onClearPath={(app) => dispatch({ type: 'setAppConfigPath', app, path: null })}
+        />
+      )}
+
+      {page === 'settings' && (
+        <SettingsPage
+          backupDirectory={backupDirectory}
+          onRevealBackups={() => void window.unikeys.revealBackups()}
         />
       )}
 
@@ -352,7 +352,7 @@ function App(): React.JSX.Element {
           onClose={() => setLinking(null)}
         />
       )}
-    </div>
+    </AppShell>
   )
 }
 

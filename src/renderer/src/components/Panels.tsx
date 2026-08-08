@@ -1,116 +1,65 @@
 import { APPS, type AppId } from '@shared/apps'
-import { formatDisplay, parseCanonical, type Chord } from '@shared/chord'
+import { formatDisplay, type Chord } from '@shared/chord'
 import type { DroppedBinding, ImportResult, WriteResult } from '@shared/ipc'
-import type { LinkCandidate, PendingChange, PendingLinkChange } from '@shared/table/reducer'
+import type { LinkCandidate } from '@shared/table/reducer'
 import type { ImportSummary } from '@shared/table/view'
 
-export function Panel({
-  title,
-  children,
-  onClose
-}: {
-  title: string
-  children: React.ReactNode
-  onClose: () => void
-}): React.JSX.Element {
-  return (
-    <div className="panel" role="dialog" aria-modal="true" aria-label={title} onClick={onClose}>
-      <div className="panel-body" onClick={(e) => e.stopPropagation()}>
-        <h2>{title}</h2>
-        {children}
-      </div>
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Pending changes
-// ---------------------------------------------------------------------------
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
 
 /**
- * Everything that is about to be written to real config files. Shown before
- * saving so the decision is informed rather than a leap of faith.
+ * The three remaining dialogs.
+ *
+ * Each is the result of something the user just did — a link that needed a
+ * winner, a first-run import, a save — rather than a place they can navigate to,
+ * which is why these stayed modal when everything else became a page.
  */
-export function PendingChanges({
-  changes,
-  linkChanges,
-  onSave,
-  onDiscard,
+
+/**
+ * A dialog that is always open while mounted.
+ *
+ * The caller decides existence, so `onOpenChange` only ever fires for a
+ * dismissal (Escape, the close button, a click outside) and maps straight onto
+ * `onClose`.
+ */
+function Modal({
+  title,
+  description,
   onClose,
-  saving
+  children,
+  footer
 }: {
-  changes: PendingChange[]
-  linkChanges: PendingLinkChange[]
-  onSave: () => void
-  onDiscard: () => void
+  title: string
+  description?: string
   onClose: () => void
-  saving: boolean
+  children?: React.ReactNode
+  footer: React.ReactNode
 }): React.JSX.Element {
   return (
-    <Panel title="Pending changes" onClose={onClose}>
-      {changes.length === 0 && linkChanges.length === 0 ? (
-        <p className="muted">Nothing has changed since the last save.</p>
-      ) : (
-        <>
-          {changes.length > 0 && (
-            <table className="changes-table">
-              <thead>
-                <tr>
-                  <th>Action</th>
-                  <th>App</th>
-                  <th>From</th>
-                  <th>To</th>
-                </tr>
-              </thead>
-              <tbody>
-                {changes.map((change) => (
-                  <tr key={`${change.actionId}:${change.app}`}>
-                    <td>{change.actionName}</td>
-                    <td>{APPS[change.app].name}</td>
-                    <td className="from">{describe(change.previous?.chord ?? null)}</td>
-                    <td className="to">{describe(change.next.chord)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          {description ? (
+            <DialogDescription>{description}</DialogDescription>
+          ) : (
+            // Radix warns when a dialog has no description; these are titled
+            // well enough that a second line would only repeat the heading.
+            <DialogDescription className="sr-only">{title}</DialogDescription>
           )}
-
-          {linkChanges.length > 0 && (
-            <ul>
-              {linkChanges.map((change) => (
-                <li key={change.actionId}>
-                  {change.actionName} — {change.linked ? 'linked' : 'unlinked'}
-                </li>
-              ))}
-            </ul>
-          )}
-        </>
-      )}
-
-      <div className="panel-actions">
-        <button type="button" onClick={onDiscard} disabled={saving}>
-          Discard all
-        </button>
-        <button type="button" onClick={onClose}>
-          Keep editing
-        </button>
-        <button
-          type="button"
-          className="primary"
-          onClick={onSave}
-          disabled={saving || (changes.length === 0 && linkChanges.length === 0)}
-        >
-          {saving ? 'Saving…' : 'Save to apps'}
-        </button>
-      </div>
-    </Panel>
+        </DialogHeader>
+        {children}
+        <DialogFooter>{footer}</DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
-}
-
-function describe(canonical: string | null): string {
-  if (canonical === null) return 'not bound'
-  const chord = parseCanonical(canonical)
-  return chord ? formatDisplay(chord) : canonical
 }
 
 // ---------------------------------------------------------------------------
@@ -134,31 +83,32 @@ export function LinkPrompt({
   onClose: () => void
 }): React.JSX.Element {
   return (
-    <Panel title={`Link “${actionName}”`} onClose={onClose}>
-      <p>These apps currently disagree. Which chord should they all use?</p>
-      <ul className="settings-list">
+    <Modal
+      title={`Link “${actionName}”`}
+      description="These apps currently disagree. Which chord should they all use?"
+      onClose={onClose}
+      footer={
+        <Button variant="outline" onClick={onClose}>
+          Cancel
+        </Button>
+      }
+    >
+      <ul className="space-y-2">
         {candidates.map((candidate, i) => (
-          <li key={i} className="settings-app">
-            <div className="settings-app-main">
-              <span className="chord">
-                {candidate.chord ? formatDisplay(candidate.chord) : 'not bound'}
-              </span>
-              <button type="button" className="primary" onClick={() => onChoose(candidate.chord)}>
-                Use this
-              </button>
-            </div>
-            <p className="settings-path">
+          <li key={i} className="bg-card flex items-center gap-3 rounded-lg border p-3">
+            <span className="flex-1 font-mono text-[13px]">
+              {candidate.chord ? formatDisplay(candidate.chord) : 'not bound'}
+            </span>
+            <span className="text-muted-foreground text-xs">
               {candidate.apps.map((app) => APPS[app].name).join(', ')}
-            </p>
+            </span>
+            <Button size="sm" onClick={() => onChoose(candidate.chord)}>
+              Use this
+            </Button>
           </li>
         ))}
       </ul>
-      <div className="panel-actions">
-        <button type="button" onClick={onClose}>
-          Cancel
-        </button>
-      </div>
-    </Panel>
+    </Modal>
   )
 }
 
@@ -176,43 +126,40 @@ export function ImportSummaryPanel({
   onClose: () => void
 }): React.JSX.Element {
   return (
-    <Panel title="Imported your keybindings" onClose={onClose}>
-      <div className="summary-stats">
-        <div className="summary-stat">
-          <strong>{summary.actionsFound}</strong>
-          <span>actions</span>
-        </div>
-        <div className="summary-stat">
-          <strong>{result.appsRead}</strong>
-          <span>apps read</span>
-        </div>
-        <div className="summary-stat">
-          <strong>{summary.divergentRows}</strong>
-          <span>rows where your apps disagree</span>
-        </div>
+    <Modal
+      title="Imported your keybindings"
+      description="Nothing was written to your apps. Start with the highlighted rows."
+      onClose={onClose}
+      footer={<Button onClick={onClose}>Show me the table</Button>}
+    >
+      <div className="grid grid-cols-3 gap-3">
+        <Stat value={summary.actionsFound} label="actions" />
+        <Stat value={result.appsRead} label="apps read" />
+        <Stat value={summary.divergentRows} label="rows where your apps disagree" />
       </div>
 
       {result.appsFailed.length > 0 && (
-        <div className="summary-failed">
+        <div className="text-destructive text-sm">
           <p>unikeys could not read:</p>
-          <ul>
+          <ul className="mt-1 list-disc space-y-0.5 pl-5">
             {result.appsFailed.map((failure) => (
               <li key={failure.app}>
-                <strong>{failure.name}</strong> — {failure.reason}
+                <strong className="font-medium">{failure.name}</strong> — {failure.reason}
               </li>
             ))}
           </ul>
         </div>
       )}
+    </Modal>
+  )
+}
 
-      <p className="muted">Nothing was written to your apps. Start with the highlighted rows.</p>
-
-      <div className="panel-actions">
-        <button type="button" className="primary" onClick={onClose}>
-          Show me the table
-        </button>
-      </div>
-    </Panel>
+function Stat({ value, label }: { value: number; label: string }): React.JSX.Element {
+  return (
+    <div className="bg-card rounded-lg border p-3">
+      <div className="text-xl font-semibold tabular-nums">{value}</div>
+      <div className="text-muted-foreground text-xs">{label}</div>
+    </div>
   )
 }
 
@@ -248,86 +195,88 @@ export function WriteReport({
   const partial = result.failed.length > 0 && result.written.length > 0
 
   return (
-    <Panel title={partial ? 'Saved, but not everywhere' : 'Saved'} onClose={onClose}>
-      {result.written.length > 0 && (
-        <>
-          <p>Written:</p>
-          <ul>
-            {result.written.map((app) => (
-              <li key={app.app}>
-                <strong>{app.name}</strong> — <code>{app.path}</code>
-                {app.backupPath && (
-                  <>
-                    <br />
-                    <span className="muted">
-                      Backed up to <code>{app.backupPath}</code>
-                    </span>
-                  </>
-                )}
-                <br />
-                <span className="muted">{app.reloadHint}</span>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
+    <Modal
+      title={partial ? 'Saved, but not everywhere' : 'Saved'}
+      onClose={onClose}
+      footer={<Button onClick={onClose}>Done</Button>}
+    >
+      <div className="space-y-4 text-sm">
+        {result.written.length > 0 && (
+          <section>
+            <p>Written:</p>
+            <ul className="mt-1 list-disc space-y-1 pl-5">
+              {result.written.map((app) => (
+                <li key={app.app}>
+                  <strong className="font-medium">{app.name}</strong> —{' '}
+                  <code className="font-mono text-xs break-all">{app.path}</code>
+                  {app.backupPath && (
+                    <div className="text-muted-foreground text-xs">
+                      Backed up to <code className="font-mono break-all">{app.backupPath}</code>
+                    </div>
+                  )}
+                  <div className="text-muted-foreground text-xs">{app.reloadHint}</div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
-      {result.failed.length > 0 && (
-        <div className="summary-failed">
-          <p>Not written:</p>
-          <ul>
-            {result.failed.map((app) => (
-              <li key={app.app}>
-                <strong>{app.name}</strong> — {app.error}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+        {result.failed.length > 0 && (
+          <section className="text-destructive">
+            <p>Not written:</p>
+            <ul className="mt-1 list-disc space-y-0.5 pl-5">
+              {result.failed.map((app) => (
+                <li key={app.app}>
+                  <strong className="font-medium">{app.name}</strong> — {app.error}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
-      {result.skipped.length > 0 && (
-        <div className="summary-failed">
-          <p>Chords these apps cannot express, so they were not written:</p>
-          <ul>
-            {result.skipped.map((skip, i) => (
-              <li key={i}>
-                <strong>{APPS[skip.app].name}</strong> — {skip.actionId}: {skip.reason}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+        {result.skipped.length > 0 && (
+          <section className="text-destructive">
+            <p>Chords these apps cannot express, so they were not written:</p>
+            <ul className="mt-1 list-disc space-y-0.5 pl-5">
+              {result.skipped.map((skip, i) => (
+                <li key={i}>
+                  <strong className="font-medium">{APPS[skip.app].name}</strong> — {skip.actionId}:{' '}
+                  {skip.reason}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
-      {result.dropped.length > 0 && (
-        // Not styled as a failure: a deliberate drop is unikeys doing the right
-        // thing — an app is turned off, or is not installed. Only the
-        // non-deliberate ones are worth alarming the user about, and those are
-        // rare enough not to warrant a second list.
-        <div
-          className={result.dropped.some((drop) => !drop.deliberate) ? 'summary-failed' : 'muted'}
-        >
-          <p>Not attempted:</p>
-          <ul>
-            {groupDropped(result.dropped).map((group) => (
-              <li key={group.key}>
-                <strong>{APPS[group.app].name}</strong>
-                {group.actionIds.length === 1 ? ` — ${group.actionIds[0]}` : ''}: {group.reason}
-                {group.actionIds.length > 1 && ` (${group.actionIds.length} bindings)`}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+        {result.dropped.length > 0 && (
+          // Not styled as a failure: a deliberate drop is unikeys doing the right
+          // thing — an app is turned off, or is not installed. Only the
+          // non-deliberate ones are worth alarming the user about, and those are
+          // rare enough not to warrant a second list.
+          <section
+            className={
+              result.dropped.some((drop) => !drop.deliberate)
+                ? 'text-destructive'
+                : 'text-muted-foreground'
+            }
+          >
+            <p>Not attempted:</p>
+            <ul className="mt-1 list-disc space-y-0.5 pl-5">
+              {groupDropped(result.dropped).map((group) => (
+                <li key={group.key}>
+                  <strong className="font-medium">{APPS[group.app].name}</strong>
+                  {group.actionIds.length === 1 ? ` — ${group.actionIds[0]}` : ''}: {group.reason}
+                  {group.actionIds.length > 1 && ` (${group.actionIds.length} bindings)`}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
-      <p className="muted">
-        Backups live in <code>{result.backupDirectory}</code>
-      </p>
-
-      <div className="panel-actions">
-        <button type="button" className="primary" onClick={onClose}>
-          Done
-        </button>
+        <p className="text-muted-foreground text-xs">
+          Backups live in <code className="font-mono break-all">{result.backupDirectory}</code>
+        </p>
       </div>
-    </Panel>
+    </Modal>
   )
 }

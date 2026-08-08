@@ -1,4 +1,16 @@
 {
   "files": [],
-  "references": [{ "path": "./tsconfig.node.json" }, { "path": "./tsconfig.web.json" }]
+  "references": [{ "path": "./tsconfig.node.json" }, { "path": "./tsconfig.web.json" }],
+  // This is a solution file and compiles nothing itself. The paths exist only so
+  // shadcn's CLI can discover the import aliases — it reads the root tsconfig and
+  // fails with "No import alias found" without them. The real mappings live in
+  // tsconfig.web.json.
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/renderer/src/*"],
+      "@renderer/*": ["src/renderer/src/*"],
+      "@shared/*": ["src/shared/*"]
+    }
+  }
 }

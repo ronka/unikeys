@@ -15,6 +15,8 @@
     "resolveJsonModule": true,
     "paths": {
       "@renderer/*": ["src/renderer/src/*"],
+      // Same target as `@renderer/*` — see the comment in electron.vite.config.ts.
+      "@/*": ["src/renderer/src/*"],
       "@shared/*": ["src/shared/*"]
     }
   }

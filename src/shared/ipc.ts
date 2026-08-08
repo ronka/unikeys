@@ -165,8 +165,21 @@ export const IPC = {
   persistStore: 'unikeys:persist-store',
   write: 'unikeys:write',
   chooseConfigPath: 'unikeys:choose-config-path',
-  revealBackups: 'unikeys:reveal-backups'
+  revealBackups: 'unikeys:reveal-backups',
+  setThemeSource: 'unikeys:set-theme-source'
 } as const
+
+/**
+ * Which appearance the window follows. `system` hands the decision back to
+ * macOS.
+ */
+export type ThemeSource = 'light' | 'dark' | 'system'
+
+export const THEME_SOURCES: readonly ThemeSource[] = ['light', 'dark', 'system']
+
+export function isThemeSource(value: unknown): value is ThemeSource {
+  return typeof value === 'string' && (THEME_SOURCES as readonly string[]).includes(value)
+}
 
 /**
  * The API the preload script exposes on `window.unikeys`. Declared here so the
@@ -192,4 +205,13 @@ export interface UnikeysApi {
   /** Opens a file picker so a non-standard install does not block the user. */
   chooseConfigPath(app: AppId): Promise<string | null>
   revealBackups(): Promise<void>
+  /**
+   * Sets the appearance for the whole window, native chrome included.
+   *
+   * Main owns this rather than the renderer flipping a class, because the
+   * traffic lights and the window background are drawn by macOS: with two
+   * sources of truth they drift apart, and the buttons end up rendered for the
+   * opposite appearance to the UI behind them.
+   */
+  setThemeSource(source: ThemeSource): Promise<void>
 }

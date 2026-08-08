@@ -2,6 +2,7 @@ import type { AppId } from '@shared/apps'
 import { APPS } from '@shared/apps'
 import type { Chord } from '@shared/chord'
 import type { CellState, RowView, TableView } from '@shared/table/view'
+import { cn } from '@/lib/utils'
 import { ChordInput } from './ChordInput'
 
 export interface EditTarget {
@@ -20,6 +21,41 @@ interface Props {
   propagationTargets: (actionId: string) => AppId[]
 }
 
+/*
+ * Sticky layering, bottom to top: the pinned action columns (z-2), then category
+ * headings (z-3), then an open chord editor (z-4), then the header row (z-5),
+ * then the header's own pinned corner (z-6). A pinned heading has to outrank the
+ * pinned columns, or the rows sliding under it push their action name and link
+ * button back through it — which reads as a half-drawn row welded below the
+ * header. The editor sits above both deliberately: it opens leftwards, straight
+ * over them. The whole ladder stays below z-10, which is the sidebar.
+ */
+
+/* The header is given an explicit height rather than letting padding and
+   line-height produce one, because the category heading's `top` has to equal it
+   exactly. As an emergent value the two drift apart the moment the base font
+   changes. */
+const HEAD =
+  'sticky top-0 z-5 h-[33px] border-b border-input bg-card px-[10px] py-0 text-left font-semibold whitespace-nowrap text-muted-foreground'
+
+/* Both leading columns stay put while the app columns scroll: which action a row
+   is, and whether it is linked, are what make a chord four columns to the right
+   mean anything.
+
+   The width is fixed rather than a minimum so the link column's `left` offset is
+   exact — under auto layout the action column's width follows its content and
+   the two would drift apart. */
+const ACTION_COL = 'w-[240px] min-w-[240px] left-0'
+const LINK_COL = 'left-[240px]'
+
+/* Opaque backgrounds, the row tint and the divergence markers live in
+   `@layer utilities` in main.css — see the note there. They cannot be utilities
+   on these elements because they compose with each other by specificity, which
+   is also why `action-cell` and `link-cell` stay as real class names: the CSS
+   has to tell the two apart, since only the action cell carries the divergence
+   marker and only the link cell carries the end-of-pinned-columns separator. */
+const PINNED_CELL = 'sticky z-2 border-b border-border'
+
 export function KeysTable({
   view,
   editing,
@@ -30,29 +66,44 @@ export function KeysTable({
   propagationTargets
 }: Props): React.JSX.Element {
   if (view.rowCount === 0) {
-    return <p className="empty-state">No actions match your filters.</p>
+    return <p className="text-muted-foreground p-10 text-center">No actions match your filters.</p>
   }
 
   return (
-    <table className="keys-table">
+    /* The app columns are allowed to overrun the window and scroll sideways, so
+       the table takes its content's width and only stretches to fill when there
+       is room to spare. Squeezing five columns into the viewport instead would
+       make every chord fight for space.
+
+       `border-separate` rather than collapsed: collapsed borders belong to the
+       table, not the cell, so they do not travel with a sticky cell and the
+       action column would scroll out from under its own row lines. Tailwind's
+       preflight sets `border-collapse: collapse` on every table, so this is
+       load-bearing, not decoration. */
+    <table className="keys-table w-max min-w-full border-separate border-spacing-0 text-[13px]">
       <thead>
         <tr>
-          <th className="action-head">Action</th>
-          <th className="link-head">Link</th>
+          <th className={cn(HEAD, ACTION_COL, 'z-6')}>Action</th>
+          <th className={cn(HEAD, LINK_COL, 'link-head z-6')}>Link</th>
           {view.apps.map((app) => (
-            <th key={app}>{APPS[app].name}</th>
+            <th key={app} className={HEAD}>
+              {APPS[app].name}
+            </th>
           ))}
         </tr>
       </thead>
 
       {view.groups.map((group) => (
         <tbody key={group.category}>
-          <tr className="category-row">
+          <tr>
             {/* The `+ 2` is the two leading columns, not the app count. The
                 label is wrapped so it can stay pinned to the left edge while
                 the app columns scroll out from under this full-width cell. */}
-            <th colSpan={view.apps.length + 2}>
-              <span className="category-label">{group.label}</span>
+            <th
+              colSpan={view.apps.length + 2}
+              className="bg-background text-faint sticky top-[33px] z-3 border-b border-border px-[10px] pt-[14px] pb-[6px] text-left text-[11px] tracking-[0.08em] uppercase"
+            >
+              <span className="sticky left-[10px] inline-block">{group.label}</span>
             </th>
           </tr>
           {group.rows.map((row) => (
@@ -95,15 +146,27 @@ function Row({
 
   return (
     <tr className={className}>
-      <td className="action-cell">
-        <span className="action-name">{row.action.name}</span>
-        <span className="action-id">{row.action.id}</span>
+      {/* Extra left padding keeps the name clear of the divergence marker. */}
+      <td className={cn(PINNED_CELL, ACTION_COL, 'action-cell py-[6px] pr-[10px] pl-[14px]')}>
+        <span className="block">{row.action.name}</span>
+        <span className="text-faint block font-mono text-[10px]">{row.action.id}</span>
       </td>
 
-      <td className="link-cell">
+      <td
+        className={cn(
+          PINNED_CELL,
+          LINK_COL,
+          'link-cell w-[1%] px-[8px] py-[6px] whitespace-nowrap'
+        )}
+      >
         <button
           type="button"
-          className={`link-button${row.linked ? ' linked' : ''}`}
+          className={cn(
+            'rounded-md border px-[8px] py-[2px] text-[11px]',
+            row.linked
+              ? 'border-primary bg-[var(--accent-dim)] text-foreground'
+              : 'border-input bg-card text-foreground hover:bg-accent'
+          )}
           aria-pressed={row.linked}
           title={
             row.linked
@@ -121,11 +184,20 @@ function Row({
         const isEditing = editing?.actionId === row.action.id && editing.app === app
 
         return (
-          <td key={app} className={`cell${isEditing ? ' cell-editing' : ''}`}>
+          <td
+            key={app}
+            className={cn(
+              'relative min-w-[150px] border-b border-border px-[6px] py-[4px] align-middle',
+              // The open editor paints over neighbouring rows — including the
+              // sticky category headings and the pinned columns it opens towards.
+              isEditing && 'z-4'
+            )}
+          >
             {/* The cell stays mounted while editing so the column keeps its width
                 and the row its height; the editor floats above it rather than
-                shoving every other column sideways. */}
-            <div className="cell-content" inert={isEditing}>
+                shoving every other column sideways. Dimmed rather than hidden,
+                which is what keeps the table from jumping on click. */}
+            <div className={isEditing ? 'opacity-25' : undefined} inert={isEditing}>
               <Cell
                 cell={cell}
                 onEdit={() => onStartEdit({ actionId: row.action.id, app })}
@@ -136,7 +208,12 @@ function Row({
             {isEditing && (
               // The last column opens leftwards so the editor stays inside the
               // table's right edge rather than hanging off the end of it.
-              <div className={`chord-popover${index === apps.length - 1 ? ' align-right' : ''}`}>
+              <div
+                className={cn(
+                  'absolute top-1/2 -translate-y-1/2',
+                  index === apps.length - 1 ? 'right-0 left-auto' : 'left-0'
+                )}
+              >
                 <ChordInput
                   value={cell?.kind === 'bound' ? cell.chord : null}
                   targets={row.linked ? propagationTargets(row.action.id) : [app]}
@@ -151,6 +228,8 @@ function Row({
     </tr>
   )
 }
+
+const CHORD = 'font-mono text-[13px] tracking-[0.02em]'
 
 function Cell({
   cell,
@@ -169,36 +248,46 @@ function Cell({
   // offering an edit would promise something unikeys cannot deliver.
   if (cell.kind === 'not-applicable') {
     return (
-      <span className="cell-na-mark" title={`${appName} has no equivalent for ${actionName}`}>
+      <span
+        className="text-faint inline-block px-[6px] py-[3px]"
+        title={`${appName} has no equivalent for ${actionName}`}
+      >
         —
       </span>
     )
   }
 
-  const classes = ['cell-button']
-  if (cell.pending) classes.push('cell-pending')
-  if (cell.kind === 'unbound') classes.push('cell-unbound')
-  else classes.push(cell.origin === 'default' ? 'cell-default' : 'cell-user')
+  const chordTone = cell.pending
+    ? 'text-pending'
+    : cell.kind === 'unbound'
+      ? 'text-faint italic'
+      : cell.origin === 'default'
+        ? 'text-muted-foreground'
+        : 'text-foreground font-semibold'
 
   return (
     <button
       type="button"
-      className={classes.join(' ')}
+      className="hover:border-input hover:bg-accent flex w-full items-center gap-[6px] border border-transparent bg-transparent px-[6px] py-[3px] text-left"
       onClick={onEdit}
       aria-label={`${actionName} in ${appName}`}
     >
       {cell.kind === 'bound' ? (
         <>
-          <span className="chord">{cell.display}</span>
-          {/* Origin is what explains why the apps diverged in the first place. */}
+          <span className={cn(CHORD, chordTone)}>{cell.display}</span>
+          {/* Origin is what explains why the apps diverged in the first place,
+              so it stays visible rather than hiding behind a tooltip. */}
           {cell.origin === 'default' && (
-            <span className="origin-mark" title="This app's shipped default">
+            <span
+              className="text-faint rounded-[3px] border border-border px-[3px] text-[9px] tracking-[0.06em] uppercase"
+              title="This app's shipped default"
+            >
               def
             </span>
           )}
         </>
       ) : (
-        <span className="chord">not bound</span>
+        <span className={cn(CHORD, chordTone)}>not bound</span>
       )}
     </button>
   )

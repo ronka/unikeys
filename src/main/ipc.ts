@@ -6,13 +6,14 @@
  * file's contents, or anything in an app's own notation.
  */
 
-import { app as electronApp, dialog, ipcMain, shell } from 'electron'
+import { app as electronApp, dialog, ipcMain, nativeTheme, shell } from 'electron'
 import { mkdirSync } from 'node:fs'
 
 import { CATALOGUE } from '../shared/catalogue'
 import { isAppId } from '../shared/apps'
 import {
   IPC,
+  isThemeSource,
   type ImportResult,
   type LoadResult,
   type WriteRequest,
@@ -91,5 +92,15 @@ export function registerIpcHandlers(): void {
     const directory = ensureLocation().backupDirectory
     mkdirSync(directory, { recursive: true })
     shell.openPath(directory)
+  })
+
+  ipcMain.handle(IPC.setThemeSource, (_event, source: unknown): void => {
+    // Validated like every other handler input — the renderer is trusted to be
+    // well-behaved, not to be correct.
+    if (!isThemeSource(source)) return
+    // Setting it here rather than in the renderer is the whole point: macOS
+    // draws the traffic lights and the window background, and the renderer's
+    // `prefers-color-scheme` follows this, so the two cannot disagree.
+    nativeTheme.themeSource = source
   })
 }

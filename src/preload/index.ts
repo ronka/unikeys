@@ -14,7 +14,8 @@ const unikeys: UnikeysApi = {
   persistStore: (store) => ipcRenderer.invoke(IPC.persistStore, store),
   write: (request, store) => ipcRenderer.invoke(IPC.write, request, store),
   chooseConfigPath: (app) => ipcRenderer.invoke(IPC.chooseConfigPath, app),
-  revealBackups: () => ipcRenderer.invoke(IPC.revealBackups)
+  revealBackups: () => ipcRenderer.invoke(IPC.revealBackups),
+  setThemeSource: (source) => ipcRenderer.invoke(IPC.setThemeSource, source)
 }
 
 // The scaffold's generic `electronAPI` bridge is deliberately not exposed: it

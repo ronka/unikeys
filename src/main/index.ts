@@ -9,9 +9,29 @@ function createWindow(): void {
   const mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
-    minWidth: 820,
+    // The sidebar takes 240px and the two pinned table columns another ~330px.
+    // At the old 820 that left the app columns under two columns' worth of
+    // space between them. Note this also has to stay above 768: that is the
+    // breakpoint at which the sidebar would collapse into a mobile drawer,
+    // which is not a thing a desktop window should ever do.
+    minWidth: 960,
     show: false,
     autoHideMenuBar: true,
+    // The traffic lights sit over the renderer's own top strip instead of a
+    // native title bar, so the window chrome and the sidebar read as one
+    // surface. `.drag-region` in main.css is what keeps the window movable.
+    //
+    // `hidden` rather than `hiddenInset` because only `hidden` honours
+    // `trafficLightPosition` — measured, not assumed: under `hiddenInset` the
+    // property is ignored and the cluster stays at its default {x: 12, y: 11}.
+    titleBarStyle: 'hidden',
+    // The cluster measures 59.5×12 and this is its top-left, so y = 16 puts its
+    // centre at 22 — the middle of the renderer's 44px (h-11) top strip. Its
+    // right edge lands at 71.5, which is where --traffic-light-inset's 80px in
+    // main.css comes from: 71.5 plus a gap the eye reads as deliberate.
+    trafficLightPosition: { x: 12, y: 16 },
+    // Painted before the first frame, so resizing does not flash white.
+    backgroundColor: '#16171b',
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),

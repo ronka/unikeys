@@ -12,6 +12,8 @@ import {
   type Chord,
   type KeyStroke
 } from '@shared/chord'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 
 interface Props {
   /** The chord currently in the cell, or `null` when unbound. */
@@ -86,11 +88,21 @@ export function ChordInput({ value, targets, onCommit, onCancel }: Props): React
   }
 
   return (
-    <div className="chord-input" role="group" aria-label="Edit chord">
+    // Floated out of flow by the caller: the editor is wider and taller than the
+    // cell it edits, and in flow it resized the column and the row, shifting the
+    // whole table.
+    <div
+      className="bg-card border-primary flex min-w-[240px] flex-col gap-[6px] rounded-md border p-[6px] shadow-[0_8px_24px_rgba(0,0,0,0.45)]"
+      role="group"
+      aria-label="Edit chord"
+    >
       {mode === 'capture' ? (
+        // Deliberately a focusable div, not an input: `handleKeyDown` has to
+        // preventDefault and stopPropagation on every keystroke, which is not
+        // something a real text field can do without fighting its own editing.
         <div
           ref={captureRef}
-          className="chord-capture"
+          className="border-input focus:border-primary flex min-h-[28px] items-center gap-[6px] rounded-md border border-dashed px-[8px] py-[3px] outline-none focus:border-solid"
           tabIndex={0}
           role="textbox"
           aria-label="Press a key combination"
@@ -98,18 +110,21 @@ export function ChordInput({ value, targets, onCommit, onCancel }: Props): React
         >
           {strokes.length > 0 ? (
             strokes.map((s, i) => (
-              <kbd key={i} className="chord-key">
+              <kbd
+                key={i}
+                className="bg-background border-input rounded-[4px] border px-[6px] py-[1px] font-mono"
+              >
                 {formatStrokeDisplay(s)}
               </kbd>
             ))
           ) : (
-            <span className="chord-placeholder">Press keys…</span>
+            <span className="text-faint">Press keys…</span>
           )}
-          {armedForSecond && <span className="chord-placeholder">then…</span>}
+          {armedForSecond && <span className="text-faint">then…</span>}
         </div>
       ) : (
-        <div className="chord-text">
-          <input
+        <div>
+          <Input
             ref={textRef}
             value={text}
             onChange={(e) => {
@@ -122,48 +137,53 @@ export function ChordInput({ value, targets, onCommit, onCancel }: Props): React
             }}
             placeholder="e.g. cmd+shift+p or ⌘K ⌘S"
             aria-label="Type a chord"
+            className="h-8"
           />
-          {textError && <p className="chord-error">{textError}</p>}
+          {textError && <p className="text-destructive mt-1 text-xs">{textError}</p>}
         </div>
       )}
 
       {problems.length > 0 && (
-        <ul className="chord-error" aria-live="polite">
+        <ul className="text-destructive m-0 list-disc pl-4 text-xs" aria-live="polite">
           {problems.map((p) => (
             <li key={p}>{p}</li>
           ))}
         </ul>
       )}
 
-      <div className="chord-actions">
+      <div className="flex flex-wrap gap-1">
         {mode === 'capture' && strokes.length < MAX_STROKES && strokes.length > 0 && (
-          <button
-            type="button"
+          <Button
+            size="xs"
+            variant="outline"
             onClick={() => {
               setArmedForSecond(true)
               captureRef.current?.focus()
             }}
           >
             Add 2nd keystroke
-          </button>
+          </Button>
         )}
-        <button type="button" onClick={() => setMode(mode === 'capture' ? 'text' : 'capture')}>
+        <Button
+          size="xs"
+          variant="outline"
+          onClick={() => setMode(mode === 'capture' ? 'text' : 'capture')}
+        >
           {mode === 'capture' ? 'Type instead' : 'Press instead'}
-        </button>
-        <button type="button" onClick={() => onCommit(null)}>
+        </Button>
+        <Button size="xs" variant="outline" onClick={() => onCommit(null)}>
           Clear
-        </button>
-        <button type="button" onClick={onCancel}>
+        </Button>
+        <Button size="xs" variant="outline" onClick={onCancel}>
           Cancel
-        </button>
-        <button
-          type="button"
-          className="primary"
+        </Button>
+        <Button
+          size="xs"
           onClick={() => (mode === 'text' ? commitText() : onCommit(draft))}
           disabled={mode === 'capture' && draft === null}
         >
           Set{draft && mode === 'capture' ? ` ${formatDisplay(draft)}` : ''}
-        </button>
+        </Button>
       </div>
     </div>
   )
