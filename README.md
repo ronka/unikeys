@@ -53,11 +53,19 @@ fixtures in `src/shared/adapters/__fixtures__/` and each adapter's shipped-defau
 table were **authored from the documented formats rather than captured from a real
 Mac**. Each fixture directory has a `README.md` saying so.
 
-**iTerm2 is the exception.** Its fixtures, action table and key encoding were captured
-from a real iTerm2 3.6.11 — the action integers cross-checked against the bindings
-shipped inside the app bundle, the key encoding and menu-item parameter settled by
-driving the running app, and `captured-3.6.11.json` confirmed line by line to behave as
-intended in a live session. See `__fixtures__/iterm2/README.md`.
+**Two exceptions so far.** iTerm2's fixtures, action table and key encoding were
+captured from a real iTerm2 3.6.11 — the action integers cross-checked against the
+bindings shipped inside the app bundle, the key encoding and menu-item parameter settled
+by driving the running app, and `captured-3.6.11.json` confirmed line by line to behave
+as intended in a live session. See `__fixtures__/iterm2/README.md`. And
+`__fixtures__/vscode/captured-antigravity.json` is a real `keybindings.json` taken from
+Antigravity 1.16.5 — one file, so the VSCode directory is still mostly authored; its
+own README says which is which.
+
+Zed, Warp and Obsidian are not installed here either, so their adapters' fixtures,
+default tables and catalogue mappings were authored from the documented formats. Each
+directory's README names the specific claims worth checking first against a real
+install.
 
 The value of the adapter seam is entirely in matching reality, so before trusting
 unikeys with a real config, replace the remaining fixtures with genuine captures from a
