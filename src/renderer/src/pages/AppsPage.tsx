@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { FolderOpen } from 'lucide-react'
 
 import { APP_IDS, APPS, CATEGORY_IDS, CATEGORY_LABELS, type AppId } from '@shared/apps'
-import type { AppHealth, AppStatus } from '@shared/ipc'
+import { isHealthProblem, type AppHealth, type AppStatus } from '@shared/ipc'
 import type { AppConfig, Store } from '@shared/store/types'
 
 import { Button } from '@/components/ui/button'
@@ -47,16 +47,13 @@ const HEALTH_LABELS: Record<AppHealth, string> = {
 function healthTone(health: AppHealth): { text: string; dot: string; message: string } {
   if (health === 'ok')
     return { text: 'text-agree', dot: 'bg-agree', message: 'text-muted-foreground' }
-  if (
-    health === 'disabled' ||
-    health === 'not-installed' ||
-    health === 'config-not-created' ||
-    health === 'config-path-required'
-  )
-    return { text: 'text-faint', dot: 'bg-faint', message: 'text-muted-foreground' }
   // The explanation of a config unikeys could not use is the one message worth
-  // full contrast — it is the only one that asks the user to do something.
-  return { text: 'text-destructive', dot: 'bg-destructive', message: 'text-foreground' }
+  // full contrast — it is the only one that asks the user to do something. The
+  // same predicate decides the table's unreadable banner, so a card and the
+  // banner can never describe the same app differently.
+  if (isHealthProblem(health))
+    return { text: 'text-destructive', dot: 'bg-destructive', message: 'text-foreground' }
+  return { text: 'text-faint', dot: 'bg-faint', message: 'text-muted-foreground' }
 }
 
 /**
@@ -302,7 +299,9 @@ function RequestApp(): React.JSX.Element {
         <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="e.g. Zed, Warp, Sublime Text…"
+          // Zed and Warp used to be the examples here. They are columns now, so
+          // suggesting them invites a request for something already shipped.
+          placeholder="e.g. Sublime Text, Neovim, Alacritty…"
           aria-label="App to request"
           className="h-8 max-w-xs"
         />

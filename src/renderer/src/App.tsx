@@ -4,7 +4,7 @@ import { X } from 'lucide-react'
 import { CATALOGUE, actionById } from '@shared/catalogue'
 import { type AppId } from '@shared/apps'
 import { parseCanonical, type Chord } from '@shared/chord'
-import type { AppStatus, ImportResult, WriteResult } from '@shared/ipc'
+import { isHealthProblem, type AppStatus, type ImportResult, type WriteResult } from '@shared/ipc'
 import { buildSaveEntry } from '@shared/history/entry'
 import { describeRevert, planRevert } from '@shared/history/revert'
 import type { HistoryEntry, NewHistoryEntry } from '@shared/history/types'
@@ -185,10 +185,11 @@ function App(): React.JSX.Element {
   }, [state.store.apps])
 
   // An app the user simply does not have is not a problem to warn about — it is
-  // the normal state of any machine that does not run all six. Only apps that
-  // are present but unreadable belong in the banner.
+  // the normal state of any machine that does not run all thirteen. Only apps
+  // that are present but unreadable belong in the banner; `isHealthProblem`
+  // draws that line once, so this and the Apps page cannot disagree about it.
   const unreadable = useMemo(
-    () => statuses.filter((s) => s.enabled && s.health !== 'ok' && s.health !== 'not-installed'),
+    () => statuses.filter((s) => s.enabled && isHealthProblem(s.health)),
     [statuses]
   )
 

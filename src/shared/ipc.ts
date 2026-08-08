@@ -45,6 +45,27 @@ export type AppHealth =
   | 'config-unreadable'
   | 'config-unparseable'
 
+/**
+ * Whether this health is something the user has to act on.
+ *
+ * Lives here, next to the union, because two places judge it — the Apps page
+ * tones a card by it and the table banners unreadable apps by it — and they
+ * were free to disagree. At six apps that cost little; at thirteen, `ok` is the
+ * minority and every ordinary state gets loud. A config that does not exist
+ * yet is not a problem: unikeys creates it on the first save. Nor is one whose
+ * location unikeys never had — that is a question waiting for an answer, and
+ * the Apps page is where it gets asked.
+ */
+export function isHealthProblem(health: AppHealth): boolean {
+  return (
+    health !== 'ok' &&
+    health !== 'disabled' &&
+    health !== 'not-installed' &&
+    health !== 'config-not-created' &&
+    health !== 'config-path-required'
+  )
+}
+
 export interface AppStatus {
   app: AppId
   name: string
