@@ -74,6 +74,16 @@ function diagnose(
     return { health: 'config-unreadable', message: `Could not read ${read.path}: ${read.error}` }
   }
 
+  // An app with no standard config location was never looked for, so neither
+  // "not installed" nor "not found" describes it — both imply a search that
+  // did not happen. Placeholder wording; ticket 25 lands the real message.
+  if (APPS[app].configPaths.length === 0 && !override) {
+    return {
+      health: 'config-path-required',
+      message: `${APPS[app].name} keeps its config somewhere unikeys cannot guess. Set the path manually in Apps.`
+    }
+  }
+
   if (!installed) {
     return {
       health: 'not-installed',

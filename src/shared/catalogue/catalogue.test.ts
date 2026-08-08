@@ -38,21 +38,37 @@ describe('the shipped catalogue', () => {
     }
   })
 
-  it('uses the same command string for VSCode and Cursor wherever both are mapped', () => {
-    const both = ACTIONS.filter(
-      (action) => action.commands.vscode !== undefined && action.commands.cursor !== undefined
-    )
-    expect(both.length).toBeGreaterThan(0)
-    for (const action of both) {
-      expect(action.commands.cursor, `${action.id} disagrees across the shared format`).toBe(
-        action.commands.vscode
-      )
+  /**
+   * A fork shares its parent's command ids, so a row that maps the parent and
+   * disagrees with the fork is a typo rather than a decision. Checked in both
+   * directions: a fork mapped where the parent is not would be just as wrong.
+   */
+  const FORK_FAMILIES: ReadonlyArray<{ parent: AppId; forks: readonly AppId[] }> = [
+    { parent: 'vscode', forks: ['cursor', 'kiro', 'antigravity'] },
+    { parent: 'webstorm', forks: ['intellij', 'pycharm'] }
+  ]
+
+  it('gives every fork the same command string as the app it forked', () => {
+    for (const { parent, forks } of FORK_FAMILIES) {
+      const mapped = ACTIONS.filter((action) => action.commands[parent] !== undefined)
+      expect(mapped.length, `nothing maps ${parent}`).toBeGreaterThan(0)
+      for (const action of ACTIONS) {
+        for (const fork of forks) {
+          expect(
+            action.commands[fork],
+            `${action.id} disagrees between ${parent} and ${fork}`
+          ).toBe(action.commands[parent])
+        }
+      }
     }
   })
 
-  it('includes a meaningful number of rows that map every app', () => {
-    const universal = ACTIONS.filter((action) => mappedApps(action).length === APP_IDS.length)
-    expect(universal.length).toBeGreaterThanOrEqual(6)
+  it('includes a meaningful number of rows that reach most of the table', () => {
+    // Not "every app": Zed, Warp and Obsidian map only what they really have,
+    // and Obsidian in particular maps a handful of rows on purpose. What the
+    // catalogue has to keep is rows broad enough to be worth linking.
+    const broad = ACTIONS.filter((action) => mappedApps(action).length >= APP_IDS.length / 2)
+    expect(broad.length).toBeGreaterThanOrEqual(6)
   })
 
   it('includes rows that deliberately skip apps with no equivalent', () => {

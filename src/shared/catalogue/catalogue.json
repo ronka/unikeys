@@ -8,7 +8,11 @@
       "commands": {
         "vscode": "workbench.action.files.save",
         "cursor": "workbench.action.files.save",
-        "webstorm": "SaveDocument"
+        "kiro": "workbench.action.files.save",
+        "antigravity": "workbench.action.files.save",
+        "webstorm": "SaveDocument",
+        "intellij": "SaveDocument",
+        "pycharm": "SaveDocument"
       }
     },
     {
@@ -18,7 +22,11 @@
       "commands": {
         "vscode": "workbench.action.files.saveAll",
         "cursor": "workbench.action.files.saveAll",
-        "webstorm": "SaveAll"
+        "kiro": "workbench.action.files.saveAll",
+        "antigravity": "workbench.action.files.saveAll",
+        "webstorm": "SaveAll",
+        "intellij": "SaveAll",
+        "pycharm": "SaveAll"
       }
     },
     {
@@ -28,7 +36,11 @@
       "commands": {
         "vscode": "undo",
         "cursor": "undo",
-        "webstorm": "$Undo"
+        "kiro": "undo",
+        "antigravity": "undo",
+        "webstorm": "$Undo",
+        "intellij": "$Undo",
+        "pycharm": "$Undo"
       }
     },
     {
@@ -38,7 +50,11 @@
       "commands": {
         "vscode": "editor.action.clipboardCopyAction",
         "cursor": "editor.action.clipboardCopyAction",
+        "kiro": "editor.action.clipboardCopyAction",
+        "antigravity": "editor.action.clipboardCopyAction",
         "webstorm": "$Copy",
+        "intellij": "$Copy",
+        "pycharm": "$Copy",
         "ghostty": "copy_to_clipboard",
         "iterm2": "menu:copy"
       }
@@ -50,7 +66,11 @@
       "commands": {
         "vscode": "editor.action.clipboardPasteAction",
         "cursor": "editor.action.clipboardPasteAction",
+        "kiro": "editor.action.clipboardPasteAction",
+        "antigravity": "editor.action.clipboardPasteAction",
         "webstorm": "$Paste",
+        "intellij": "$Paste",
+        "pycharm": "$Paste",
         "ghostty": "paste_from_clipboard",
         "iterm2": "menu:paste"
       }
@@ -62,7 +82,11 @@
       "commands": {
         "vscode": "editor.action.selectAll",
         "cursor": "editor.action.selectAll",
+        "kiro": "editor.action.selectAll",
+        "antigravity": "editor.action.selectAll",
         "webstorm": "$SelectAll",
+        "intellij": "$SelectAll",
+        "pycharm": "$SelectAll",
         "ghostty": "select_all",
         "iterm2": "menu:select-all"
       }
@@ -74,7 +98,11 @@
       "commands": {
         "vscode": "editor.action.commentLine",
         "cursor": "editor.action.commentLine",
-        "webstorm": "CommentByLineComment"
+        "kiro": "editor.action.commentLine",
+        "antigravity": "editor.action.commentLine",
+        "webstorm": "CommentByLineComment",
+        "intellij": "CommentByLineComment",
+        "pycharm": "CommentByLineComment"
       }
     },
     {
@@ -84,7 +112,11 @@
       "commands": {
         "vscode": "editor.action.formatDocument",
         "cursor": "editor.action.formatDocument",
-        "webstorm": "ReformatCode"
+        "kiro": "editor.action.formatDocument",
+        "antigravity": "editor.action.formatDocument",
+        "webstorm": "ReformatCode",
+        "intellij": "ReformatCode",
+        "pycharm": "ReformatCode"
       }
     },
     {
@@ -94,7 +126,11 @@
       "commands": {
         "vscode": "editor.action.rename",
         "cursor": "editor.action.rename",
-        "webstorm": "RenameElement"
+        "kiro": "editor.action.rename",
+        "antigravity": "editor.action.rename",
+        "webstorm": "RenameElement",
+        "intellij": "RenameElement",
+        "pycharm": "RenameElement"
       }
     },
     {
@@ -104,7 +140,11 @@
       "commands": {
         "vscode": "editor.action.copyLinesDownAction",
         "cursor": "editor.action.copyLinesDownAction",
-        "webstorm": "EditorDuplicate"
+        "kiro": "editor.action.copyLinesDownAction",
+        "antigravity": "editor.action.copyLinesDownAction",
+        "webstorm": "EditorDuplicate",
+        "intellij": "EditorDuplicate",
+        "pycharm": "EditorDuplicate"
       }
     },
     {
@@ -114,7 +154,11 @@
       "commands": {
         "vscode": "workbench.action.showCommands",
         "cursor": "workbench.action.showCommands",
+        "kiro": "workbench.action.showCommands",
+        "antigravity": "workbench.action.showCommands",
         "webstorm": "GotoAction",
+        "intellij": "GotoAction",
+        "pycharm": "GotoAction",
         "cmux": "commandPalette"
       }
     },
@@ -125,7 +169,11 @@
       "commands": {
         "vscode": "workbench.action.quickOpen",
         "cursor": "workbench.action.quickOpen",
-        "webstorm": "GotoFile"
+        "kiro": "workbench.action.quickOpen",
+        "antigravity": "workbench.action.quickOpen",
+        "webstorm": "GotoFile",
+        "intellij": "GotoFile",
+        "pycharm": "GotoFile"
       }
     },
     {
@@ -135,7 +183,11 @@
       "commands": {
         "vscode": "workbench.action.showAllSymbols",
         "cursor": "workbench.action.showAllSymbols",
-        "webstorm": "GotoClass"
+        "kiro": "workbench.action.showAllSymbols",
+        "antigravity": "workbench.action.showAllSymbols",
+        "webstorm": "GotoClass",
+        "intellij": "GotoClass",
+        "pycharm": "GotoClass"
       }
     },
     {
@@ -145,7 +197,11 @@
       "commands": {
         "vscode": "workbench.action.gotoLine",
         "cursor": "workbench.action.gotoLine",
-        "webstorm": "GotoLine"
+        "kiro": "workbench.action.gotoLine",
+        "antigravity": "workbench.action.gotoLine",
+        "webstorm": "GotoLine",
+        "intellij": "GotoLine",
+        "pycharm": "GotoLine"
       }
     },
     {
@@ -155,7 +211,11 @@
       "commands": {
         "vscode": "editor.action.revealDefinition",
         "cursor": "editor.action.revealDefinition",
-        "webstorm": "GotoDeclaration"
+        "kiro": "editor.action.revealDefinition",
+        "antigravity": "editor.action.revealDefinition",
+        "webstorm": "GotoDeclaration",
+        "intellij": "GotoDeclaration",
+        "pycharm": "GotoDeclaration"
       }
     },
     {
@@ -165,7 +225,11 @@
       "commands": {
         "vscode": "workbench.action.findInFiles",
         "cursor": "workbench.action.findInFiles",
+        "kiro": "workbench.action.findInFiles",
+        "antigravity": "workbench.action.findInFiles",
         "webstorm": "FindInPath",
+        "intellij": "FindInPath",
+        "pycharm": "FindInPath",
         "cmux": "findInDirectory"
       }
     },
@@ -176,7 +240,11 @@
       "commands": {
         "vscode": "workbench.action.navigateBack",
         "cursor": "workbench.action.navigateBack",
+        "kiro": "workbench.action.navigateBack",
+        "antigravity": "workbench.action.navigateBack",
         "webstorm": "Back",
+        "intellij": "Back",
+        "pycharm": "Back",
         "cmux": "focusHistoryBack"
       }
     },
@@ -187,7 +255,11 @@
       "commands": {
         "vscode": "workbench.action.navigateForward",
         "cursor": "workbench.action.navigateForward",
+        "kiro": "workbench.action.navigateForward",
+        "antigravity": "workbench.action.navigateForward",
         "webstorm": "Forward",
+        "intellij": "Forward",
+        "pycharm": "Forward",
         "cmux": "focusHistoryForward"
       }
     },
@@ -198,7 +270,11 @@
       "commands": {
         "vscode": "workbench.action.nextEditor",
         "cursor": "workbench.action.nextEditor",
+        "kiro": "workbench.action.nextEditor",
+        "antigravity": "workbench.action.nextEditor",
         "webstorm": "NextTab",
+        "intellij": "NextTab",
+        "pycharm": "NextTab",
         "ghostty": "next_tab",
         "cmux": "nextSurface",
         "iterm2": "action:next-tab"
@@ -211,7 +287,11 @@
       "commands": {
         "vscode": "workbench.action.previousEditor",
         "cursor": "workbench.action.previousEditor",
+        "kiro": "workbench.action.previousEditor",
+        "antigravity": "workbench.action.previousEditor",
         "webstorm": "PreviousTab",
+        "intellij": "PreviousTab",
+        "pycharm": "PreviousTab",
         "ghostty": "previous_tab",
         "cmux": "prevSurface",
         "iterm2": "action:previous-tab"
@@ -224,6 +304,8 @@
       "commands": {
         "vscode": "workbench.action.newWindow",
         "cursor": "workbench.action.newWindow",
+        "kiro": "workbench.action.newWindow",
+        "antigravity": "workbench.action.newWindow",
         "ghostty": "new_window",
         "cmux": "newWindow",
         "iterm2": "action:new-window"
@@ -236,7 +318,11 @@
       "commands": {
         "vscode": "workbench.action.closeActiveEditor",
         "cursor": "workbench.action.closeActiveEditor",
+        "kiro": "workbench.action.closeActiveEditor",
+        "antigravity": "workbench.action.closeActiveEditor",
         "webstorm": "CloseContent",
+        "intellij": "CloseContent",
+        "pycharm": "CloseContent",
         "ghostty": "close_surface",
         "cmux": "closeTab",
         "iterm2": "menu:close"
@@ -249,7 +335,11 @@
       "commands": {
         "vscode": "workbench.action.toggleFullScreen",
         "cursor": "workbench.action.toggleFullScreen",
+        "kiro": "workbench.action.toggleFullScreen",
+        "antigravity": "workbench.action.toggleFullScreen",
         "webstorm": "ToggleFullScreen",
+        "intellij": "ToggleFullScreen",
+        "pycharm": "ToggleFullScreen",
         "ghostty": "toggle_fullscreen",
         "cmux": "toggleFullScreen",
         "iterm2": "action:toggle-fullscreen"
@@ -262,7 +352,11 @@
       "commands": {
         "vscode": "workbench.action.splitEditorRight",
         "cursor": "workbench.action.splitEditorRight",
+        "kiro": "workbench.action.splitEditorRight",
+        "antigravity": "workbench.action.splitEditorRight",
         "webstorm": "SplitVertically",
+        "intellij": "SplitVertically",
+        "pycharm": "SplitVertically",
         "ghostty": "new_split:right",
         "cmux": "splitRight",
         "iterm2": "action:split-vertically"
@@ -275,7 +369,11 @@
       "commands": {
         "vscode": "workbench.action.splitEditorDown",
         "cursor": "workbench.action.splitEditorDown",
+        "kiro": "workbench.action.splitEditorDown",
+        "antigravity": "workbench.action.splitEditorDown",
         "webstorm": "SplitHorizontally",
+        "intellij": "SplitHorizontally",
+        "pycharm": "SplitHorizontally",
         "ghostty": "new_split:down",
         "cmux": "splitDown",
         "iterm2": "action:split-horizontally"
@@ -288,6 +386,8 @@
       "commands": {
         "vscode": "workbench.action.focusLeftGroup",
         "cursor": "workbench.action.focusLeftGroup",
+        "kiro": "workbench.action.focusLeftGroup",
+        "antigravity": "workbench.action.focusLeftGroup",
         "ghostty": "goto_split:left",
         "cmux": "focusLeft",
         "iterm2": "action:select-pane-left"
@@ -300,6 +400,8 @@
       "commands": {
         "vscode": "workbench.action.focusRightGroup",
         "cursor": "workbench.action.focusRightGroup",
+        "kiro": "workbench.action.focusRightGroup",
+        "antigravity": "workbench.action.focusRightGroup",
         "ghostty": "goto_split:right",
         "cmux": "focusRight",
         "iterm2": "action:select-pane-right"
@@ -312,6 +414,8 @@
       "commands": {
         "vscode": "workbench.action.focusAboveGroup",
         "cursor": "workbench.action.focusAboveGroup",
+        "kiro": "workbench.action.focusAboveGroup",
+        "antigravity": "workbench.action.focusAboveGroup",
         "ghostty": "goto_split:up",
         "cmux": "focusUp",
         "iterm2": "action:select-pane-above"
@@ -324,6 +428,8 @@
       "commands": {
         "vscode": "workbench.action.focusBelowGroup",
         "cursor": "workbench.action.focusBelowGroup",
+        "kiro": "workbench.action.focusBelowGroup",
+        "antigravity": "workbench.action.focusBelowGroup",
         "ghostty": "goto_split:down",
         "cmux": "focusDown",
         "iterm2": "action:select-pane-below"
@@ -336,7 +442,11 @@
       "commands": {
         "vscode": "workbench.action.focusNextGroup",
         "cursor": "workbench.action.focusNextGroup",
+        "kiro": "workbench.action.focusNextGroup",
+        "antigravity": "workbench.action.focusNextGroup",
         "webstorm": "NextSplitter",
+        "intellij": "NextSplitter",
+        "pycharm": "NextSplitter",
         "ghostty": "goto_split:next",
         "cmux": "focusNextPane",
         "iterm2": "action:next-pane"
@@ -349,7 +459,11 @@
       "commands": {
         "vscode": "workbench.action.focusPreviousGroup",
         "cursor": "workbench.action.focusPreviousGroup",
+        "kiro": "workbench.action.focusPreviousGroup",
+        "antigravity": "workbench.action.focusPreviousGroup",
         "webstorm": "PrevSplitter",
+        "intellij": "PrevSplitter",
+        "pycharm": "PrevSplitter",
         "ghostty": "goto_split:previous",
         "cmux": "focusPreviousPane",
         "iterm2": "action:previous-pane"
@@ -362,7 +476,11 @@
       "commands": {
         "vscode": "editor.action.fontZoomIn",
         "cursor": "editor.action.fontZoomIn",
+        "kiro": "editor.action.fontZoomIn",
+        "antigravity": "editor.action.fontZoomIn",
         "webstorm": "EditorIncreaseFontSize",
+        "intellij": "EditorIncreaseFontSize",
+        "pycharm": "EditorIncreaseFontSize",
         "ghostty": "increase_font_size:1",
         "cmux": "increaseWorkspaceTerminalFontSize",
         "iterm2": "menu:make-text-bigger"
@@ -375,7 +493,11 @@
       "commands": {
         "vscode": "editor.action.fontZoomOut",
         "cursor": "editor.action.fontZoomOut",
+        "kiro": "editor.action.fontZoomOut",
+        "antigravity": "editor.action.fontZoomOut",
         "webstorm": "EditorDecreaseFontSize",
+        "intellij": "EditorDecreaseFontSize",
+        "pycharm": "EditorDecreaseFontSize",
         "ghostty": "decrease_font_size:1",
         "cmux": "decreaseWorkspaceTerminalFontSize",
         "iterm2": "menu:make-text-smaller"
@@ -388,7 +510,11 @@
       "commands": {
         "vscode": "editor.action.fontZoomReset",
         "cursor": "editor.action.fontZoomReset",
+        "kiro": "editor.action.fontZoomReset",
+        "antigravity": "editor.action.fontZoomReset",
         "webstorm": "EditorResetFontSize",
+        "intellij": "EditorResetFontSize",
+        "pycharm": "EditorResetFontSize",
         "ghostty": "reset_font_size",
         "cmux": "resetWorkspaceTerminalFontSize",
         "iterm2": "menu:make-text-normal-size"
@@ -401,7 +527,11 @@
       "commands": {
         "vscode": "workbench.action.terminal.toggleTerminal",
         "cursor": "workbench.action.terminal.toggleTerminal",
-        "webstorm": "ActivateTerminalToolWindow"
+        "kiro": "workbench.action.terminal.toggleTerminal",
+        "antigravity": "workbench.action.terminal.toggleTerminal",
+        "webstorm": "ActivateTerminalToolWindow",
+        "intellij": "ActivateTerminalToolWindow",
+        "pycharm": "ActivateTerminalToolWindow"
       }
     },
     {
@@ -411,6 +541,8 @@
       "commands": {
         "vscode": "workbench.action.terminal.new",
         "cursor": "workbench.action.terminal.new",
+        "kiro": "workbench.action.terminal.new",
+        "antigravity": "workbench.action.terminal.new",
         "cmux": "newSurface",
         "iterm2": "action:new-tab"
       }
@@ -422,6 +554,8 @@
       "commands": {
         "vscode": "workbench.action.terminal.clear",
         "cursor": "workbench.action.terminal.clear",
+        "kiro": "workbench.action.terminal.clear",
+        "antigravity": "workbench.action.terminal.clear",
         "ghostty": "clear_screen",
         "cmux": "clearScreenKeepScrollback",
         "iterm2": "menu:clear-buffer"

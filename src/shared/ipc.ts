@@ -34,6 +34,14 @@ export type AppHealth =
   | 'config-not-created'
   /** No config, and no location unikeys may create one at. */
   | 'config-not-found'
+  /**
+   * No standard config location exists for this app at all, so unikeys needs
+   * the user to name one before it can do anything. Distinct from
+   * `config-not-found`, which means unikeys looked and came back empty: here
+   * there was nowhere to look. Obsidian is the only app in this state — its
+   * hotkeys live inside whichever vault is open.
+   */
+  | 'config-path-required'
   | 'config-unreadable'
   | 'config-unparseable'
 

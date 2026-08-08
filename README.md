@@ -1,6 +1,7 @@
 # unikeys
 
-One table for every keybinding across VSCode, Cursor, WebStorm, Ghostty, cmux and iTerm2.
+One table for every keybinding across VSCode, Cursor, Kiro, Antigravity, Zed, WebStorm,
+IntelliJ IDEA, PyCharm, Ghostty, cmux, iTerm2, Warp and Obsidian.
 
 Each **row** is an action. Each **column** is an app. Each **cell** is the chord that
 action is bound to in that app. Edit any cell, or **link** a row so every app that
@@ -70,5 +71,5 @@ start empty rather than wrong, and the limitation is surfaced in the Apps panel.
 ## Not in the MVP
 
 Conflict detection, drift detection and re-import, user-defined actions, profiles,
-two-way sync, non-macOS platforms, apps beyond the four, and auto-reloading the target
-apps after a write. See `.scratch/unikeys-mvp/spec.md`.
+two-way sync, non-macOS platforms, apps beyond the thirteen, and auto-reloading the
+target apps after a write. See `.scratch/unikeys-mvp/spec.md`.

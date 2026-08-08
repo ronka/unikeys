@@ -12,15 +12,21 @@ import { cmuxAdapter } from './cmux'
 import { ghosttyAdapter } from './ghostty'
 import { iterm2Adapter } from './iterm2'
 import { jetbrainsAdapter } from './jetbrains'
+import { obsidianAdapter } from './obsidian'
 import type { Adapter } from './types'
 import { vscodeAdapter } from './vscode'
+import { warpAdapter } from './warp'
+import { zedAdapter } from './zed'
 
 export const ADAPTERS: Record<FormatId, Adapter> = {
   'vscode-keybindings': vscodeAdapter,
   'jetbrains-keymap': jetbrainsAdapter,
+  'zed-keymap': zedAdapter,
   'ghostty-config': ghosttyAdapter,
   'cmux-config': cmuxAdapter,
-  'iterm2-dynamic-profile': iterm2Adapter
+  'iterm2-dynamic-profile': iterm2Adapter,
+  'warp-keybindings': warpAdapter,
+  'obsidian-hotkeys': obsidianAdapter
 }
 
 export function adapterFor(app: AppId): Adapter {

@@ -10,7 +10,21 @@
  * against the columns.
  */
 
-export const APP_IDS = ['vscode', 'cursor', 'webstorm', 'ghostty', 'cmux', 'iterm2'] as const
+export const APP_IDS = [
+  'vscode',
+  'cursor',
+  'kiro',
+  'antigravity',
+  'zed',
+  'webstorm',
+  'intellij',
+  'pycharm',
+  'ghostty',
+  'cmux',
+  'iterm2',
+  'warp',
+  'obsidian'
+] as const
 
 export type AppId = (typeof APP_IDS)[number]
 
@@ -20,21 +34,25 @@ export type AppId = (typeof APP_IDS)[number]
  * against it — nothing enforces that, so a reordering of one wants a look at
  * the other.
  */
-export const CATEGORY_IDS = ['ide', 'terminal'] as const
+export const CATEGORY_IDS = ['ide', 'terminal', 'notes'] as const
 
 export type CategoryId = (typeof CATEGORY_IDS)[number]
 
 export const CATEGORY_LABELS: Record<CategoryId, string> = {
   ide: 'Editors',
-  terminal: 'Terminals'
+  terminal: 'Terminals',
+  notes: 'Notes'
 }
 
 export type FormatId =
   | 'vscode-keybindings'
   | 'jetbrains-keymap'
+  | 'zed-keymap'
   | 'ghostty-config'
   | 'cmux-config'
   | 'iterm2-dynamic-profile'
+  | 'warp-keybindings'
+  | 'obsidian-hotkeys'
 
 export interface AppDescriptor {
   id: AppId
@@ -53,6 +71,10 @@ export interface AppDescriptor {
    * Standard macOS config locations, most likely first. Paths are relative to
    * the user's home directory. Resolution happens in the main process; nothing
    * here touches the filesystem.
+   *
+   * Empty for an app whose config has no standard location at all — Obsidian
+   * keeps its hotkeys inside whichever vault is open, so unikeys cannot guess
+   * a path and the user has to point at one.
    */
   configPaths: string[]
   /**
@@ -85,6 +107,33 @@ export const APPS: Record<AppId, AppDescriptor> = {
     installPaths: ['/Applications/Cursor.app', '~/Applications/Cursor.app'],
     reloadHint: 'Cursor picks up keybindings.json automatically; no restart needed.'
   },
+  kiro: {
+    id: 'kiro',
+    name: 'Kiro',
+    format: 'vscode-keybindings',
+    category: 'ide',
+    configPaths: ['Library/Application Support/Kiro/User/keybindings.json'],
+    installPaths: ['/Applications/Kiro.app', '~/Applications/Kiro.app'],
+    reloadHint: 'Kiro picks up keybindings.json automatically; no restart needed.'
+  },
+  antigravity: {
+    id: 'antigravity',
+    name: 'Antigravity',
+    format: 'vscode-keybindings',
+    category: 'ide',
+    configPaths: ['Library/Application Support/Antigravity/User/keybindings.json'],
+    installPaths: ['/Applications/Antigravity.app', '~/Applications/Antigravity.app'],
+    reloadHint: 'Antigravity picks up keybindings.json automatically; no restart needed.'
+  },
+  zed: {
+    id: 'zed',
+    name: 'Zed',
+    format: 'zed-keymap',
+    category: 'ide',
+    configPaths: ['.config/zed/keymap.json'],
+    installPaths: ['/Applications/Zed.app', '~/Applications/Zed.app'],
+    reloadHint: 'Zed reloads keymap.json as soon as it is saved; no restart needed.'
+  },
   webstorm: {
     id: 'webstorm',
     name: 'WebStorm',
@@ -99,6 +148,46 @@ export const APPS: Record<AppId, AppDescriptor> = {
       '~/Applications/JetBrains Toolbox/WebStorm.app'
     ],
     reloadHint: 'WebStorm must be restarted before keymap changes take effect.'
+  },
+  intellij: {
+    id: 'intellij',
+    name: 'IntelliJ IDEA',
+    format: 'jetbrains-keymap',
+    category: 'ide',
+    // Ultimate first, then Community: `configPaths` is tried in order, and a
+    // machine with both should get the edition the user is more likely running.
+    configPaths: [
+      'Library/Application Support/JetBrains/IntelliJIdea*/keymaps',
+      'Library/Application Support/JetBrains/IdeaIC*/keymaps'
+    ],
+    installPaths: [
+      '/Applications/IntelliJ IDEA.app',
+      '~/Applications/IntelliJ IDEA.app',
+      '~/Applications/JetBrains Toolbox/IntelliJ IDEA.app',
+      '/Applications/IntelliJ IDEA Community Edition.app',
+      '~/Applications/IntelliJ IDEA Community Edition.app',
+      '~/Applications/JetBrains Toolbox/IntelliJ IDEA Community Edition.app'
+    ],
+    reloadHint: 'IntelliJ IDEA must be restarted before keymap changes take effect.'
+  },
+  pycharm: {
+    id: 'pycharm',
+    name: 'PyCharm',
+    format: 'jetbrains-keymap',
+    category: 'ide',
+    configPaths: [
+      'Library/Application Support/JetBrains/PyCharm*/keymaps',
+      'Library/Application Support/JetBrains/PyCharmCE*/keymaps'
+    ],
+    installPaths: [
+      '/Applications/PyCharm.app',
+      '~/Applications/PyCharm.app',
+      '~/Applications/JetBrains Toolbox/PyCharm.app',
+      '/Applications/PyCharm CE.app',
+      '~/Applications/PyCharm CE.app',
+      '~/Applications/JetBrains Toolbox/PyCharm CE.app'
+    ],
+    reloadHint: 'PyCharm must be restarted before keymap changes take effect.'
   },
   ghostty: {
     id: 'ghostty',
@@ -141,6 +230,27 @@ export const APPS: Record<AppId, AppDescriptor> = {
     reloadHint:
       'iTerm2 reloads this file immediately, but the bindings only apply to its "unikeys" ' +
       'profile. Once, in iTerm2: Settings → Profiles → unikeys → Other Actions → Set as Default.'
+  },
+  warp: {
+    id: 'warp',
+    name: 'Warp',
+    format: 'warp-keybindings',
+    category: 'terminal',
+    configPaths: ['.warp/keybindings.yaml'],
+    installPaths: ['/Applications/Warp.app', '~/Applications/Warp.app'],
+    reloadHint: 'Warp applies keybindings.yaml when it next launches; restart Warp.'
+  },
+  obsidian: {
+    id: 'obsidian',
+    name: 'Obsidian',
+    format: 'obsidian-hotkeys',
+    category: 'notes',
+    // Obsidian keeps hotkeys inside the vault, at `<vault>/.obsidian/hotkeys.json`,
+    // and there is no vault-independent location — so there is nothing to look
+    // in and the user has to name a path. See the `config-path-required` health.
+    configPaths: [],
+    installPaths: ['/Applications/Obsidian.app', '~/Applications/Obsidian.app'],
+    reloadHint: 'Obsidian applies hotkeys.json after the app or the vault is reloaded.'
   }
 }
 

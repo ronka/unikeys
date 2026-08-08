@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { APP_IDS } from '../apps'
 import { chord, stroke } from '../chord'
 import type { Catalogue } from '../catalogue/types'
 import { createEmptyStore, type Store } from '../store/types'
@@ -36,11 +37,13 @@ const catalogue: Catalogue = {
 
 const actionsById = Object.fromEntries(catalogue.actions.map((action) => [action.id, action]))
 /**
- * Every column. Spelled out rather than derived from `APP_IDS` so that adding
- * an app is a deliberate edit here — a derived list would quietly extend these
- * cases to a column none of them was written for.
+ * Every column, derived rather than spelled out. The fixture catalogue above
+ * maps a handful of apps deliberately, so an app added to `APP_IDS` arrives
+ * here as an unmapped column — which is exactly the not-applicable case these
+ * tests already cover, and costs nothing. Hand-listing them instead meant
+ * rewriting the same six-item literal in three places every time the set grew.
  */
-const ALL_APPS = ['vscode', 'cursor', 'webstorm', 'ghostty', 'cmux', 'iterm2'] as const
+const ALL_APPS = APP_IDS
 
 function storeWith(chords: Store['chords'], linkedActions: string[] = []): Store {
   return { ...createEmptyStore(), chords, linkedActions }
@@ -244,14 +247,9 @@ describe('the table view', () => {
 
     const view = buildTableView(state, catalogue)
 
-    expect(view.apps).toEqual(['vscode', 'webstorm', 'ghostty', 'cmux', 'iterm2'])
-    expect(Object.keys(view.groups[0].rows[0].cells)).toEqual([
-      'vscode',
-      'webstorm',
-      'ghostty',
-      'cmux',
-      'iterm2'
-    ])
+    const withoutCursor = APP_IDS.filter((app) => app !== 'cursor')
+    expect(view.apps).toEqual(withoutCursor)
+    expect(Object.keys(view.groups[0].rows[0].cells)).toEqual(withoutCursor)
   })
 
   it('counts divergent rows across the whole table', () => {

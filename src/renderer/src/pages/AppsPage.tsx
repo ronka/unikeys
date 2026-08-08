@@ -31,6 +31,7 @@ const HEALTH_LABELS: Record<AppHealth, string> = {
   'not-installed': 'Not installed',
   'config-not-created': 'Not created yet',
   'config-not-found': 'Config not found',
+  'config-path-required': 'Needs a config path',
   'config-unreadable': 'Config unreadable',
   'config-unparseable': 'Config could not be parsed'
 }
@@ -38,14 +39,20 @@ const HEALTH_LABELS: Record<AppHealth, string> = {
 /**
  * Only `ok` is good news and only a config unikeys found but could not use is
  * bad news. "Not installed" and "turned off" are ordinary states of a machine
- * that does not run all six apps, so they stay neutral — and so is a config
- * that does not exist yet, which unikeys creates on the first save rather than
- * asking the user to go and make.
+ * that does not run every app, so they stay neutral — and so is a config that
+ * does not exist yet, which unikeys creates on the first save rather than
+ * asking the user to go and make, and so is an app that simply has no standard
+ * config location for unikeys to have found.
  */
 function healthTone(health: AppHealth): { text: string; dot: string; message: string } {
   if (health === 'ok')
     return { text: 'text-agree', dot: 'bg-agree', message: 'text-muted-foreground' }
-  if (health === 'disabled' || health === 'not-installed' || health === 'config-not-created')
+  if (
+    health === 'disabled' ||
+    health === 'not-installed' ||
+    health === 'config-not-created' ||
+    health === 'config-path-required'
+  )
     return { text: 'text-faint', dot: 'bg-faint', message: 'text-muted-foreground' }
   // The explanation of a config unikeys could not use is the one message worth
   // full contrast — it is the only one that asks the user to do something.
