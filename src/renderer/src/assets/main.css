@@ -163,6 +163,16 @@
    these — for bare <button>, <input> and <select> — are gone now that every
    control is either a shadcn component or fully styled by its own utilities. */
 @layer base {
+  /* Tailwind v4 leaves a colourless `border` utility at `currentColor`, so every
+     shadcn component that writes a bare `border` / `border-b` / `border-r` —
+     card, dialog, select, table, sidebar — draws a near-white line in the text
+     colour. shadcn's own stylesheet ships this default and it was lost in the
+     port. Anything wanting a different edge still says so explicitly
+     (`border-input`, `border-transparent`) and is unaffected. */
+  * {
+    border-color: var(--color-border);
+  }
+
   body {
     background: var(--bg);
     color: var(--text);
