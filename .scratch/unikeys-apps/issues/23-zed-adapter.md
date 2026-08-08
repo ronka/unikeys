@@ -6,7 +6,7 @@ map. Two properties of that format drive the design, and both are new to this pr
 
 **Blocked by:** 20.
 
-**Status:** ready-for-agent
+**Status:** done — branch `feat/apps-zed`, commit `21bd84f`
 
 **Files you own:** `src/shared/adapters/zed.ts`, `src/shared/adapters/zed.test.ts`,
 `src/shared/adapters/__fixtures__/zed/`, `src/shared/catalogue/catalogue-zed.json`.
@@ -97,11 +97,11 @@ with comments, one with a `null` unbind, an empty array, and a malformed file.
 
 ## Definition of done
 
-- [ ] The table shows a Zed column populated from `~/.config/zed/keymap.json`
-- [ ] Zed's hyphen notation converts to and from the canonical chord in both directions, including two-keystroke sequences
-- [ ] `parse` inverts chord→command correctly across multiple context blocks, and treats `null` as an explicit unbind
-- [ ] `merge` writes one owned trailing block, rewrites that same block on a second merge, and leaves the user's blocks and comments untouched
-- [ ] Merging unchanged content round-trips byte-identically
-- [ ] `defaults('zed')` reports `partial` with a note, and ships only bindings that were actually sourced
-- [ ] `catalogue-zed.json` exists and maps only actions Zed really has
-- [ ] `npm test`, `npm run typecheck` and `npm run lint` pass
+- [ ] The table shows a Zed column populated from `~/.config/zed/keymap.json` — renderer work, lands with ticket 27; Zed is not installed here so this stays unobserved
+- [x] Zed's hyphen notation converts to and from the canonical chord in both directions, including two-keystroke sequences
+- [x] `parse` inverts chord→command correctly across multiple context blocks, and treats `null` as an explicit unbind
+- [x] `merge` writes one owned trailing block, rewrites that same block on a second merge, and leaves the user's blocks and comments untouched
+- [x] Merging unchanged content round-trips byte-identically
+- [x] `defaults('zed')` reports `partial` with a note, and ships only bindings that were actually sourced
+- [x] `catalogue-zed.json` exists and maps only actions Zed really has
+- [x] `npm test`, `npm run typecheck` and `npm run lint` pass
