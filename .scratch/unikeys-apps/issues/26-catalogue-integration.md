@@ -7,7 +7,7 @@ ticket folds them into the real catalogue and deletes the fragments.
 
 **Blocked by:** 23, 24, 25 — all three merged into `main`.
 
-**Status:** ready-for-agent
+**Status:** done — commit `49d7503`
 
 **Files you own:** `src/shared/catalogue/catalogue.json`,
 `src/shared/catalogue/catalogue.test.ts`, and the three
@@ -46,8 +46,8 @@ thirteen-app set, so the behaviour is pinned rather than assumed.
 
 ## Definition of done
 
-- [ ] Every fragment mapping is present in `catalogue.json` and the fragments are deleted
-- [ ] Every action id referenced by a fragment exists; none were silently dropped
-- [ ] `catalogue.test.ts` passes, and covers the widened catalogue
-- [ ] A test exercises a linked row propagating across all thirteen apps
-- [ ] `npm test`, `npm run typecheck` and `npm run lint` pass
+- [x] Every fragment mapping is present in `catalogue.json` and the fragments are deleted
+- [x] Every action id referenced by a fragment exists; none were silently dropped
+- [x] `catalogue.test.ts` passes, and covers the widened catalogue
+- [x] A test exercises a linked row propagating across all thirteen apps
+- [x] `npm test`, `npm run typecheck` and `npm run lint` pass

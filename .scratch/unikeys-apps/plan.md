@@ -138,8 +138,8 @@ Every Wave 2 agent gets the same closing instruction:
 | 23 | `issues/23-zed-adapter.md` | 2, worktree | done — merged `21bd84f` |
 | 24 | `issues/24-warp-adapter.md` | 2, worktree | done — merged `e8c87c1` |
 | 25 | `issues/25-obsidian-adapter.md` | 2, worktree | done — merged `ad750e9` |
-| 26 | `issues/26-catalogue-integration.md` | 3, serial | in progress |
-| 27 | `issues/27-thirteen-columns.md` | 3, serial | not started |
+| 26 | `issues/26-catalogue-integration.md` | 3, serial | done — `49d7503` |
+| 27 | `issues/27-thirteen-columns.md` | 3, serial | in progress |
 
 ## Verification asymmetry — say it out loud
 
