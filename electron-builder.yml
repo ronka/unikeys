@@ -38,12 +38,24 @@ mac:
   entitlementsInherit: build/entitlements.mac.plist
   hardenedRuntime: true
   gatekeeperAssess: false
+  # A map, not a list. electron-builder merges this into Info.plist with
+  # `deepAssign`, so a YAML list arrives as an array and lands in the plist as
+  # keys "0", "1" and "length" holding dicts — measured on the last build, where
+  # neither usage description was actually present. Every entry here has to be
+  # `key: value`.
   extendInfo:
+    # Answers App Store Connect's export compliance question in the binary, so
+    # the submission is not held with "This build is missing export compliance
+    # information". unikeys ships no encryption of its own — the only crypto
+    # import in the app is `randomUUID` — and the HTTPS its analytics use is
+    # exempt, so the declaration is `false` (a boolean; quoting it would emit
+    # the string "false" and ASC would keep asking).
+    ITSAppUsesNonExemptEncryption: false
     # unikeys reads and writes other apps' config files. Application Support is
     # not TCC-protected, but an Obsidian vault or a hand-picked config may well
     # sit in Documents or Downloads, and macOS prompts for those by name.
-    - NSDocumentsFolderUsageDescription: unikeys needs access to read and update keybinding files stored in your Documents folder, such as an Obsidian vault.
-    - NSDownloadsFolderUsageDescription: unikeys needs access to read and update keybinding files stored in your Downloads folder.
+    NSDocumentsFolderUsageDescription: unikeys needs access to read and update keybinding files stored in your Documents folder, such as an Obsidian vault.
+    NSDownloadsFolderUsageDescription: unikeys needs access to read and update keybinding files stored in your Downloads folder.
   notarize: true
 # The Mac App Store build. electron-builder layers this over `mac`, so every
 # setting above that does not apply has to be turned back off here rather than
