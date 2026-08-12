@@ -18,7 +18,13 @@ const unikeys: UnikeysApi = {
   chooseConfigPath: (app) => ipcRenderer.invoke(IPC.chooseConfigPath, app),
   requestGrant: (app, at) => ipcRenderer.invoke(IPC.requestGrant, app, at),
   revealBackups: () => ipcRenderer.invoke(IPC.revealBackups),
-  setThemeSource: (source) => ipcRenderer.invoke(IPC.setThemeSource, source)
+  setThemeSource: (source) => ipcRenderer.invoke(IPC.setThemeSource, source),
+  // Swallowed here rather than at each call site. `track` is called from save
+  // handlers and wizard steps, and a rejected promise from one of those would
+  // become an unhandled rejection in the middle of a user's save.
+  track: (event) => ipcRenderer.invoke(IPC.track, event).catch(() => undefined),
+  setAnalyticsEnabled: (enabled) =>
+    ipcRenderer.invoke(IPC.setAnalyticsEnabled, enabled).catch(() => undefined)
 }
 
 // The scaffold's generic `electronAPI` bridge is deliberately not exposed: it

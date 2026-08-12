@@ -46,9 +46,14 @@ describe('deserializeStore', () => {
   })
 
   it('round-trips a store it just wrote', () => {
-    const outcome = deserializeStore(serializeStore(createEmptyStore()))
+    // The one store compared against itself rather than against a second
+    // `createEmptyStore()`: every call mints a fresh analytics id, so two empty
+    // stores are legitimately unequal. Round-tripping the *same* one is also
+    // the stronger assertion, since it catches an id that failed to survive.
+    const original = createEmptyStore()
+    const outcome = deserializeStore(serializeStore(original))
     if (!outcome.ok) throw new Error(outcome.error)
-    expect(outcome.store).toEqual(createEmptyStore())
+    expect(outcome.store).toEqual(original)
   })
 
   it('refuses a document from a newer schema rather than misreading it', () => {
@@ -84,6 +89,58 @@ describe('deserializeStore', () => {
       const outcome = deserializeStore(serializeStore(store))
       if (!outcome.ok) throw new Error(outcome.error)
       expect(outcome.store.onboardingCompleted).toBe(true)
+    })
+  })
+
+  describe('analytics', () => {
+    function read(document: unknown): ReturnType<typeof createEmptyStore>['analytics'] {
+      const outcome = deserializeStore(JSON.stringify(document))
+      if (!outcome.ok) throw new Error(outcome.error)
+      return outcome.store.analytics
+    }
+
+    it('starts unasked, never opted in', () => {
+      expect(createEmptyStore().analytics.enabled).toBeNull()
+    })
+
+    it('gives a store written before analytics existed an id, and asks', () => {
+      // The upgrade path. `firstRunCompleted` is set so this is unambiguously
+      // an existing user: they still get asked rather than opted in silently.
+      const analytics = read({ schemaVersion: 1, firstRunCompleted: true })
+      expect(analytics.enabled).toBeNull()
+      expect(analytics.distinctId).toMatch(/^[0-9a-f-]{36}$/)
+    })
+
+    it('keeps the id it was given, so opting in later is still the same person', () => {
+      const analytics = read({
+        schemaVersion: 1,
+        analytics: { distinctId: 'a5f3e1c2-0000-4000-8000-000000000001', enabled: false }
+      })
+      expect(analytics.distinctId).toBe('a5f3e1c2-0000-4000-8000-000000000001')
+      expect(analytics.enabled).toBe(false)
+    })
+
+    it('preserves an explicit opt-in', () => {
+      expect(
+        read({ schemaVersion: 1, analytics: { distinctId: 'x', enabled: true } }).enabled
+      ).toBe(true)
+    })
+
+    it('falls back to asking rather than to sending when the value is not a boolean', () => {
+      // A hand-edited or corrupted store must never resolve in favour of
+      // sending. `'true'` is the shape that would, if this read truthiness.
+      expect(
+        read({ schemaVersion: 1, analytics: { distinctId: 'x', enabled: 'true' } }).enabled
+      ).toBeNull()
+      expect(read({ schemaVersion: 1, analytics: 'nonsense' }).enabled).toBeNull()
+      expect(read({ schemaVersion: 1, analytics: { enabled: 1 } }).enabled).toBeNull()
+    })
+
+    it('mints an id when the stored one is missing or empty', () => {
+      expect(read({ schemaVersion: 1, analytics: { distinctId: '' } }).distinctId).not.toBe('')
+      expect(read({ schemaVersion: 1, analytics: { enabled: true } }).distinctId).toMatch(
+        /^[0-9a-f-]{36}$/
+      )
     })
   })
 })

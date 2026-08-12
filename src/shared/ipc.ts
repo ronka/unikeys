@@ -7,6 +7,9 @@
  */
 
 import type { AppId } from './apps'
+// Type-only, and circular with `analytics.ts` importing `AppHealth` from here.
+// Both sides are erased at compile time, so nothing circular survives to run.
+import type { AnalyticsEvent } from './analytics'
 import type { DefaultsAvailability } from './adapters/types'
 import type { Catalogue } from './catalogue/types'
 import type { HistoryEntry, NewHistoryEntry } from './history/types'
@@ -300,7 +303,9 @@ export const IPC = {
   chooseConfigPath: 'unikeys:choose-config-path',
   requestGrant: 'unikeys:request-grant',
   revealBackups: 'unikeys:reveal-backups',
-  setThemeSource: 'unikeys:set-theme-source'
+  setThemeSource: 'unikeys:set-theme-source',
+  track: 'unikeys:track',
+  setAnalyticsEnabled: 'unikeys:set-analytics-enabled'
 } as const
 
 /**
@@ -391,4 +396,26 @@ export interface UnikeysApi {
    * opposite appearance to the UI behind them.
    */
   setThemeSource(source: ThemeSource): Promise<void>
+  /**
+   * Records one anonymous usage event, if the user has said unikeys may.
+   *
+   * Fire and forget: it resolves whether or not anything was sent, and never
+   * rejects. A call site is a save handler or a wizard step, and none of them
+   * should acquire a `catch` because a measurement failed.
+   *
+   * The consent check lives in main rather than here, so the renderer cannot
+   * send by getting the check wrong, and so there is one place to look when
+   * asking whether this build is capable of sending at all. What may be sent is
+   * `AnalyticsEvent`, which is a closed union — see `src/shared/analytics.ts`
+   * for the rule about what a property may never carry.
+   */
+  track(event: AnalyticsEvent): Promise<void>
+  /**
+   * Answers the consent question, and persists the answer.
+   *
+   * Separate from `persistStore` because it has an effect beyond the store:
+   * turning it off tears the PostHog client down for the rest of the session
+   * rather than merely recording a preference to honour next launch.
+   */
+  setAnalyticsEnabled(enabled: boolean): Promise<void>
 }

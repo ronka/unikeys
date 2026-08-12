@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { THEME_SOURCES, type ThemeSource } from '@shared/ipc'
 
 import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
 import { setTheme, storedTheme } from '@/lib/theme'
 import { PageHeader } from './PageHeader'
 
@@ -10,6 +11,9 @@ interface Props {
   backupDirectory: string
   onRevealBackups: () => void
   onReplayOnboarding: () => void
+  /** `null` while the consent question has not been answered yet. */
+  analyticsEnabled: boolean | null
+  onSetAnalytics: (enabled: boolean) => void
 }
 
 const THEME_LABELS: Record<ThemeSource, string> = {
@@ -21,7 +25,9 @@ const THEME_LABELS: Record<ThemeSource, string> = {
 export function SettingsPage({
   backupDirectory,
   onRevealBackups,
-  onReplayOnboarding
+  onReplayOnboarding,
+  analyticsEnabled,
+  onSetAnalytics
 }: Props): React.JSX.Element {
   // Seeded from storage rather than held in App: nothing outside this control
   // reads it, because the appearance itself is applied by main.
@@ -68,6 +74,21 @@ export function SettingsPage({
             <Button size="sm" variant="outline" onClick={onReplayOnboarding}>
               Replay onboarding
             </Button>
+          </Section>
+
+          <Section
+            title="Anonymous usage"
+            description="Counts and outcomes only — which apps you have switched on, and whether setup worked. Your keybindings, your file paths and your folder names never leave your Mac."
+          >
+            <div className="flex items-center gap-3">
+              <Switch
+                checked={analyticsEnabled === true}
+                onCheckedChange={(checked) => onSetAnalytics(checked === true)}
+              />
+              <span className="text-sm">
+                {analyticsEnabled === true ? 'Sharing anonymous usage' : 'Not sharing'}
+              </span>
+            </div>
           </Section>
         </div>
       </div>

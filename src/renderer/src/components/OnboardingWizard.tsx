@@ -12,7 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { ImportSummaryBody, Modal } from './Panels'
 
 /** The wizard's position in its flow. */
-type Step = 'pick' | 'access' | 'results'
+type Step = 'consent' | 'pick' | 'access' | 'results'
 
 /**
  * The first-run onboarding wizard.
@@ -32,6 +32,7 @@ export function OnboardingWizard({
   onGrant,
   onChoosePath,
   onReimport,
+  onSetAnalytics,
   onComplete,
   onDismiss
 }: {
@@ -46,10 +47,18 @@ export function OnboardingWizard({
   onGrant: (app: AppId, at?: string) => Promise<GrantOutcome>
   onChoosePath: (app: AppId) => Promise<string | null>
   onReimport: () => Promise<void>
+  /** Resolves once main has been told, which is when events become sendable. */
+  onSetAnalytics: (enabled: boolean) => Promise<void>
   onComplete: () => void
   onDismiss: () => void
 }): React.JSX.Element {
-  const [step, setStep] = useState<Step>('pick')
+  // The consent question is asked once and only once. A replay from Settings
+  // starts at `pick`, because the answer is already on disk and re-asking it
+  // every time someone wants to redo their app selection would read as nagging
+  // — Settings is where it gets changed.
+  const [step, setStep] = useState<Step>(() =>
+    store.analytics.enabled === null ? 'consent' : 'pick'
+  )
   // Seeded once from the saved flags — on a fresh store that is the installed
   // apps (`seedUnknownApps`), on a replay it is whatever the user has now.
   // Held locally until Continue, so backing out of the wizard changes nothing.
@@ -81,17 +90,102 @@ export function OnboardingWizard({
 
   const byId = new Map(statuses.map((status) => [status.app, status]))
 
+  /**
+   * How many of the picked apps unikeys can actually read by the end.
+   *
+   * Derived from live statuses rather than counted as grants land, so an app
+   * whose grant succeeded but whose config still would not open is honestly
+   * reported as not ready.
+   */
+  const readyCount = (): number => selected.size - accessQueue(statuses, selected, sandboxed).length
+
+  const finish = (): void => {
+    void window.unikeys.track({
+      name: 'onboarding_completed',
+      properties: { apps_selected_count: selected.size, apps_granted_count: readyCount() }
+    })
+    onComplete()
+  }
+
+  const dismiss = (): void => {
+    void window.unikeys.track({ name: 'onboarding_dismissed', properties: { at_step: step } })
+    onDismiss()
+  }
+
+  if (step === 'consent') {
+    const answer = (enabled: boolean): void => {
+      // Awaited, not fired alongside: until main has been told about the
+      // consent, `capture` drops everything, so tracking these without waiting
+      // would race the answer that makes them sendable. The step advances
+      // immediately regardless — the user is not kept waiting on a round trip
+      // for a decision they have already made.
+      void onSetAnalytics(enabled).then(() => {
+        // Both are dropped by main unless the answer was yes, which is the
+        // point: declining leaves no trace anywhere, not even a record that
+        // there was a question. `onboarding_started` fires from here rather
+        // than when the wizard opened, because at that moment there was no
+        // consent to send it under and the funnel would have begun with a gap.
+        void window.unikeys.track({ name: 'onboarding_started' })
+        void window.unikeys.track({
+          name: 'onboarding_step_completed',
+          properties: { step: 'consent' }
+        })
+      })
+      setStep('pick')
+    }
+
+    return (
+      <Modal
+        title="Help improve unikeys?"
+        description="unikeys can report anonymous usage so its author can see which apps people actually use, and where setup goes wrong. It is off unless you turn it on."
+        onClose={dismiss}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => answer(false)}>
+              No thanks
+            </Button>
+            <Button onClick={() => answer(true)}>Share anonymous usage</Button>
+          </>
+        }
+      >
+        <div className="space-y-3 text-sm">
+          <div>
+            <p className="mb-1 font-medium">What would be sent</p>
+            <ul className="text-muted-foreground list-disc space-y-0.5 pl-5">
+              <li>Which of the thirteen apps you have switched on</li>
+              <li>Which actions you settle with Match, by name — “Go to Line”, not its chord</li>
+              <li>Counts — actions found, rows your apps disagree about, bindings saved</li>
+              <li>Whether setup steps succeeded, and your macOS and unikeys versions</li>
+            </ul>
+          </div>
+          <div>
+            <p className="mb-1 font-medium">What is never sent</p>
+            <ul className="text-muted-foreground list-disc space-y-0.5 pl-5">
+              <li>Your keybindings — no chord you have set ever leaves your Mac</li>
+              <li>File paths, folder names, or anything from inside a config file</li>
+              <li>Your name, your machine&rsquo;s name, or anything identifying you</li>
+            </ul>
+          </div>
+          <p className="text-faint text-xs">
+            You can change this at any time in Settings. unikeys still writes nothing to your apps
+            until you press Save.
+          </p>
+        </div>
+      </Modal>
+    )
+  }
+
   if (step === 'pick') {
     return (
       <Modal
         title="Welcome to unikeys"
         description="Pick the apps you use. unikeys reads their keybindings into one table, so you can see where they disagree and settle them from one place."
-        onClose={onDismiss}
+        onClose={dismiss}
         footer={
           <>
             {/* The quiet way out: everything the wizard does can be done later
                 from the Apps page, so skipping is allowed to count as done. */}
-            <Button variant="ghost" onClick={onComplete}>
+            <Button variant="ghost" onClick={finish}>
               Skip setup
             </Button>
             <Button
@@ -108,6 +202,10 @@ export function OnboardingWizard({
                 setQueue(next)
                 setQueueIndex(0)
                 setStepError(null)
+                void window.unikeys.track({
+                  name: 'onboarding_step_completed',
+                  properties: { step: 'pick' }
+                })
                 // Nothing to ask for — a replay with grants in place, or a dmg
                 // build whose configs all resolved — goes straight to results.
                 setStep(next.length === 0 ? 'results' : 'access')
@@ -163,8 +261,17 @@ export function OnboardingWizard({
 
     const advance = (): void => {
       setStepError(null)
-      if (queueIndex + 1 >= queue.length) setStep('results')
-      else setQueueIndex(queueIndex + 1)
+      if (queueIndex + 1 >= queue.length) {
+        // Fired once for the whole walk rather than once per app: the per-app
+        // outcomes are already covered by `grant_outcome`, and a step event per
+        // app would make the funnel's shape depend on how many apps the user
+        // happened to pick.
+        void window.unikeys.track({
+          name: 'onboarding_step_completed',
+          properties: { step: 'access' }
+        })
+        setStep('results')
+      } else setQueueIndex(queueIndex + 1)
     }
 
     const request = (): void => {
@@ -191,7 +298,7 @@ export function OnboardingWizard({
             ? 'The Mac App Store build needs your permission for each folder it reads. One native panel per app — just press Grant in each.'
             : 'A few apps keep their config somewhere unikeys could not find on its own.'
         }
-        onClose={onDismiss}
+        onClose={dismiss}
         footer={
           <>
             <Button variant="ghost" onClick={advance}>
@@ -221,8 +328,8 @@ export function OnboardingWizard({
     <Modal
       title="You're set up"
       description="unikeys read the apps you picked. Nothing was written to them."
-      onClose={onDismiss}
-      footer={<Button onClick={onComplete}>Done</Button>}
+      onClose={dismiss}
+      footer={<Button onClick={finish}>Done</Button>}
     >
       {importing ? (
         <p className="text-muted-foreground text-sm">Reading your keybindings…</p>

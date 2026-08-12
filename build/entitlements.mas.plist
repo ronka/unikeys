@@ -50,5 +50,16 @@
     <array>
       <string>9F9UG2CY8U.com.ronkaa.unikeys</string>
     </array>
+
+    <!--
+      Outbound HTTPS, for the PostHog analytics the Settings page can turn off.
+      The sandbox denies every outbound connection without it, and it fails
+      silently — the Developer ID build has no sandbox and `npm run dev` only
+      simulates the file-access half, so neither path shows the failure. This is
+      the only network the app does; there is no `network.server` because
+      unikeys listens on nothing.
+    -->
+    <key>com.apple.security.network.client</key>
+    <true/>
   </dict>
 </plist>

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { X } from 'lucide-react'
 
 import { CATALOGUE, actionById } from '@shared/catalogue'
-import { type AppId } from '@shared/apps'
+import { APP_IDS, type AppId } from '@shared/apps'
 import { parseCanonical, type Chord } from '@shared/chord'
 import {
   isHealthProblem,
@@ -127,6 +127,17 @@ function App(): React.JSX.Element {
   // state can never overwrite a real store on disk.
   const loaded = useRef(false)
 
+  /**
+   * An import whose event is waiting on the table to be rebuilt.
+   *
+   * `bindings_imported` reports how many rows the user's apps disagree about,
+   * and that is a property of the merged table rather than of the import — it
+   * cannot be read until the `importBindings` dispatch has been applied. So the
+   * counts that *are* known at import time are parked here, and the effect
+   * below fires once the state carrying the rest arrives.
+   */
+  const pendingImportReport = useRef<{ apps_read: number; apps_failed: number } | null>(null)
+
   useEffect(() => {
     // StrictMode double-invokes effects, and a second startup landing after the
     // first would drop any pending edits via `hydrate`. The flag makes the
@@ -178,9 +189,27 @@ function App(): React.JSX.Element {
             markFirstRunCompleted: true
           }
         })
+        // Reported from here rather than from main's startup, because only the
+        // renderer knows how many columns the user actually keeps on — and that
+        // is the number the event exists for.
+        void window.unikeys.track({
+          name: 'app_launched',
+          properties: {
+            apps_enabled_count: APP_IDS.filter((app) => result.store.apps[app].enabled).length
+          }
+        })
+        // The divergence count needs the merged table, which does not exist
+        // until the dispatch above has landed. Handed to the effect below
+        // rather than guessed at here.
+        pendingImportReport.current = {
+          apps_read: imported.appsRead,
+          apps_failed: imported.appsFailed.length
+        }
+
         if (needsOnboarding) {
           setImportResult(imported)
           setOverlay('onboarding')
+          void window.unikeys.track({ name: 'onboarding_started' })
         } else if (firstRun) {
           // The summary reports on the whole table, which only tells the truth
           // on a real first run. Reachable without onboarding only through a
@@ -209,6 +238,25 @@ function App(): React.JSX.Element {
       setError(`Could not save unikeys' own state: ${cause.message}`)
     })
   }, [state.store])
+
+  // The other half of `pendingImportReport`: the table has been rebuilt, so the
+  // divergence count is finally answerable. Cleared before sending, so a later
+  // unrelated state change cannot report the same import twice.
+  useEffect(() => {
+    const pending = pendingImportReport.current
+    if (pending === null) return
+    pendingImportReport.current = null
+    const summary = summarizeImport(state, CATALOGUE)
+    void window.unikeys.track({
+      name: 'bindings_imported',
+      properties: {
+        apps_read: pending.apps_read,
+        apps_failed: pending.apps_failed,
+        actions_found: summary.actionsFound,
+        rows_diverging: summary.divergentRows
+      }
+    })
+  }, [state])
 
   // App health depends on the app configuration, so it is re-read whenever that
   // changes — otherwise the settings panel keeps describing the previous setup.
@@ -264,6 +312,15 @@ function App(): React.JSX.Element {
   const handleGrant = async (app: AppId, at?: string): Promise<GrantOutcome> => {
     try {
       const outcome = await window.unikeys.requestGrant(app, at)
+      // The discriminant only. `outcome.error` is a message from the file
+      // layer and names paths, so it is counted, never carried.
+      void window.unikeys.track({
+        name: 'grant_outcome',
+        properties: {
+          app,
+          outcome: outcome.ok ? 'granted' : outcome.cancelled ? 'cancelled' : 'error'
+        }
+      })
       if (outcome.ok) {
         // Storing the bookmark changes `state.store.apps`, which the refresh
         // effect watches — so the card re-reads itself and the "needs access"
@@ -319,6 +376,26 @@ function App(): React.JSX.Element {
     // from silently springing back to a filter the user never reselected.
     if (!enabled && appFilter === app) setAppFilter(null)
     dispatch({ type: 'setAppEnabled', app, enabled })
+    // Which of the thirteen apps people actually keep on is the question this
+    // whole exercise is for.
+    void window.unikeys.track({ name: 'app_toggled', properties: { app, enabled } })
+  }
+
+  /**
+   * Records the consent answer, in the store and in the client at once.
+   *
+   * Both halves go through main: it owns the PostHog client, and it persists
+   * the flag itself rather than leaving it to the usual persist effect, so an
+   * answer cannot be lost to a crash between the click and the next store
+   * write. The local dispatch is what keeps the Settings toggle and the wizard
+   * showing the answer immediately.
+   */
+  const handleSetAnalytics = (enabled: boolean): Promise<void> => {
+    dispatch({ type: 'setAnalyticsEnabled', enabled })
+    // Returned rather than fired and forgotten: the wizard waits on it before
+    // sending its funnel events, because until main has the answer `capture`
+    // drops everything.
+    return window.unikeys.setAnalyticsEnabled(enabled)
   }
 
   const handleMatchRow = (actionId: string): void => {
@@ -327,6 +404,10 @@ function App(): React.JSX.Element {
 
     if (canMatchWithoutWinner(state, action)) {
       dispatch({ type: 'matchRow', actionId })
+      void window.unikeys.track({
+        name: 'row_matched',
+        properties: { action_id: actionId, needed_winner: false }
+      })
       return
     }
     // The apps disagree, so the user picks the winner rather than unikeys
@@ -370,6 +451,18 @@ function App(): React.JSX.Element {
       dispatch({ type: 'markSaved', cells: savedCells(entry.changes) })
       setOverlay('write-report')
       record(entry)
+      // Counts only: `written` carries paths and backup paths, `failed` carries
+      // error messages that quote them, and `skipped` carries the chord itself.
+      void window.unikeys.track({
+        name: 'save_completed',
+        properties: {
+          apps_written: result.written.length,
+          apps_failed: result.failed.length,
+          bindings_written: sent.length,
+          bindings_skipped: result.skipped.length,
+          bindings_dropped: result.dropped.length
+        }
+      })
     } catch (cause) {
       const message = (cause as Error).message
       setError(`Save failed: ${message}`)
@@ -398,6 +491,15 @@ function App(): React.JSX.Element {
     }
 
     setNotice(notes.length > 0 ? `Reverted, except: ${notes.join('; ')}.` : null)
+    void window.unikeys.track({
+      name: 'save_reverted',
+      // Not every `TableAction` names an app, so the ones that do not are
+      // dropped rather than counted as a thirteenth column.
+      properties: {
+        apps_count: new Set(plan.actions.flatMap((action) => ('app' in action ? [action.app] : [])))
+          .size
+      }
+    })
     // Straight to the review step: a revert is a set of pending changes like any
     // other, and it reaches disk only when the user saves it.
     setOverlay('pending')
@@ -493,6 +595,8 @@ function App(): React.JSX.Element {
       {page === 'settings' && (
         <SettingsPage
           backupDirectory={backupDirectory}
+          analyticsEnabled={state.store.analytics.enabled}
+          onSetAnalytics={handleSetAnalytics}
           onRevealBackups={() => void window.unikeys.revealBackups()}
           onReplayOnboarding={() => {
             // Un-completing first means a quit mid-replay brings the wizard
@@ -533,6 +637,7 @@ function App(): React.JSX.Element {
           onGrant={handleGrant}
           onChoosePath={handleChoosePath}
           onReimport={handleOnboardingReimport}
+          onSetAnalytics={handleSetAnalytics}
           onComplete={() => {
             dispatch({ type: 'setOnboardingCompleted', completed: true })
             setOverlay('none')
@@ -561,6 +666,12 @@ function App(): React.JSX.Element {
           candidates={matching.candidates}
           onChoose={(chord) => {
             dispatch({ type: 'matchRow', actionId: matching.actionId, winningChord: chord })
+            // The chord itself is never sent — it is a binding the user chose,
+            // and `analytics.ts` bars those. Only that a choice was needed.
+            void window.unikeys.track({
+              name: 'row_matched',
+              properties: { action_id: matching.actionId, needed_winner: true }
+            })
             setMatching(null)
           }}
           onClose={() => setMatching(null)}

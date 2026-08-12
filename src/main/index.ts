@@ -3,6 +3,7 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { registerIpcHandlers } from './ipc'
+import { hasPendingAnalytics, shutdownAnalytics } from './analytics'
 
 function createWindow(): void {
   // Create the browser window.
@@ -103,4 +104,35 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
+})
+
+/**
+ * Give analytics its one chance to flush before the process goes away.
+ *
+ * `before-quit` does not await an async listener, and `posthog-node` batches —
+ * so without holding the quit open, everything captured since the last flush is
+ * simply lost, which on a short session is the whole session. The quit is
+ * deferred once, then re-issued; `flushed` is what stops the second `quit()`
+ * from deferring again and looping forever.
+ *
+ * The race against a timer is not belt and braces: a machine that has gone
+ * offline, or a captive-portal wifi that accepts the connection and never
+ * answers, would otherwise leave the user holding a window that will not close.
+ * Quitting promptly matters more than the last few events.
+ */
+let flushed = false
+app.on('before-quit', (event) => {
+  // The overwhelmingly common case, and it must cost nothing: a user who never
+  // consented has no client, so there is nothing to flush and no reason to
+  // interfere with their quit at all.
+  if (flushed || !hasPendingAnalytics()) return
+  event.preventDefault()
+  const done = (): void => {
+    flushed = true
+    app.quit()
+  }
+  void Promise.race([
+    shutdownAnalytics(),
+    new Promise((resolve) => setTimeout(resolve, 2000))
+  ]).then(done, done)
 })

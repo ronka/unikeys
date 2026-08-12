@@ -769,4 +769,29 @@ describe('import and app configuration', () => {
     expect(replay.store.onboardingCompleted).toBe(false)
     expect(state.store.onboardingCompleted).toBe(false)
   })
+
+  it('records the analytics answer without touching anything else', () => {
+    const state = run(createTableState(storeWith({ 'file.save': { vscode: imported('cmd+s') } })), {
+      type: 'setChord',
+      actionId: 'file.save',
+      app: 'webstorm',
+      chord: save
+    })
+
+    const optedIn = run(state, { type: 'setAnalyticsEnabled', enabled: true })
+    expect(optedIn.store.analytics.enabled).toBe(true)
+    expect(optedIn.pending).toEqual(state.pending)
+    expect(optedIn.store.chords).toEqual(state.store.chords)
+    expect(optedIn.store.apps).toEqual(state.store.apps)
+
+    // The identity has to survive the toggle in both directions. If opting out
+    // and back in minted a new id, one person would appear in the data as two.
+    const optedOut = run(optedIn, { type: 'setAnalyticsEnabled', enabled: false })
+    expect(optedOut.store.analytics.enabled).toBe(false)
+    expect(optedOut.store.analytics.distinctId).toBe(state.store.analytics.distinctId)
+
+    // Answering leaves `null` behind for good: "never asked" is not a state the
+    // user can be put back into by this action.
+    expect(state.store.analytics.enabled).toBeNull()
+  })
 })

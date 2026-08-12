@@ -107,6 +107,26 @@ export interface Store {
    * `grants`: no schema bump, so stores travel between builds either way.
    */
   onboardingCompleted: boolean
+  analytics: AnalyticsConfig
+}
+
+/**
+ * Whether unikeys may report anonymous usage, and who it says it is when it
+ * does.
+ *
+ * `enabled: null` means the question has not been asked yet, and is not the
+ * same as `false`. Only `true` sends anything: the onboarding wizard is where
+ * the question gets asked, and a user who quits before reaching that step must
+ * end up in the same silent state as one who declined.
+ *
+ * `distinctId` is a random UUID minted on first load — deliberately not the
+ * hardware UUID, the hostname or anything else derivable back to a person or a
+ * machine. It is generated whether or not analytics is on, so that turning it
+ * on later does not fragment one user into two.
+ */
+export interface AnalyticsConfig {
+  distinctId: string
+  enabled: boolean | null
 }
 
 export function createEmptyStore(): Store {
@@ -117,8 +137,29 @@ export function createEmptyStore(): Store {
     ) as Record<AppId, AppConfig>,
     chords: {},
     firstRunCompleted: false,
-    onboardingCompleted: false
+    onboardingCompleted: false,
+    analytics: { distinctId: newDistinctId(), enabled: null }
   }
+}
+
+/**
+ * A random identifier for this installation.
+ *
+ * `crypto.randomUUID` is present in the main process and in Electron's renderer
+ * alike (`file://` counts as a secure context in Chromium), but the fallback is
+ * kept because this module is plain shared code with no runtime it can insist
+ * on, and an id that fails to mint would take the whole store down with it. The
+ * fallback's weaker randomness costs nothing here: this value needs to be
+ * unique, not unguessable — there is nothing to guess, since it identifies no
+ * one.
+ */
+function newDistinctId(): string {
+  const uuid = globalThis.crypto?.randomUUID?.()
+  if (uuid) return uuid
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (char) => {
+    const random = (Math.random() * 16) | 0
+    return (char === 'x' ? random : (random & 0x3) | 0x8).toString(16)
+  })
 }
 
 // ---------------------------------------------------------------------------
@@ -189,7 +230,12 @@ export function deserializeStore(text: string): DeserializeOutcome {
     // already `true` by then.
     onboardingCompleted:
       data.onboardingCompleted === true ||
-      (data.onboardingCompleted === undefined && data.firstRunCompleted === true)
+      (data.onboardingCompleted === undefined && data.firstRunCompleted === true),
+    // Absent means "never asked", not "declined" — but the two behave
+    // identically until the wizard asks, so an upgrading user is silent either
+    // way. `base` already carries a freshly minted id, which is what a document
+    // written before this field existed gets.
+    analytics: readAnalytics(data.analytics, base.analytics.distinctId)
   }
 
   if (isRecord(data.apps)) {
@@ -211,6 +257,25 @@ export function deserializeStore(text: string): DeserializeOutcome {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/**
+ * Reads the analytics settings a document carries.
+ *
+ * Anything other than an explicit `true` or `false` becomes `null`: a corrupt
+ * or hand-edited value must fall back to asking, never to sending. `fallbackId`
+ * is the freshly minted id from `createEmptyStore`, used when the document has
+ * no usable one — reusing it rather than minting a second keeps this function
+ * free of side effects.
+ */
+function readAnalytics(value: unknown, fallbackId: string): AnalyticsConfig {
+  const stored = isRecord(value) ? value : {}
+  const distinctId =
+    typeof stored.distinctId === 'string' && stored.distinctId.length > 0
+      ? stored.distinctId
+      : fallbackId
+  const enabled = stored.enabled === true ? true : stored.enabled === false ? false : null
+  return { distinctId, enabled }
 }
 
 /**

@@ -12,6 +12,8 @@ import { randomUUID } from 'node:crypto'
 
 import { CATALOGUE } from '../shared/catalogue'
 import { APPS, isAppId } from '../shared/apps'
+import type { AnalyticsEvent } from '../shared/analytics'
+import { capture, configureAnalytics, setEnabled } from './analytics'
 import {
   IPC,
   isThemeSource,
@@ -64,6 +66,14 @@ export function registerIpcHandlers(): void {
     const loc = ensureLocation()
     const { store, error } = loadStore(loc)
     const statuses = appStatuses(store.apps)
+
+    // The earliest point at which unikeys knows both who it is and whether it
+    // may say so. Until this runs, `capture` drops everything — which is the
+    // behaviour a user who has never been asked must get, and also the reason
+    // a store that failed to load leaves analytics off rather than defaulting
+    // it on: `loadStore` returns a fresh store on error, and a fresh store has
+    // `enabled: null`.
+    configureAnalytics(store.analytics.distinctId, store.analytics.enabled)
 
     if (error) {
       // Surfaced as a problem on every column rather than swallowed, because a
@@ -212,5 +222,38 @@ export function registerIpcHandlers(): void {
     // draws the traffic lights and the window background, and the renderer's
     // `prefers-color-scheme` follows this, so the two cannot disagree.
     nativeTheme.themeSource = source
+  })
+
+  ipcMain.handle(IPC.track, (_event, event: unknown): void => {
+    // Validated by `capture` itself, which sanitises against the same contract
+    // the renderer was typed against. Anything unrecognised is dropped there
+    // rather than forwarded, so this handler only has to reject the shapes that
+    // are not events at all.
+    if (typeof event !== 'object' || event === null || !('name' in event)) return
+    capture(event as AnalyticsEvent)
+  })
+
+  ipcMain.handle(IPC.setAnalyticsEnabled, (_event, enabled: unknown): void => {
+    if (typeof enabled !== 'boolean') return
+    // Persisted here rather than left to the renderer's usual persist effect,
+    // because consent must survive a crash between the click and the next
+    // store write.
+    //
+    // That does make two writers for one field: the renderer dispatches
+    // `setAnalyticsEnabled` too, and its persist effect will write the same
+    // store moments later. Benign, and worth the duplication — both write the
+    // identical value, `saveStore` is atomic, and whichever lands second lands
+    // the same bytes. The alternative, trusting the persist effect alone, is
+    // what loses the answer if the app dies in between.
+    //
+    // This handler must stay synchronous. The wizard awaits it before sending
+    // its funnel events, and `capture` drops everything until it has run.
+    const loc = ensureLocation()
+    const { store } = loadStore(loc)
+    saveStore(loc, { ...store, analytics: { ...store.analytics, enabled } })
+    // `setEnabled` rather than `configureAnalytics`, and the difference is the
+    // order: opting out has to capture the opt-out event *before* the client is
+    // torn down, which reconfiguring first would make impossible.
+    setEnabled(enabled)
   })
 }

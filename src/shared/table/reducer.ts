@@ -124,6 +124,15 @@ export type TableAction =
    * like every other store patch.
    */
   | { type: 'setOnboardingCompleted'; completed: boolean }
+  /**
+   * Records the consent answer in the working copy.
+   *
+   * Unlike every other store patch here, this one is *not* persisted by the
+   * store persist effect — main writes it as part of `setAnalyticsEnabled`,
+   * because consent has to survive a crash between the click and the next store
+   * write. This action only keeps the UI in step with what main was told.
+   */
+  | { type: 'setAnalyticsEnabled'; enabled: boolean }
 
 // ---------------------------------------------------------------------------
 // Reading state
@@ -431,6 +440,15 @@ export function tableReducer(
       return {
         ...state,
         store: { ...state.store, onboardingCompleted: action.completed }
+      }
+
+    case 'setAnalyticsEnabled':
+      return {
+        ...state,
+        store: {
+          ...state.store,
+          analytics: { ...state.store.analytics, enabled: action.enabled }
+        }
       }
 
     default:
