@@ -27,23 +27,63 @@ import type {
   WriteResult,
   WrittenApp
 } from '../shared/ipc'
-import type { AppConfig, Store } from '../shared/store/types'
+import type { AppConfig, ConfigLocation, Store } from '../shared/store/types'
 import type { ReadFailure } from './config-files'
 import {
   BackupSession,
   candidatePaths,
   configPathRequiredMessage,
+  grantDirectory,
   readConfig,
   writeAtomic,
   writeTarget
 } from './config-files'
+import { isSandboxed } from './grants'
 
 // ---------------------------------------------------------------------------
 // Detection
 // ---------------------------------------------------------------------------
 
+/**
+ * Whether an app bundle is on disk. Detection and nothing else.
+ *
+ * The `/Applications` half of `installPaths` survives the sandbox intact —
+ * contrary to what you might expect, the App Sandbox profile grants every app
+ * `file-read*` on `/Applications` outright, so the scan needs no grant and no
+ * replacement. What it does *not* grant is `~/Applications`, which falls under
+ * the blanket denial of the home directory — the JetBrains Toolbox case, and
+ * Toolbox users are the likeliest WebStorm users of all.
+ *
+ * This function does not paper over that gap, because one of its two callers
+ * must not have it papered over: `loadStore` seeds a brand-new store from
+ * detection alone, before any config exists to consult. `isConfigurable` is
+ * where the sandbox substitution lives.
+ */
 export function isInstalled(app: AppId): boolean {
   return APPS[app].installPaths.some((path) => existsSync(expandHome(path)))
+}
+
+/**
+ * Whether unikeys can act on this app at all — the question every caller that
+ * is about to read or write one actually has.
+ *
+ * Detection answers it outside the sandbox. Inside, `~/Applications` is
+ * invisible, so the user having pointed unikeys at a config stands in for the
+ * bundle scan. That is a sound signal rather than a guess: they cannot have
+ * granted `.../JetBrains` through a picker that opened there unless the folder
+ * existed, and a config directory that exists means the app wrote it. A
+ * hand-picked path counts for the same reason it overrides detection everywhere
+ * else — the user naming a config is a stronger statement than an app bundle
+ * unikeys is not allowed to look for.
+ *
+ * Kept separate from `isInstalled` because the two are asked for different
+ * reasons, and merging them meant one substitution silently changed both the
+ * message a user reads and whether unikeys may write to their disk.
+ */
+export function isConfigurable(app: AppId, location: ConfigLocation): boolean {
+  if (isInstalled(app)) return true
+  if (!isSandboxed()) return false
+  return location.configPath !== null || Object.keys(location.grants).length > 0
 }
 
 function expandHome(path: string): string {
@@ -70,10 +110,28 @@ interface AppReading {
  */
 function diagnose(
   app: AppId,
-  override: string | null,
+  config: AppConfig,
   read: ReadFailure,
   installed: boolean
-): Pick<AppStatus, 'health' | 'message' | 'plannedPath'> {
+): Pick<AppStatus, 'health' | 'message' | 'plannedPath' | 'grantPath'> {
+  const override = config.configPath
+
+  // First of all, because a missing grant is not a fact about the config — it
+  // is unikeys reporting that it has not looked. Every diagnosis below claims
+  // to know something about the file, and none of them can be made from behind
+  // a closed door.
+  if (read.reason === 'grant-required') {
+    return {
+      health: 'grant-required',
+      grantPath: read.directory,
+      message: read.stale
+        ? `unikeys can no longer reach ${read.directory} — the folder was moved, renamed or ` +
+          'deleted. Grant access again to point it at the current one.'
+        : `unikeys needs your permission to open ${read.directory}. Grant access and it will ` +
+          `read and write ${APPS[app].name}'s keybindings there — and nowhere else.`
+    }
+  }
+
   // Checked before anything to do with a missing app: a permissions problem
   // reported as "not installed" sends the user off to reinstall an app they
   // already have.
@@ -101,7 +159,7 @@ function diagnose(
   // itself will ask — is there a location unikeys may write to? Deriving the
   // answer from `writeTarget` rather than marking the apps whose config unikeys
   // owns is what stops the status and the save from ever disagreeing.
-  const target = writeTarget(app, override)
+  const target = writeTarget(app, config)
   return target.ok
     ? {
         health: 'config-not-created',
@@ -114,7 +172,7 @@ function diagnose(
 function readApp(app: AppId, config: AppConfig): AppReading {
   const descriptor = APPS[app]
   const adapter = adapterFor(app)
-  const installed = isInstalled(app)
+  const installed = isConfigurable(app, config)
   const defaultsReport = adapter.defaults(app)
 
   const base: AppStatus = {
@@ -125,6 +183,15 @@ function readApp(app: AppId, config: AppConfig): AppReading {
     enabled: config.enabled,
     resolvedPath: null,
     overridePath: config.configPath,
+    // Set for every app in a sandboxed build, not only the ungranted ones, and
+    // that matters for "Change access": a user with a hand-picked config who
+    // re-grants must get the picker at *their* folder. Without this the renderer
+    // sends nothing, the handler falls back to the standard location, and for
+    // the JetBrains apps — whose grant is validated on path alone — the user's
+    // own folder is then refused with no way out. `diagnose` overrides this for
+    // `grant-required`, which is what keeps a symlinked config pointing at the
+    // dotfiles repo rather than at the link.
+    grantPath: isSandboxed() ? (grantDirectory(app, config) ?? undefined) : undefined,
     searchedPaths: config.configPath ? [config.configPath] : candidatePaths(app),
     problems: [],
     userBindingCount: 0,
@@ -141,10 +208,10 @@ function readApp(app: AppId, config: AppConfig): AppReading {
     return { status: { ...base, health: 'disabled' }, userBindings: new Map(), defaults }
   }
 
-  const read = readConfig(app, config.configPath)
+  const read = readConfig(app, config)
   if (!read.ok) {
     return {
-      status: { ...base, ...diagnose(app, config.configPath, read, installed) },
+      status: { ...base, ...diagnose(app, config, read, installed) },
       userBindings: new Map(),
       defaults
     }
@@ -217,12 +284,18 @@ export function importFromApps(store: Store, catalogue: Catalogue): ImportResult
     if (reading.status.health === 'disabled') continue
     if (reading.status.health === 'ok') {
       appsRead += 1
-    } else if (reading.status.health !== 'config-not-created') {
-      // A config unikeys is going to create on the first save is neither read
-      // nor failed, so it is the one unhealthy state that reports nothing here:
-      // listing it under "could not read" turns the ordinary state of a fresh
-      // install into an error the user goes looking for a fix to. Note it is
-      // not `continue`d — its app's shipped defaults still import below.
+    } else if (
+      reading.status.health !== 'config-not-created' &&
+      reading.status.health !== 'grant-required'
+    ) {
+      // Two unhealthy states report nothing here, for the same reason: they are
+      // ordinary, and listing them under "could not read" turns the normal
+      // state of a fresh install into an error the user goes looking for a fix
+      // to. A config unikeys will create on the first save is one. A config
+      // waiting on a grant is the other — and in the App Store build that is
+      // every app on first run, so without this exemption the very first thing
+      // a new user sees is thirteen apps unikeys says it could not read.
+      // Neither is `continue`d: their apps' shipped defaults still import below.
       appsFailed.push({
         app,
         name: APPS[app].name,
@@ -334,8 +407,17 @@ export function writeToApps(
   const written: WrittenApp[] = []
   for (const plan of planned) {
     try {
-      const backupPath = backups.ensureBackup(plan.path, plan.app)
-      writeAtomic(plan.path, plan.contents)
+      // The grants are handed to each call rather than wrapped around the pair.
+      // Redeeming is reference-counted, so this costs nothing, and it keeps the
+      // knowledge that bookmarks exist inside `config-files.ts` where the
+      // filesystem lives — this module only ever forwards opaque strings.
+      //
+      // Both calls get all of them, which is what a symlinked config needs:
+      // the backup reads through the link while `writeAtomic` resolves it and
+      // writes in the directory on the other side.
+      const { grants } = store.apps[plan.app]
+      const backupPath = backups.ensureBackup(plan.path, plan.app, grants)
+      writeAtomic(plan.path, plan.contents, grants)
       written.push({
         app: plan.app,
         name: APPS[plan.app].name,
@@ -370,7 +452,9 @@ function groupByApp(request: WriteRequest, catalogue: Catalogue, store: Store): 
 
   // Computed once: detection stats the filesystem, and doing it per binding
   // would mean hundreds of `existsSync` calls for a single save.
-  const installed = new Set((Object.keys(APPS) as AppId[]).filter(isInstalled))
+  const installed = new Set(
+    (Object.keys(APPS) as AppId[]).filter((app) => isConfigurable(app, store.apps[app]))
+  )
 
   for (const entry of request.bindings) {
     // A disabled app is excluded from all writes, not merely hidden. This is
@@ -453,7 +537,7 @@ function planWrite(
   config: AppConfig
 ): PlannedWrite | { error: string } {
   const adapter = adapterFor(app)
-  const read = readConfig(app, config.configPath)
+  const read = readConfig(app, config)
 
   // A missing config is not a failure: unikeys creates one at the standard
   // location so a fresh install can still be configured.
@@ -462,12 +546,22 @@ function planWrite(
   if (read.ok) {
     contents = read.contents
     path = read.path
+  } else if (read.reason === 'grant-required') {
+    // The one refusal that must come before any path is chosen. Without it the
+    // save would fall through to "config not found" and try to *create* the
+    // file, which is unikeys writing to a folder the user never granted — the
+    // single thing an App Store reviewer is right to reject it for.
+    return {
+      error: read.stale
+        ? `unikeys can no longer reach ${read.directory}. Grant access again in Apps before saving.`
+        : `unikeys has no permission to open ${read.directory}. Grant access in Apps first.`
+    }
   } else if (read.reason === 'not-found') {
     // Creating the config is fine, but only at a path that actually exists as a
     // location. A candidate containing `*` is a search pattern; writing to it
     // literally would create a `WebStorm*` directory and report success for a
     // file the IDE will never read.
-    const target = writeTarget(app, config.configPath)
+    const target = writeTarget(app, config)
     if (!target.ok) return { error: target.error }
     contents = adapter.emptyContents()
     path = target.path

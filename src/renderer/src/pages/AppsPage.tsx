@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { FolderOpen } from 'lucide-react'
+import { FolderKey, FolderOpen } from 'lucide-react'
 
 import { APP_IDS, APPS, CATEGORY_IDS, CATEGORY_LABELS, type AppId } from '@shared/apps'
 import { isHealthProblem, type AppHealth, type AppStatus } from '@shared/ipc'
@@ -17,6 +17,11 @@ interface Props {
   onToggle: (app: AppId, enabled: boolean) => void
   onChoosePath: (app: AppId) => void
   onClearPath: (app: AppId) => void
+  /** True only in the App Store build, where folders have to be granted. */
+  sandboxed: boolean
+  /** Why the last grant attempt was refused, per app. */
+  grantErrors: Partial<Record<AppId, string>>
+  onGrant: (app: AppId, at?: string) => void
 }
 
 /**
@@ -32,6 +37,7 @@ const HEALTH_LABELS: Record<AppHealth, string> = {
   'config-not-created': 'Not created yet',
   'config-not-found': 'Config not found',
   'config-path-required': 'Needs a config path',
+  'grant-required': 'Needs access',
   'config-unreadable': 'Config unreadable',
   'config-unparseable': 'Config could not be parsed'
 }
@@ -70,7 +76,10 @@ export function AppsPage({
   store,
   onToggle,
   onChoosePath,
-  onClearPath
+  onClearPath,
+  sandboxed,
+  grantErrors,
+  onGrant
 }: Props): React.JSX.Element {
   // Local, not the App-level `search` the table uses: one box per page keeps
   // typing here from quietly filtering the Keys table behind the user's back.
@@ -124,6 +133,9 @@ export function AppsPage({
                       onToggle={onToggle}
                       onChoosePath={onChoosePath}
                       onClearPath={onClearPath}
+                      sandboxed={sandboxed}
+                      grantError={grantErrors[status.app]}
+                      onGrant={onGrant}
                     />
                   ))}
                 </ul>
@@ -168,16 +180,34 @@ function AppRow({
   config,
   onToggle,
   onChoosePath,
-  onClearPath
+  onClearPath,
+  sandboxed,
+  grantError,
+  onGrant
 }: {
   status: AppStatus
   config: AppConfig
   onToggle: (app: AppId, enabled: boolean) => void
   onChoosePath: (app: AppId) => void
   onClearPath: (app: AppId) => void
+  sandboxed: boolean
+  grantError?: string
+  onGrant: (app: AppId, at?: string) => void
 }): React.JSX.Element {
   const app = status.app
   const tone = healthTone(status.health)
+  // Offered whenever the build can grant at all, not only when a grant is
+  // missing: a user who has moved their config wants to re-point unikeys at it
+  // without having to break the current grant first to make the button appear.
+  // `grantPath` is absent outside the sandbox and for an app with nothing to
+  // ask for yet, which is exactly when the button should not exist.
+  const canGrant = sandboxed && status.grantPath !== undefined
+  const needsGrant = status.health === 'grant-required'
+  // Labelled by whether a grant exists, not by whether one is being asked for.
+  // Keying it on health called the button "Change access" on an app that had
+  // never been granted anything — every turned-off app on a first run — which
+  // claims a permission the user has not given.
+  const grantLabel = Object.keys(config.grants).length === 0 ? 'Grant access…' : 'Change access'
 
   return (
     <li
@@ -220,6 +250,11 @@ function AppRow({
             <p className={`mt-2 text-xs ${tone.message}`}>{status.message}</p>
           )}
 
+          {/* The refusal sits under the message rather than replacing it: the
+              message says which folder unikeys needs, and that is exactly what
+              a user who just picked the wrong one has to be told again. */}
+          {grantError && <p className="text-destructive mt-2 text-xs">{grantError}</p>}
+
           {status.problems.length > 0 && (
             <Disclosure
               summary={`${status.problems.length} line${
@@ -245,6 +280,19 @@ function AppRow({
         </div>
 
         <div className="flex shrink-0 items-center gap-1 group-data-[enabled=false]:opacity-55">
+          {canGrant && (
+            // The primary action while access is missing, because it is the one
+            // thing standing between the user and a working column — and a
+            // quiet one once granted, since re-granting is the rare case.
+            <Button
+              size="xs"
+              variant={needsGrant ? 'default' : 'ghost'}
+              onClick={() => onGrant(app, status.grantPath)}
+            >
+              <FolderKey />
+              {grantLabel}
+            </Button>
+          )}
           {config.configPath && (
             <Button size="xs" variant="ghost" onClick={() => onClearPath(app)}>
               Reset location
@@ -327,6 +375,11 @@ function RequestApp(): React.JSX.Element {
  */
 function ConfigPath({ status }: { status: AppStatus }): React.JSX.Element | null {
   if (status.health === 'config-path-required') return null
+
+  // A fifth claim, and the same reasoning: unikeys has not looked, so "Looked
+  // in" would be a lie about a search the sandbox never let it run — and the
+  // message beside it has already named the one folder that matters.
+  if (status.health === 'grant-required') return null
 
   if (status.resolvedPath) {
     return (

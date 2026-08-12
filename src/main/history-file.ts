@@ -21,6 +21,7 @@ import {
   type HistoryStamp,
   type NewHistoryEntry
 } from '../shared/history/types'
+import { NO_GRANTS } from '../shared/store/types'
 import { writeAtomic } from './config-files'
 
 export interface HistoryLocation {
@@ -53,7 +54,9 @@ export function saveHistory(location: HistoryLocation, entries: readonly History
   mkdirSync(join(location.historyPath, '..'), { recursive: true })
   writeAtomic(
     location.historyPath,
-    serializeHistory({ schemaVersion: HISTORY_SCHEMA_VERSION, entries: [...entries] })
+    serializeHistory({ schemaVersion: HISTORY_SCHEMA_VERSION, entries: [...entries] }),
+    // unikeys' own file, inside its own container: nothing to be granted.
+    NO_GRANTS
   )
 }
 

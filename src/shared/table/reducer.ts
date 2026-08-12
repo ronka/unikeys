@@ -104,6 +104,20 @@ export type TableAction =
   | { type: 'hydrate'; store: Store }
   | { type: 'setAppEnabled'; app: AppId; enabled: boolean }
   | { type: 'setAppConfigPath'; app: AppId; path: string | null }
+  /**
+   * Records the security-scoped bookmark the user just granted, keyed by the
+   * directory it opens, so it is persisted with the rest of the store and
+   * survives a quit. Only ever dispatched by the App Store build.
+   *
+   * Adds to the grants an app holds rather than replacing them. One app can
+   * need two directories at once — a config symlinked into a dotfiles repo is
+   * read through one and written through the other — and replacing meant each
+   * grant revoked the last, so the two folders took turns being unreachable and
+   * re-granting could never settle. Keying by directory is what makes adding
+   * safe: granting the same folder twice updates its bookmark instead of
+   * accumulating a second one.
+   */
+  | { type: 'grantApp'; app: AppId; directory: string; grant: string }
 
 // ---------------------------------------------------------------------------
 // Reading state
@@ -401,6 +415,11 @@ export function tableReducer(
 
     case 'setAppConfigPath':
       return withAppConfig(state, action.app, { configPath: action.path })
+
+    case 'grantApp':
+      return withAppConfig(state, action.app, {
+        grants: { ...state.store.apps[action.app].grants, [action.directory]: action.grant }
+      })
 
     default:
       return state

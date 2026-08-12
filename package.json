@@ -12,12 +12,14 @@
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
     "typecheck": "npm run typecheck:node && npm run typecheck:web && npm run typecheck:test",
     "start": "electron-vite preview",
-    "dev": "electron-vite dev",
+    "dev": "UNIKEYS_SIMULATE_SANDBOX=1 electron-vite dev",
+    "dev:dmg": "electron-vite dev",
     "build": "npm run typecheck && electron-vite build",
     "postinstall": "electron-builder install-app-deps",
     "build:unpack": "npm run build && electron-builder --dir",
     "build:win": "npm run build && electron-builder --win",
     "build:mac": "electron-vite build && electron-builder --mac",
+    "build:mas": "electron-vite build && electron-builder --mac mas --universal",
     "notarize:dmg": "xcrun notarytool submit dist/unikeys-$npm_package_version.dmg --key \"$APPLE_API_KEY\" --key-id \"$APPLE_API_KEY_ID\" --issuer \"$APPLE_API_ISSUER\" --wait && xcrun stapler staple dist/unikeys-$npm_package_version.dmg",
     "release:mac": "npm run build:mac && npm run notarize:dmg",
     "build:linux": "electron-vite build && electron-builder --linux",
@@ -27,8 +29,7 @@
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
-    "@electron-toolkit/utils": "^4.0.0",
-    "electron-updater": "^6.3.9"
+    "@electron-toolkit/utils": "^4.0.0"
   },
   "devDependencies": {
     "@electron-toolkit/eslint-config-prettier": "^3.0.0",

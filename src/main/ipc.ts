@@ -11,10 +11,12 @@ import { mkdirSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 
 import { CATALOGUE } from '../shared/catalogue'
-import { isAppId } from '../shared/apps'
+import { APPS, isAppId } from '../shared/apps'
 import {
   IPC,
   isThemeSource,
+  type ChosenConfig,
+  type GrantOutcome,
   type HistoryResult,
   type ImportResult,
   type LoadResult,
@@ -22,8 +24,14 @@ import {
   type WriteResult
 } from '../shared/ipc'
 import type { HistoryEntry, NewHistoryEntry } from '../shared/history/types'
-import type { Store } from '../shared/store/types'
-import { createBackupSession, type BackupSession } from './config-files'
+import { NO_GRANTS, STANDARD_LOCATION, type Store } from '../shared/store/types'
+import {
+  createBackupSession,
+  grantDirectory,
+  grantMismatch,
+  type BackupSession
+} from './config-files'
+import { isSandboxed, isSimulatedSandbox, SIMULATED_GRANT } from './grants'
 import { appStatuses, importFromApps, writeToApps } from './apps-service'
 import { createHistoryLog, type HistoryLog } from './history-file'
 import { loadStore, saveStore, storeLocation, type StoreLocation } from './store-file'
@@ -68,7 +76,8 @@ export function registerIpcHandlers(): void {
       catalogue: CATALOGUE,
       statuses,
       backupDirectory: loc.backupDirectory,
-      storePath: loc.storePath
+      storePath: loc.storePath,
+      sandboxed: isSandboxed()
     }
   })
 
@@ -94,17 +103,106 @@ export function registerIpcHandlers(): void {
     return ensureHistory().append(entry, { id: randomUUID(), at: Date.now() })
   })
 
-  ipcMain.handle(IPC.chooseConfigPath, async (_event, appId: unknown): Promise<string | null> => {
-    if (!isAppId(appId)) return null
-    const result = await dialog.showOpenDialog({
-      title: 'Choose config file',
-      // JetBrains keymaps live in a directory whose filename the user chose, so
-      // both a file and a directory are legitimate answers.
-      properties: ['openFile', 'openDirectory', 'showHiddenFiles']
-    })
-    if (result.canceled || result.filePaths.length === 0) return null
-    return result.filePaths[0]
-  })
+  ipcMain.handle(
+    IPC.chooseConfigPath,
+    async (_event, appId: unknown): Promise<ChosenConfig | null> => {
+      if (!isAppId(appId)) return null
+      const sandboxed = isSandboxed()
+
+      const result = await dialog.showOpenDialog({
+        title: 'Choose config file',
+        properties: sandboxed
+          ? // Directory-only under sandbox. Naming the file itself would be the
+            // friendlier panel, but the grant that came back would not cover the
+            // temp file `writeAtomic` puts beside it — so unikeys would read the
+            // config and then fail every save, which is worse than asking for
+            // the folder. `configFileIn` and `resolveKeymapFile` already turn a
+            // directory into the right file for the formats that need it.
+            ['openDirectory', 'showHiddenFiles']
+          : // JetBrains keymaps live in a directory whose filename the user
+            // chose, so both a file and a directory are legitimate answers.
+            ['openFile', 'openDirectory', 'showHiddenFiles'],
+        securityScopedBookmarks: sandboxed
+      })
+      if (result.canceled || result.filePaths.length === 0) return null
+
+      return {
+        path: result.filePaths[0],
+        grant: result.bookmarks?.[0] ?? (isSimulatedSandbox() ? SIMULATED_GRANT : null)
+      }
+    }
+  )
+
+  ipcMain.handle(
+    IPC.requestGrant,
+    async (_event, appId: unknown, at: unknown): Promise<GrantOutcome> => {
+      if (!isAppId(appId)) return { ok: false, cancelled: true }
+      if (!isSandboxed()) {
+        // Nothing to grant outside the sandbox, and the renderer should never
+        // have offered the action. Reported as a cancel rather than an error so
+        // a stray call cannot put a message on screen about a concept this
+        // build does not have.
+        return { ok: false, cancelled: true }
+      }
+
+      // `at` is where the picker opens, and the renderer sends it because the
+      // status it came from already knows: for a symlinked config that is the
+      // dotfiles repo, not the standard location. Falling back rather than
+      // trusting it blindly, since it arrives from the renderer.
+      const standard = grantDirectory(appId, STANDARD_LOCATION)
+      const wanted = typeof at === 'string' && at.length > 0 ? at : standard
+
+      const result = await dialog.showOpenDialog({
+        title: `Grant access to ${APPS[appId].name}'s config folder`,
+        message: `unikeys reads and writes ${APPS[appId].name}'s keybindings in this folder. It never touches anything else.`,
+        buttonLabel: 'Grant Access',
+        // A directory, never a file: `writeAtomic` publishes through a temp file
+        // created beside its target, so a file-scoped grant would let unikeys
+        // read a config it could not then save.
+        properties: ['openDirectory', 'createDirectory', 'showHiddenFiles'],
+        defaultPath: wanted ?? undefined,
+        // The flag that makes the grant outlive the dialog — and the process.
+        // Ignored by non-mas builds, which is why this handler refuses to run
+        // in one rather than handing back a bookmark that would never redeem.
+        securityScopedBookmarks: true
+      })
+
+      if (result.canceled || result.filePaths.length === 0) return { ok: false, cancelled: true }
+
+      const directory = result.filePaths[0]
+      // A non-mas build hands back no bookmarks however the panel is
+      // configured, so the simulation supplies one — otherwise the flow it
+      // exists to demonstrate stops at the step it is demonstrating.
+      const bookmark = result.bookmarks?.[0] ?? (isSimulatedSandbox() ? SIMULATED_GRANT : undefined)
+
+      // Validated before the bookmark is handed back, so a folder unikeys will
+      // not use is never persisted — and so nothing is ever written through a
+      // grant the user gave by mistake. Checked under the brand-new bookmark
+      // alone: it is the only one that can open the folder just chosen.
+      const mismatch =
+        wanted === null
+          ? null
+          : grantMismatch(
+              appId,
+              directory,
+              wanted,
+              bookmark ? { [directory]: bookmark } : NO_GRANTS
+            )
+      if (mismatch !== null) return { ok: false, cancelled: false, error: mismatch }
+
+      if (!bookmark) {
+        return {
+          ok: false,
+          cancelled: false,
+          error:
+            'macOS did not return a lasting permission for that folder, so unikeys would lose ' +
+            'access as soon as it quits. Try granting it again.'
+        }
+      }
+
+      return { ok: true, grant: bookmark, directory }
+    }
+  )
 
   ipcMain.handle(IPC.revealBackups, (): void => {
     const directory = ensureLocation().backupDirectory

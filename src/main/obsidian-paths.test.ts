@@ -12,7 +12,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import { CATALOGUE } from '../shared/catalogue'
-import { createEmptyStore } from '../shared/store/types'
+import { createEmptyStore, NO_GRANTS, type ConfigLocation } from '../shared/store/types'
 import { appStatuses, writeToApps } from './apps-service'
 import { createBackupSession, readConfig, writeTarget } from './config-files'
 
@@ -31,22 +31,33 @@ function backups(): ReturnType<typeof createBackupSession> {
 /** An action the shipped catalogue maps for Obsidian. */
 const ACTION_ID = 'navigate.goto-file'
 
+/**
+ * A hand-picked location with no grants, which is the dmg build — the one these
+ * tests are about. Grants are exercised in `grants.test.ts`.
+ */
+function pointedAt(configPath: string | null): ConfigLocation {
+  return { configPath, grants: NO_GRANTS }
+}
+
 describe('pointing unikeys at a vault', () => {
   it('resolves a .obsidian directory to the hotkeys.json inside it', () => {
     const dir = vaultDotObsidian()
-    expect(writeTarget('obsidian', dir)).toEqual({ ok: true, path: join(dir, 'hotkeys.json') })
+    expect(writeTarget('obsidian', pointedAt(dir))).toEqual({
+      ok: true,
+      path: join(dir, 'hotkeys.json')
+    })
   })
 
   it('accepts the hotkeys.json itself', () => {
     const file = join(vaultDotObsidian(), 'hotkeys.json')
-    expect(writeTarget('obsidian', file)).toEqual({ ok: true, path: file })
+    expect(writeTarget('obsidian', pointedAt(file))).toEqual({ ok: true, path: file })
   })
 
   it('names the file it wants when the directory holds no hotkeys yet', () => {
     // Obsidian does not write hotkeys.json until the user sets a hotkey, so a
     // directory with nothing in it is the ordinary first state, not an error.
     const dir = vaultDotObsidian()
-    expect(readConfig('obsidian', dir)).toEqual({
+    expect(readConfig('obsidian', pointedAt(dir))).toEqual({
       ok: false,
       reason: 'not-found',
       searched: [join(dir, 'hotkeys.json')]
@@ -56,7 +67,7 @@ describe('pointing unikeys at a vault', () => {
   it('reads through the directory once the file is there', () => {
     const dir = vaultDotObsidian()
     writeFileSync(join(dir, 'hotkeys.json'), '{}\n')
-    expect(readConfig('obsidian', dir)).toEqual({
+    expect(readConfig('obsidian', pointedAt(dir))).toEqual({
       ok: true,
       path: join(dir, 'hotkeys.json'),
       contents: '{}\n'
@@ -72,7 +83,7 @@ describe('with no vault configured', () => {
   })
 
   it('refuses to name a write target rather than inventing one', () => {
-    const target = writeTarget('obsidian', null)
+    const target = writeTarget('obsidian', pointedAt(null))
     expect(target.ok).toBe(false)
   })
 

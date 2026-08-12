@@ -5,6 +5,10 @@ out
 .DS_Store
 .eslintcache
 *.log*
+# The Mac App Store provisioning profile. Tied to the signing team and
+# regenerated from the developer portal, so it is a credential rather than
+# source — build/entitlements.mas.plist references it by path.
+build/embedded.provisionprofile
 # The App Store screenshot editor (Next.js) and its exported PNGs. Scaffolded
 # by the app-store-screenshots skill; not part of the Electron app's build.
 app-store-screenshots/

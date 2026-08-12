@@ -31,6 +31,27 @@ export interface StoredChord {
   origin: ChordOrigin
 }
 
+/**
+ * Standing permissions for a sandboxed build, as base64 security-scoped
+ * bookmarks keyed by the directory each one opens.
+ *
+ * A collection rather than a single bookmark, because one app can need two
+ * directories at once and there is no order of granting that makes one do. A
+ * config symlinked into a dotfiles repo is the case: reading it opens a path
+ * under the standard location, while `writeAtomic` resolves the link and
+ * creates its temp file in the repo. Both grants have to be held together, so
+ * a lone `grant` field could only ever hold one and then report the other as
+ * missing — with re-granting swapping which half was broken.
+ *
+ * Keyed by directory so that re-granting the same folder replaces its bookmark
+ * instead of accumulating one per attempt, and so staleness can be attributed
+ * to the directory that actually stopped opening.
+ */
+export type Grants = Record<string, string>
+
+/** No permissions at all: the dmg build, and any path inside unikeys' own container. */
+export const NO_GRANTS: Grants = {}
+
 export interface AppConfig {
   enabled: boolean
   /**
@@ -38,7 +59,34 @@ export interface AppConfig {
    * the standard macOS location".
    */
   configPath: string | null
+  /**
+   * What a sandboxed build is allowed to open for this app. Empty means no
+   * grant — either none was asked for (the dmg build never asks) or none was
+   * given.
+   *
+   * Deliberately *not* a schema bump. The field is additive in both directions:
+   * a build without it reads a store containing it and ignores the key, which
+   * is what lets someone move between the dmg and App Store builds without
+   * either refusing the other's store. Bumping the version would break that for
+   * no gain, since nothing about the existing fields changed.
+   */
+  grants: Grants
 }
+
+/**
+ * The two fields that answer "where is this app's config, and what may unikeys
+ * open to get at it" — everything the file layer needs and nothing else.
+ *
+ * They travel as one value because they are never sourced apart: a path without
+ * the permission to read it is not a location a sandboxed build can act on, and
+ * a permission without a path opens nothing in particular. Passing them
+ * separately made the grant a forgettable trailing argument, which in the dmg
+ * build reads as harmless and in the App Store build silently means "no access".
+ */
+export type ConfigLocation = Pick<AppConfig, 'configPath' | 'grants'>
+
+/** A location with no override and no grants: the standard path, unsandboxed. */
+export const STANDARD_LOCATION: ConfigLocation = { configPath: null, grants: NO_GRANTS }
 
 /**
  * Chords keyed by action id, then by app. A missing app key means unikeys has
@@ -57,7 +105,7 @@ export function createEmptyStore(): Store {
   return {
     schemaVersion: STORE_SCHEMA_VERSION,
     apps: Object.fromEntries(
-      APP_IDS.map((id) => [id, { enabled: true, configPath: null } satisfies AppConfig])
+      APP_IDS.map((id) => [id, { enabled: true, configPath: null, grants: {} } satisfies AppConfig])
     ) as Record<AppId, AppConfig>,
     chords: {},
     firstRunCompleted: false
@@ -134,7 +182,8 @@ export function deserializeStore(text: string): DeserializeOutcome {
         // Absent means enabled: a store written before this field existed should
         // not silently turn every column off.
         enabled: config.enabled !== false,
-        configPath: typeof config.configPath === 'string' ? config.configPath : null
+        configPath: typeof config.configPath === 'string' ? config.configPath : null,
+        grants: readGrants(config.grants)
       }
     }
   }
@@ -144,6 +193,24 @@ export function deserializeStore(text: string): DeserializeOutcome {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/**
+ * Reads the grants a document carries, dropping anything that is not a
+ * directory mapped to a bookmark.
+ *
+ * Filtered entry by entry rather than accepted or rejected whole: a single
+ * malformed key is not a reason to discard permissions the user granted one at
+ * a time, and a bookmark that survives but no longer opens is already handled —
+ * it reports as stale and the same picker fixes it.
+ */
+function readGrants(value: unknown): Grants {
+  if (!isRecord(value)) return {}
+  return Object.fromEntries(
+    Object.entries(value).filter(
+      (entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1].length > 0
+    )
+  )
 }
 
 // ---------------------------------------------------------------------------

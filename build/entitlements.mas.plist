@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Entitlements for the Mac App Store build.
+
+  Deliberately not `entitlements.mac.plist`. That file carries
+  `cs.allow-unsigned-executable-memory` and `cs.allow-dyld-environment-variables`,
+  which exist to satisfy the Hardened Runtime on the Developer ID build and are
+  rejected outright on upload to App Store Connect — reusing it fails the
+  submission rather than the build, which is the expensive way to find out.
+
+  Nothing here is present for convenience. Every key is one the app stops
+  working without, because each additional entitlement is something App Review
+  is entitled to ask about.
+-->
+<plist version="1.0">
+  <dict>
+    <!-- Non-negotiable: every Mac App Store app runs sandboxed. -->
+    <key>com.apple.security.app-sandbox</key>
+    <true/>
+
+    <!--
+      The whole basis of unikeys' file access under sandbox. It grants nothing
+      by itself: it lets the user hand over a folder through a macOS open panel,
+      and unikeys can reach that folder and no other. Read-write rather than
+      read-only because unikeys' entire purpose is writing keybindings back.
+    -->
+    <key>com.apple.security.files.user-selected.read-write</key>
+    <true/>
+
+    <!--
+      Lets a granted folder survive a quit. Without this the user would re-pick
+      thirteen folders on every launch, which is not a product.
+    -->
+    <key>com.apple.security.files.bookmarks.app-scope</key>
+    <true/>
+
+    <!--
+      Required by Electron rather than by unikeys. Chromium's child processes
+      find the browser process through a Mach service, and a sandboxed process
+      may only register a Mach name prefixed by one of its application groups —
+      so without this the app dies at launch with `bootstrap_check_in ...
+      Permission denied (1100)` before any of unikeys' own code runs.
+
+      The team-id prefix is mandatory and must match the provisioning profile at
+      build/embedded.provisionprofile; a mismatch is a launch failure, not a
+      build error.
+    -->
+    <key>com.apple.security.application-groups</key>
+    <array>
+      <string>9F9UG2CY8U.com.ronkaa.unikeys</string>
+    </array>
+  </dict>
+</plist>

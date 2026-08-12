@@ -8,7 +8,17 @@ files:
   - '!electron.vite.config.{js,ts,mjs,cjs}'
   - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
-  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json,tsconfig.test.json}'
+  # Everything below is repository furniture that was being packed into the
+  # shipped app.asar. `app-store-screenshots` alone is a 521 MB Next.js project
+  # with its own node_modules, and it took the bundle from 5 MB to 162 MB — the
+  # app imports none of it. The rest is notes, plans and tooling that has no
+  # business inside a binary, let alone one submitted to the App Store.
+  - '!app-store-screenshots'
+  - '!{docs,plans,tools,.agents,.claude,.scratch}'
+  - '!{MAC-APP-STORE.md,RELEASE.md,components.json,skills-lock.json,icon.png}'
+  - '!vitest.config.ts'
+  - '!**/*.test.{ts,tsx}'
 asarUnpack:
   - resources/**
 win:
@@ -35,6 +45,39 @@ mac:
     - NSDocumentsFolderUsageDescription: unikeys needs access to read and update keybinding files stored in your Documents folder, such as an Obsidian vault.
     - NSDownloadsFolderUsageDescription: unikeys needs access to read and update keybinding files stored in your Downloads folder.
   notarize: true
+# The Mac App Store build. electron-builder layers this over `mac`, so every
+# setting above that does not apply has to be turned back off here rather than
+# merely left out — `hardenedRuntime` and `notarize` are both inherited, and
+# both are wrong for MAS: the store sandbox replaces the Hardened Runtime, and
+# App Review replaces notarization.
+#
+# This target also pulls a different Electron distribution (`mas-*` rather than
+# `darwin-*`), which is the build patched to run under App Sandbox at all.
+mas:
+  # No `target` here on purpose: `mas` is itself the target, selected on the
+  # command line by `--mac mas`, and it produces the `.pkg` the store wants.
+  # Architecture comes from `--universal` in the npm script, because a target
+  # named on the CLI does not read an `arch` from this file.
+  entitlements: build/entitlements.mas.plist
+  # Helpers are signed with `inherit` only; see the comment in that file for why
+  # it cannot be the same plist as the app's.
+  entitlementsInherit: build/entitlements.mas.inherit.plist
+  # Not in the repo — it carries the signing team's identifiers. Created in the
+  # Apple developer portal as a "Mac App Store" profile for com.ronkaa.unikeys.
+  provisioningProfile: build/embedded.provisionprofile
+  hardenedRuntime: false
+  notarize: false
+  # No `files` override here, and that is not an omission. A platform-specific
+  # `files` array *replaces* the root one rather than adding to it — measured,
+  # not assumed: a `files` of two exclusions produced an asar containing the
+  # whole repository, `.git` and the previous dmg build included. Self-updating
+  # is banned on the Mac App Store, and the way `electron-updater` is kept out
+  # of this build is that it is no longer a dependency at all (nothing imported
+  # it), which also takes its transitive packages with it.
+pkg:
+  # The installer the store expects. Signed with the Mac Installer Distribution
+  # certificate, which is a different certificate from the one signing the app.
+  installLocation: /Applications
 dmg:
   artifactName: ${name}-${version}.${ext}
   # electron-builder notarizes and staples the .app but leaves the DMG itself

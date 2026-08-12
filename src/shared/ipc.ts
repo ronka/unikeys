@@ -42,6 +42,20 @@ export type AppHealth =
    * hotkeys live inside whichever vault is open.
    */
   | 'config-path-required'
+  /**
+   * The App Store build has no standing permission to reach this app's config
+   * directory, so it has not looked. Only ever seen in a sandboxed build.
+   *
+   * Distinct from `config-not-found` on purpose, and the distinction is the
+   * whole point of the state: "unikeys looked and found nothing" sends the user
+   * to check whether the app is installed, when the truth is that unikeys was
+   * never allowed to look. It is also distinct from `config-path-required`,
+   * which is unikeys not knowing *where* to look — here the location is known
+   * exactly, and `grantPath` carries it. Covers a grant never given and a grant
+   * that has gone stale because the folder moved; the fix is the same picker
+   * either way, so `message` carries which one happened.
+   */
+  | 'grant-required'
   | 'config-unreadable'
   | 'config-unparseable'
 
@@ -54,7 +68,10 @@ export type AppHealth =
  * minority and every ordinary state gets loud. A config that does not exist
  * yet is not a problem: unikeys creates it on the first save. Nor is one whose
  * location unikeys never had — that is a question waiting for an answer, and
- * the Apps page is where it gets asked.
+ * the Apps page is where it gets asked. A config awaiting a grant is the same
+ * kind of question, and in the App Store build it is the state *every* app
+ * starts in — tone thirteen cards as failures on first run and the user's
+ * conclusion is that unikeys is broken, not that it is waiting for them.
  */
 export function isHealthProblem(health: AppHealth): boolean {
   return (
@@ -62,7 +79,8 @@ export function isHealthProblem(health: AppHealth): boolean {
     health !== 'disabled' &&
     health !== 'not-installed' &&
     health !== 'config-not-created' &&
-    health !== 'config-path-required'
+    health !== 'config-path-required' &&
+    health !== 'grant-required'
   )
 }
 
@@ -82,6 +100,22 @@ export interface AppStatus {
   plannedPath?: string
   /** A path the user set by hand, if any. */
   overridePath: string | null
+  /**
+   * The directory a sandboxed build needs granted for this app, and the folder
+   * the picker opens at — which is what makes granting a hidden
+   * `Library/Application Support` path bearable, since the panel itself runs
+   * outside the sandbox and can start anywhere.
+   *
+   * Present for every app in a sandboxed build, not only ungranted ones: a user
+   * re-granting a config they picked by hand has to be sent back to their own
+   * folder, not to the standard location they already declined.
+   *
+   * Not simply `APPS[app].grantPath` expanded. It follows a hand-picked path,
+   * and when a config is symlinked into a dotfiles repo it becomes the
+   * directory holding the real file — which is only knowable after resolving
+   * the link. Always absent outside the sandbox, where nothing is granted.
+   */
+  grantPath?: string
   /** Where unikeys looked, so a not-found message can say so. */
   searchedPaths: string[]
   /** Present when health is not `ok`. */
@@ -129,6 +163,49 @@ export interface LoadResult {
   /** Where session backups are written, surfaced so the user can restore one. */
   backupDirectory: string
   storePath: string
+  /**
+   * Whether this build runs under App Sandbox, and so whether the user is ever
+   * asked to grant a folder. One flag for the whole session rather than a field
+   * per app: it is a property of the build, and the renderer's only use for it
+   * is deciding whether granting exists as a concept on the Apps page.
+   */
+  sandboxed: boolean
+}
+
+// ---------------------------------------------------------------------------
+// Grants
+// ---------------------------------------------------------------------------
+
+/**
+ * What came back from asking the user for a folder.
+ *
+ * A cancelled picker is separated from a rejected folder because they need
+ * opposite treatment: closing the panel is the user deciding not to, and
+ * showing an error for it would scold them for using the Cancel button. A
+ * folder unikeys will not accept, on the other hand, needs saying out loud —
+ * otherwise the picker just reopens and the user has no idea what went wrong.
+ *
+ * `directory` comes back alongside the bookmark because grants are stored per
+ * folder: it is the key the new permission is filed under, and what stops a
+ * second grant from evicting the first.
+ */
+export type GrantOutcome =
+  | { ok: true; grant: string; directory: string }
+  | { ok: false; cancelled: true }
+  | { ok: false; cancelled: false; error: string }
+
+/**
+ * A config location the user pointed at by hand, and the permission that came
+ * with it.
+ *
+ * The two travel together because in a sandboxed build a path on its own is
+ * useless: choosing a file through an open panel grants access until the app
+ * quits, and unikeys would forget it by the next launch. Outside the sandbox
+ * `grant` is always `null` and the path is the whole answer, exactly as before.
+ */
+export interface ChosenConfig {
+  path: string
+  grant: string | null
 }
 
 // ---------------------------------------------------------------------------
@@ -221,6 +298,7 @@ export const IPC = {
   loadHistory: 'unikeys:load-history',
   appendHistory: 'unikeys:append-history',
   chooseConfigPath: 'unikeys:choose-config-path',
+  requestGrant: 'unikeys:request-grant',
   revealBackups: 'unikeys:reveal-backups',
   setThemeSource: 'unikeys:set-theme-source'
 } as const
@@ -271,8 +349,33 @@ export interface UnikeysApi {
    * drift past the cap between restarts.
    */
   appendHistory(entry: NewHistoryEntry): Promise<HistoryEntry[]>
-  /** Opens a file picker so a non-standard install does not block the user. */
-  chooseConfigPath(app: AppId): Promise<string | null>
+  /**
+   * Opens a file picker so a non-standard install does not block the user.
+   *
+   * In a sandboxed build this asks for a *directory* and returns a lasting
+   * grant alongside the path. Both differences are forced: a file chosen
+   * through an open panel is reachable only until unikeys quits, and a
+   * file-scoped grant could not cover the sibling temp file `writeAtomic`
+   * creates — so unikeys would read the config once and never save it.
+   */
+  chooseConfigPath(app: AppId): Promise<ChosenConfig | null>
+  /**
+   * Asks the user to grant this app's config directory, returning the bookmark
+   * to persist in the store.
+   *
+   * Its own call rather than something the read path does on demand, and that
+   * is a load-bearing decision: a picker is asynchronous, and prompting from
+   * inside `readConfig` would make every function between here and the
+   * filesystem `async` — turning a change to two files into a change to all of
+   * them. Reads and writes only ever redeem a grant that is already stored.
+   *
+   * A no-op outside the sandbox, where there is nothing to grant.
+   *
+   * `at` is where the picker should open, which the caller takes from the
+   * status' `grantPath` — the standard location normally, the dotfiles repo
+   * when the config turned out to be a link into one.
+   */
+  requestGrant(app: AppId, at?: string): Promise<GrantOutcome>
   revealBackups(): Promise<void>
   /**
    * Sets the appearance for the whole window, native chrome included.

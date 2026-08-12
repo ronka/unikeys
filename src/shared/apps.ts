@@ -78,10 +78,33 @@ export interface AppDescriptor {
    */
   configPaths: string[]
   /**
+   * The directory a sandboxed build asks the user to grant, relative to home.
+   *
+   * Not derivable from `configPaths`, which is why it is stored rather than
+   * computed. Two reasons it differs from the config's parent directory:
+   *
+   * 1. JetBrains needs the **parent** of the versioned directory, because
+   *    expanding `WebStorm*` means listing `.../JetBrains/`, and listing a
+   *    directory needs that directory granted — not its children.
+   * 2. Grants are always directories, never files, because `writeAtomic`
+   *    creates a temp file *beside* its target before renaming.
+   *
+   * `null` for an app whose config has no standard location at all: there is
+   * nothing to open the picker at, and the user is choosing a vault anyway.
+   */
+  grantPath: string | null
+  /**
    * Standard macOS install locations used for detection. A leading `~` is
    * expanded by the caller. `~/Applications` matters because JetBrains Toolbox
    * installs there by default, and a Toolbox user is the likeliest WebStorm
    * user of all.
+   *
+   * Under App Sandbox only the `/Applications` entries can be checked: the
+   * sandbox profile allows reading `/Applications` outright but denies
+   * `~/Applications` along with the rest of the home directory. See
+   * `isConfigurable` for what stands in for the missing signal — `isInstalled`
+   * itself stays a plain bundle scan, because `loadStore` seeds a new store
+   * from it before there is any config to substitute.
    */
   installPaths: string[]
   /** What the user must do for a written config to take effect. */
@@ -95,6 +118,7 @@ export const APPS: Record<AppId, AppDescriptor> = {
     format: 'vscode-keybindings',
     category: 'ide',
     configPaths: ['Library/Application Support/Code/User/keybindings.json'],
+    grantPath: 'Library/Application Support/Code/User',
     installPaths: ['/Applications/Visual Studio Code.app', '~/Applications/Visual Studio Code.app'],
     reloadHint: 'VSCode picks up keybindings.json automatically; no restart needed.'
   },
@@ -104,6 +128,7 @@ export const APPS: Record<AppId, AppDescriptor> = {
     format: 'vscode-keybindings',
     category: 'ide',
     configPaths: ['Library/Application Support/Cursor/User/keybindings.json'],
+    grantPath: 'Library/Application Support/Cursor/User',
     installPaths: ['/Applications/Cursor.app', '~/Applications/Cursor.app'],
     reloadHint: 'Cursor picks up keybindings.json automatically; no restart needed.'
   },
@@ -113,6 +138,7 @@ export const APPS: Record<AppId, AppDescriptor> = {
     format: 'vscode-keybindings',
     category: 'ide',
     configPaths: ['Library/Application Support/Kiro/User/keybindings.json'],
+    grantPath: 'Library/Application Support/Kiro/User',
     installPaths: ['/Applications/Kiro.app', '~/Applications/Kiro.app'],
     reloadHint: 'Kiro picks up keybindings.json automatically; no restart needed.'
   },
@@ -122,6 +148,7 @@ export const APPS: Record<AppId, AppDescriptor> = {
     format: 'vscode-keybindings',
     category: 'ide',
     configPaths: ['Library/Application Support/Antigravity/User/keybindings.json'],
+    grantPath: 'Library/Application Support/Antigravity/User',
     installPaths: ['/Applications/Antigravity.app', '~/Applications/Antigravity.app'],
     reloadHint: 'Antigravity picks up keybindings.json automatically; no restart needed.'
   },
@@ -131,6 +158,7 @@ export const APPS: Record<AppId, AppDescriptor> = {
     format: 'zed-keymap',
     category: 'ide',
     configPaths: ['.config/zed/keymap.json'],
+    grantPath: '.config/zed',
     installPaths: ['/Applications/Zed.app', '~/Applications/Zed.app'],
     reloadHint: 'Zed reloads keymap.json as soon as it is saved; no restart needed.'
   },
@@ -142,6 +170,7 @@ export const APPS: Record<AppId, AppDescriptor> = {
     // The version segment is a glob resolved by the main process, since
     // JetBrains nests keymaps under a versioned support directory.
     configPaths: ['Library/Application Support/JetBrains/WebStorm*/keymaps'],
+    grantPath: 'Library/Application Support/JetBrains',
     installPaths: [
       '/Applications/WebStorm.app',
       '~/Applications/WebStorm.app',
@@ -160,6 +189,7 @@ export const APPS: Record<AppId, AppDescriptor> = {
       'Library/Application Support/JetBrains/IntelliJIdea*/keymaps',
       'Library/Application Support/JetBrains/IdeaIC*/keymaps'
     ],
+    grantPath: 'Library/Application Support/JetBrains',
     installPaths: [
       '/Applications/IntelliJ IDEA.app',
       '~/Applications/IntelliJ IDEA.app',
@@ -179,6 +209,7 @@ export const APPS: Record<AppId, AppDescriptor> = {
       'Library/Application Support/JetBrains/PyCharm*/keymaps',
       'Library/Application Support/JetBrains/PyCharmCE*/keymaps'
     ],
+    grantPath: 'Library/Application Support/JetBrains',
     installPaths: [
       '/Applications/PyCharm.app',
       '~/Applications/PyCharm.app',
@@ -198,6 +229,7 @@ export const APPS: Record<AppId, AppDescriptor> = {
       'Library/Application Support/com.mitchellh.ghostty/config',
       '.config/ghostty/config'
     ],
+    grantPath: 'Library/Application Support/com.mitchellh.ghostty',
     installPaths: ['/Applications/Ghostty.app', '~/Applications/Ghostty.app'],
     reloadHint: 'Reload Ghostty config with ⌘⇧, or restart Ghostty.'
   },
@@ -210,6 +242,7 @@ export const APPS: Record<AppId, AppDescriptor> = {
     // already exists — as one object of `$schema` and `schemaVersion` with
     // every setting commented out.
     configPaths: ['.config/cmux/cmux.json'],
+    grantPath: '.config/cmux',
     installPaths: ['/Applications/cmux.app', '~/Applications/cmux.app'],
     reloadHint: 'Reload cmux config with ⌘⇧, or restart cmux.'
   },
@@ -223,6 +256,7 @@ export const APPS: Record<AppId, AppDescriptor> = {
     // a JSON file unikeys owns outright, which iTerm2 watches and reloads live.
     configPaths: ['Library/Application Support/iTerm2/DynamicProfiles/unikeys.json'],
     // The bundle is called iTerm.app, not iTerm2.app.
+    grantPath: 'Library/Application Support/iTerm2/DynamicProfiles',
     installPaths: ['/Applications/iTerm.app', '~/Applications/iTerm.app'],
     // A Dynamic Profile is a new profile, not an edit to the user's, and iTerm2
     // gives it no way to declare itself the default — so unlike every other app
@@ -237,6 +271,7 @@ export const APPS: Record<AppId, AppDescriptor> = {
     format: 'warp-keybindings',
     category: 'terminal',
     configPaths: ['.warp/keybindings.yaml'],
+    grantPath: '.warp',
     installPaths: ['/Applications/Warp.app', '~/Applications/Warp.app'],
     reloadHint: 'Warp applies keybindings.yaml when it next launches; restart Warp.'
   },
@@ -249,6 +284,7 @@ export const APPS: Record<AppId, AppDescriptor> = {
     // and there is no vault-independent location — so there is nothing to look
     // in and the user has to name a path. See the `config-path-required` health.
     configPaths: [],
+    grantPath: null,
     installPaths: ['/Applications/Obsidian.app', '~/Applications/Obsidian.app'],
     reloadHint: 'Obsidian applies hotkeys.json after the app or the vault is reloaded.'
   }

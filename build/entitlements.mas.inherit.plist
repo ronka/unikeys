@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Entitlements for Electron's helper processes (Renderer, GPU, Plugin) in the
+  Mac App Store build.
+
+  A separate file, and it has to be: `com.apple.security.inherit` says "take the
+  parent's sandbox exactly", and macOS refuses to combine it with entitlements
+  that would widen it. Signing the helpers with the main app's file-access keys
+  is rejected at submission — so the two files differ not by preference but
+  because the helpers are only allowed to say this much.
+
+  The practical effect is that a renderer cannot reach a granted folder on its
+  own, which suits unikeys: the renderer never touches the filesystem anyway,
+  and every path goes through the main process.
+-->
+<plist version="1.0">
+  <dict>
+    <key>com.apple.security.app-sandbox</key>
+    <true/>
+    <key>com.apple.security.inherit</key>
+    <true/>
+  </dict>
+</plist>

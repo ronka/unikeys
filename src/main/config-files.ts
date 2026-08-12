@@ -13,6 +13,8 @@ import { homedir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 
 import { APPS, type AppId, type FormatId } from '../shared/apps'
+import type { ConfigLocation, Grants } from '../shared/store/types'
+import { isSandboxed, withGrants } from './grants'
 
 /**
  * Named separately because a caller that has already ruled out success still
@@ -22,8 +24,239 @@ import { APPS, type AppId, type FormatId } from '../shared/apps'
 export type ReadFailure =
   | { ok: false; reason: 'not-found'; searched: string[] }
   | { ok: false; reason: 'unreadable'; path: string; error: string }
+  /**
+   * The sandbox has not been let into the directory this config lives in.
+   * `stale` separates "never granted" from "granted, but the folder has since
+   * moved or been deleted" — the same picker fixes both, but only one of them
+   * should tell the user that something they already did has come undone.
+   */
+  | { ok: false; reason: 'grant-required'; directory: string; stale: boolean }
 
 export type ReadOutcome = { ok: true; path: string; contents: string } | ReadFailure
+
+// ---------------------------------------------------------------------------
+// Grants
+// ---------------------------------------------------------------------------
+
+/**
+ * The directory a sandboxed build has to be let into for this app.
+ *
+ * A hand-picked path wins, as it does everywhere else: the user pointing at a
+ * config is a stronger statement than the standard location. Its *directory* is
+ * what gets granted even when they named a file, because `writeAtomic` needs to
+ * create a sibling temp file — a file grant would let unikeys read a config it
+ * then could not save.
+ */
+export function grantDirectory(app: AppId, location: ConfigLocation): string | null {
+  const override = location.configPath
+  if (override) {
+    // An override naming a directory is already the answer — and the check has
+    // to happen *under* the grants. Without them the sandbox answers `false` for
+    // a directory that plainly exists, `dirname` walks up to the parent, and
+    // unikeys concludes the grant is stale because it cannot read a folder it
+    // was never given. That is the Obsidian case exactly: the user grants a
+    // vault's `.obsidian`, and its parent is out of bounds by design.
+    const directory = withGrants(
+      location.grants,
+      () => existsSync(override) && statSync(override).isDirectory()
+    )
+    if (directory) return override
+    return dirname(override)
+  }
+
+  const relative = APPS[app].grantPath
+  return relative === null ? null : join(homedir(), relative)
+}
+
+/**
+ * Whether this read has to stop and ask before it touches the filesystem.
+ *
+ * Only ever true in a sandboxed build. The question is about the directory
+ * rather than about any particular bookmark: unikeys holds a grant per folder
+ * it has been let into, and what matters is whether the one it needs now is
+ * covered by any of them — not whether some specific bookmark was the last to
+ * be stored.
+ *
+ * Returning the *reason* rather than a boolean is what lets the UI distinguish
+ * a first run from a grant that has gone stale, which is the difference between
+ * asking for something and reporting that something the user already did has
+ * come undone.
+ */
+function grantFailure(
+  app: AppId,
+  location: ConfigLocation
+): Extract<ReadFailure, { reason: 'grant-required' }> | null {
+  if (!isSandboxed()) return null
+
+  const directory = grantDirectory(app, location)
+  // An app with no standard location and no override has nothing to grant yet;
+  // `config-path-required` is the honest state and asking for a folder before
+  // the user has said which vault they mean is asking the wrong question.
+  if (directory === null) return null
+
+  // Asked of unikeys' own records first, and never of the filesystem, because
+  // the filesystem cannot answer it: outside a real sandbox every path is
+  // reachable whatever bookmarks are held, so "can I open this?" comes back
+  // `true` for a folder that was never granted. That is not a test-only
+  // nicety — it is the whole of `UNIKEYS_SIMULATE_SANDBOX`, where deciding on
+  // reachability alone would mean the "Needs access" state never appears for
+  // anyone who has the app installed.
+  if (!coveredByGrant(location.grants, directory)) {
+    return { ok: false, reason: 'grant-required', directory, stale: false }
+  }
+
+  // A grant for it exists, so now the filesystem has something to say: whether
+  // it still opens. A directory that lists is a live grant even when the config
+  // inside is missing — that is an ordinary `not-found`, and the first save
+  // creates the file.
+  if (withGrants(location.grants, () => existsSync(directory))) return null
+  return { ok: false, reason: 'grant-required', directory, stale: true }
+}
+
+/**
+ * Whether these grants reach into this directory.
+ *
+ * Containment rather than an exact match, because that is how the sandbox
+ * itself behaves: a grant on a folder covers everything beneath it. Resolved on
+ * both sides so `/tmp` against `/private/tmp`, or a home directory reached
+ * through a symlink, is not read as a different place.
+ */
+function coveredByGrant(grants: Grants, directory: string): boolean {
+  const real = resolveOrSelf(directory)
+  return Object.keys(grants).some((granted) => {
+    const grantedReal = resolveOrSelf(granted)
+    return real === grantedReal || real.startsWith(`${grantedReal}/`)
+  })
+}
+
+/**
+ * Why a chosen folder cannot serve as this app's grant, or `null` if it can.
+ *
+ * Checked at the moment of granting rather than at the first save, because the
+ * failure it catches is silent: a user who grants `Application Support` instead
+ * of `Application Support/Code/User` has given unikeys a real, working
+ * permission to the wrong place, and every later read comes back "no config
+ * found" with nothing to connect it to the folder they picked.
+ */
+export function grantMismatch(
+  app: AppId,
+  directory: string,
+  expected: string,
+  grants: Grants
+): string | null {
+  // Compared by resolved path so that `/tmp` versus `/private/tmp`, or a home
+  // directory reached through a symlink, is not read as the user missing.
+  //
+  // Equality is checked before anything is looked for inside, and that order
+  // matters: the right folder with no config in it yet is the ordinary state of
+  // an app the user has just installed, and unikeys creates the file on the
+  // first save. Demanding the file be there already would refuse the correct
+  // answer.
+  const chosen = resolveOrSelf(directory)
+  const target = resolveOrSelf(expected)
+  if (chosen === target) return null
+
+  // A different folder is still acceptable if the config really is in it — an
+  // override, or a vault, or a dotfiles repo the standard location only links
+  // into. Redeemed through the brand-new bookmark, because without it the
+  // sandbox answers `false` for every folder alike and unikeys would reject the
+  // user's correct choice as confidently as an incorrect one.
+  const landmark = configLandmark(app)
+  if (landmark !== null) {
+    if (withGrants(grants, () => existsSync(join(directory, landmark)))) return null
+    return (
+      `unikeys expected ${expected} for ${APPS[app].name}, and ${directory} holds no ` +
+      `${landmark}. Grant access again — the picker opens at the folder it needs.`
+    )
+  }
+
+  // No landmark: a globbed config path, where the grant has to sit at a
+  // particular structural level and there is no filename that proves a folder
+  // is it (see `configLandmark`). What that rules out is a folder *below* the
+  // one unikeys asked for — granting `.../JetBrains/WebStorm2024.3` when
+  // `expandGlob` has to list `.../JetBrains` is the trap, and it is a trap
+  // precisely because the grant works here and then makes every read report
+  // itself as stale.
+  //
+  // A folder somewhere else entirely is a different question, and refusing it
+  // was its own dead end: a config symlinked into a dotfiles repo needs that
+  // repo granted too, and the repo is nowhere near the expected path. With no
+  // landmark to test it against, accepting it is the only answer that leaves a
+  // way forward — and the cost of being wrong is bounded, because a folder with
+  // no config in it reports the ordinary `not-found` and can simply be granted
+  // again.
+  if (chosen.startsWith(`${target}/`)) {
+    return (
+      `${directory} sits inside ${expected}, and unikeys needs ${expected} itself for ` +
+      `${APPS[app].name} — it has to list that folder to find the current version. Grant ` +
+      'access again and choose the folder the picker opens at.'
+    )
+  }
+  return null
+}
+
+/**
+ * The filename that tells you an app's config directory is the right one.
+ *
+ * The last segment of the standard path, or the fixed name a format keeps
+ * inside a directory when there is no standard path at all — which is what
+ * makes an Obsidian vault checkable despite unikeys never being able to guess
+ * where it is. `null` when neither exists, in which case a grant is judged on
+ * its path alone.
+ *
+ * Deliberately `null` for a globbed path, and this is the subtle one. JetBrains
+ * keymaps live at `.../JetBrains/WebStorm2024.3/keymaps`, so the landmark is
+ * `keymaps` — but the folder that has to be granted is `.../JetBrains`, two
+ * levels up, and `keymaps` is not in it. Allowing the landmark test there would
+ * accept a grant on `WebStorm2024.3` (where the user can see the keymaps, so an
+ * entirely natural choice), and every later read would then fail to list
+ * `.../JetBrains` and report the fresh grant as stale — a loop the user cannot
+ * escape by re-granting. Where the path is globbed the grant level is
+ * structural, and equality is the only sound test.
+ */
+function configLandmark(app: AppId): string | null {
+  const standard = APPS[app].configPaths[0]
+  if (standard !== undefined) return standard.includes('*') ? null : basename(standard)
+  return DIRECTORY_FILENAMES[APPS[app].format] ?? null
+}
+
+function resolveOrSelf(path: string): string {
+  try {
+    return realpathSync(path)
+  } catch {
+    return path
+  }
+}
+
+/**
+ * The directory actually holding a config, once symlinks are followed, when no
+ * grant covers it.
+ *
+ * A config symlinked into a dotfiles repo is the setup a unikeys user is
+ * likeliest to have, and it defeats a grant silently: the link sits inside the
+ * granted folder and reads fine, while `writeAtomic` resolves it and tries to
+ * create its temp file in a repo the sandbox has never heard of. Detected here
+ * so the UI can ask for the repo instead of reporting a permissions error
+ * against a path the user never chose.
+ *
+ * Answered against every grant the app holds, which is what makes the case
+ * finishable. Asking only about the directory the config *appears* to live in
+ * means granting the repo can never satisfy the check — the escape is reported
+ * again on the next read, and the two folders take turns being the one unikeys
+ * says it cannot reach.
+ */
+export function symlinkEscape(path: string, grants: Grants): string | null {
+  let real: string
+  try {
+    real = realpathSync(path)
+  } catch {
+    return null
+  }
+  if (real === path) return null
+
+  const realDirectory = dirname(real)
+  return coveredByGrant(grants, realDirectory) ? null : realDirectory
+}
 
 /**
  * Resolves an app's config path. A manual override wins; otherwise the standard
@@ -32,8 +265,13 @@ export type ReadOutcome = { ok: true; path: string; contents: string } | ReadFai
  * WebStorm's path contains a version segment (`WebStorm2024.3`), so a `*` in a
  * configured path is expanded against the directory listing rather than being
  * treated literally.
+ *
+ * Private, and called only from inside a redeemed scope. Every caller wanted a
+ * path in order to read or write it, which is `readConfig`'s and `writeTarget`'s
+ * job — exposing this separately only ever offered a way to resolve a path
+ * without the permission to use it.
  */
-export function resolveConfigPath(app: AppId, override: string | null): string | null {
+function resolveConfigPath(app: AppId, override: string | null): string | null {
   if (override) return existsSync(override) ? override : null
 
   for (const relative of APPS[app].configPaths) {
@@ -104,7 +342,11 @@ export type WriteTarget = { ok: true; path: string } | { ok: false; error: strin
  * will never read, while reporting success. So an unresolvable pattern is an
  * error the user can act on rather than a path.
  */
-export function writeTarget(app: AppId, override: string | null): WriteTarget {
+export function writeTarget(app: AppId, location: ConfigLocation): WriteTarget {
+  return withGrants(location.grants, () => resolveWriteTarget(app, location.configPath))
+}
+
+function resolveWriteTarget(app: AppId, override: string | null): WriteTarget {
   if (override) {
     if (existsSync(override) && statSync(override).isDirectory()) {
       // A format with a known filename can name the file even when it does not
@@ -197,7 +439,19 @@ export function resolveKeymapFile(keymapsDir: string): string | null {
   return xmls.sort((a, b) => statSync(b).mtimeMs - statSync(a).mtimeMs)[0]
 }
 
-export function readConfig(app: AppId, override: string | null): ReadOutcome {
+export function readConfig(app: AppId, location: ConfigLocation): ReadOutcome {
+  // Asked before anything touches the filesystem. Without this the sandbox
+  // would answer every `existsSync` with `false` and unikeys would report a
+  // confident "no config found, looked in ..." about a folder it was never
+  // allowed to open — the one wrong answer this state exists to prevent.
+  const missing = grantFailure(app, location)
+  if (missing) return missing
+
+  return withGrants(location.grants, () => readGrantedConfig(app, location))
+}
+
+function readGrantedConfig(app: AppId, location: ConfigLocation): ReadOutcome {
+  const override = location.configPath
   let path = resolveConfigPath(app, override)
   if (path === null) {
     return { ok: false, reason: 'not-found', searched: override ? [override] : candidatePaths(app) }
@@ -220,6 +474,16 @@ export function readConfig(app: AppId, override: string | null): ReadOutcome {
       }
       path = keymap
     }
+  }
+
+  // A config that is really a link into a dotfiles repo reads perfectly well
+  // through the grant and then fails on the first save, when `writeAtomic`
+  // follows the link and tries to create a temp file somewhere the sandbox has
+  // never been let into. Caught on the read so the user is asked for the repo
+  // before they have made an edit, rather than after.
+  const escaped = isSandboxed() ? symlinkEscape(path, location.grants) : null
+  if (escaped !== null) {
+    return { ok: false, reason: 'grant-required', directory: escaped, stale: false }
   }
 
   try {
@@ -253,20 +517,29 @@ export class BackupSession {
    * called `keybindings.json`, so naming backups after the basename alone would
    * have Cursor's backup silently overwrite VSCode's — destroying the only copy
    * of the state the user needs to recover.
+   *
+   * `grants` are redeemed for the copy itself. The backup's *destination* is
+   * inside unikeys' own container and never needs one; the source is the app's
+   * config and always does. Redeemed here rather than by the caller so that
+   * `apps-service.ts` — which calls this and `writeAtomic` back to back — stays
+   * free of any notion of a bookmark.
    */
-  ensureBackup(path: string, label: string): string | null {
+  ensureBackup(path: string, label: string, grants: Grants): string | null {
     if (this.backedUp.has(path)) return null
-    if (!existsSync(path)) {
-      // Nothing to back up; unikeys is about to create this file.
-      this.backedUp.add(path)
-      return null
-    }
 
-    mkdirSync(this.directory, { recursive: true })
-    const target = join(this.directory, `${this.timestamp}-${label}-${basename(path)}`)
-    copyFileSync(path, target)
-    this.backedUp.add(path)
-    return target
+    return withGrants(grants, () => {
+      if (!existsSync(path)) {
+        // Nothing to back up; unikeys is about to create this file.
+        this.backedUp.add(path)
+        return null
+      }
+
+      mkdirSync(this.directory, { recursive: true })
+      const target = join(this.directory, `${this.timestamp}-${label}-${basename(path)}`)
+      copyFileSync(path, target)
+      this.backedUp.add(path)
+      return target
+    })
   }
 }
 
@@ -287,8 +560,17 @@ export function createBackupSession(directory: string, now: Date): BackupSession
  * Writes via a temp file in the same directory followed by a rename, so an
  * interrupted write can never leave a truncated config behind. Same-directory
  * matters: rename is only atomic within a filesystem.
+ *
+ * `grants` is required rather than defaulted, and `NO_GRANTS` is what unikeys'
+ * own files pass. A default would make the permission a thing a caller could
+ * leave off — which reads as harmless in the dmg build and silently means "no
+ * access" in the App Store one, where the mistake cannot fail to compile.
  */
-export function writeAtomic(path: string, contents: string): void {
+export function writeAtomic(path: string, contents: string, grants: Grants): void {
+  withGrants(grants, () => writeResolved(path, contents))
+}
+
+function writeResolved(path: string, contents: string): void {
   // Follow symlinks before writing. A config symlinked into a dotfiles repo is
   // exactly the setup a unikeys user is likely to have, and renaming over the
   // link would replace it with a regular file, silently orphaning the repo copy.

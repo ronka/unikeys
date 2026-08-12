@@ -55,6 +55,20 @@ function App(): React.JSX.Element {
 
   const [statuses, setStatuses] = useState<AppStatus[]>([])
   const [backupDirectory, setBackupDirectory] = useState('')
+  /**
+   * Whether this build runs under App Sandbox, and so whether granting a folder
+   * is a thing the user can be asked to do at all. Defaults to `false` so the
+   * Apps page never flashes a "Grant access…" button in the dmg build during
+   * the moment before `load` returns.
+   */
+  const [sandboxed, setSandboxed] = useState(false)
+  /**
+   * Why the last grant attempt was refused, keyed by app. Held here rather than
+   * on `AppStatus` because it is the outcome of something the user just did,
+   * not a property of their machine — a re-read of every app would otherwise
+   * wipe it before they had finished reading it.
+   */
+  const [grantErrors, setGrantErrors] = useState<Partial<Record<AppId, string>>>({})
   const [search, setSearch] = useState('')
   const [appFilter, setAppFilter] = useState<AppId | null>(null)
   const [editing, setEditing] = useState<EditTarget | null>(null)
@@ -94,6 +108,7 @@ function App(): React.JSX.Element {
         if (cancelled) return
         setStatuses(result.statuses)
         setBackupDirectory(result.backupDirectory)
+        setSandboxed(result.sandboxed)
         dispatch({ type: 'hydrate', store: result.store })
 
         // Its own request, and its own failure: the log is a record of the past,
@@ -379,11 +394,57 @@ function App(): React.JSX.Element {
             dispatch({ type: 'setAppEnabled', app, enabled })
           }}
           onChoosePath={(app) => {
-            void window.unikeys.chooseConfigPath(app).then((path) => {
-              if (path) dispatch({ type: 'setAppConfigPath', app, path })
+            void window.unikeys.chooseConfigPath(app).then((chosen) => {
+              if (!chosen) return
+              dispatch({ type: 'setAppConfigPath', app, path: chosen.path })
+              // The grant arrives with the path in a sandboxed build, from the
+              // same panel — pointing unikeys somewhere new and letting it in
+              // are one decision, and asking twice for one answer is the kind
+              // of thing that makes a sandboxed app feel broken.
+              if (chosen.grant) {
+                dispatch({ type: 'grantApp', app, directory: chosen.path, grant: chosen.grant })
+              }
             })
           }}
-          onClearPath={(app) => dispatch({ type: 'setAppConfigPath', app, path: null })}
+          onClearPath={(app) => {
+            // Only the path. The grants are kept, because resetting the location
+            // sends unikeys back to the standard one — which for the setup that
+            // made a hand-picked path necessary is often a link into the very
+            // folder that was granted. Dropping them here would prompt again for
+            // access unikeys already has, and an unredeemed bookmark opens
+            // nothing in the meantime.
+            dispatch({ type: 'setAppConfigPath', app, path: null })
+          }}
+          sandboxed={sandboxed}
+          grantErrors={grantErrors}
+          onGrant={(app, at) => {
+            void window.unikeys
+              .requestGrant(app, at)
+              .then((outcome) => {
+                if (outcome.ok) {
+                  // Storing the bookmark changes `state.store.apps`, which the
+                  // effect above watches — so the card re-reads itself and the
+                  // "needs access" state clears without anything asking it to.
+                  dispatch({
+                    type: 'grantApp',
+                    app,
+                    directory: outcome.directory,
+                    grant: outcome.grant
+                  })
+                  setGrantErrors((previous) => ({ ...previous, [app]: undefined }))
+                  return
+                }
+                // A cancelled picker is the user deciding not to, so it clears
+                // the previous complaint rather than adding one.
+                setGrantErrors((previous) => ({
+                  ...previous,
+                  [app]: outcome.cancelled ? undefined : outcome.error
+                }))
+              })
+              .catch((cause: Error) => {
+                setGrantErrors((previous) => ({ ...previous, [app]: cause.message }))
+              })
+          }}
         />
       )}
 

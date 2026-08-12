@@ -16,6 +16,7 @@ const unikeys: UnikeysApi = {
   loadHistory: () => ipcRenderer.invoke(IPC.loadHistory),
   appendHistory: (entry) => ipcRenderer.invoke(IPC.appendHistory, entry),
   chooseConfigPath: (app) => ipcRenderer.invoke(IPC.chooseConfigPath, app),
+  requestGrant: (app, at) => ipcRenderer.invoke(IPC.requestGrant, app, at),
   revealBackups: () => ipcRenderer.invoke(IPC.revealBackups),
   setThemeSource: (source) => ipcRenderer.invoke(IPC.setThemeSource, source)
 }

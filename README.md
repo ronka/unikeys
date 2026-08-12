@@ -43,12 +43,20 @@ Two consequences worth knowing:
 
 ```bash
 npm install
-npm run dev         # run the app
+npm run dev         # run the app as the App Store build behaves: sandboxed, folders granted
+npm run dev:dmg     # run the app as the dmg build behaves: no sandbox, no grants
 npm test            # vitest, the pure modules
 npm run typecheck   # main, renderer and tests
 npm run lint
-npm run build:mac
+npm run build:mac   # the signed, notarized dmg
+npm run build:mas   # the Mac App Store .pkg — needs the certificates, see plans/mac-app-store.md
 ```
+
+`npm run dev` sets `UNIKEYS_SIMULATE_SANDBOX=1`. The App Store build is the target, so
+the default run matches it: unikeys asks you to grant each app's config folder before it
+reads anything. The switch simulates unikeys' side of the sandbox — the states, the
+prompts and the refusals — and cannot simulate macOS's side, because there is no real
+sandbox in a development run. It is ignored in any packaged build.
 
 ## Outstanding: most fixtures are authored, not captured
 

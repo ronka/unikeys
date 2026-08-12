@@ -705,8 +705,47 @@ describe('import and app configuration', () => {
       { type: 'setAppConfigPath', app: 'ghostty', path: '/somewhere/config' }
     )
 
-    expect(next.store.apps.webstorm).toEqual({ enabled: false, configPath: null })
-    expect(next.store.apps.ghostty).toEqual({ enabled: true, configPath: '/somewhere/config' })
+    expect(next.store.apps.webstorm).toEqual({ enabled: false, configPath: null, grants: {} })
+    expect(next.store.apps.ghostty).toEqual({
+      enabled: true,
+      configPath: '/somewhere/config',
+      grants: {}
+    })
     expect(state.store.apps.webstorm.enabled).toBe(true)
+  })
+
+  it('adds a granted folder to the ones an app already holds', () => {
+    // The reason grants are a collection: a config symlinked into a dotfiles
+    // repo needs the standard location *and* the repo, and the second grant
+    // replacing the first is what made that setup impossible to finish.
+    const state = createTableState(createEmptyStore())
+
+    const once = run(state, {
+      type: 'grantApp',
+      app: 'zed',
+      directory: '/home/me/.config/zed',
+      grant: 'bookmark-a'
+    })
+    const twice = run(once, {
+      type: 'grantApp',
+      app: 'zed',
+      directory: '/home/me/dotfiles/zed',
+      grant: 'bookmark-b'
+    })
+
+    expect(twice.store.apps.zed.grants).toEqual({
+      '/home/me/.config/zed': 'bookmark-a',
+      '/home/me/dotfiles/zed': 'bookmark-b'
+    })
+  })
+
+  it('replaces the bookmark when the same folder is granted again', () => {
+    // Keyed by directory so re-granting refreshes rather than accumulating —
+    // otherwise every re-prompt would leave another dead bookmark behind.
+    const state = createTableState(createEmptyStore())
+    const grant = (grant: string): TableState =>
+      run(state, { type: 'grantApp', app: 'zed', directory: '/same/folder', grant })
+
+    expect(grant('fresh').store.apps.zed.grants).toEqual({ '/same/folder': 'fresh' })
   })
 })

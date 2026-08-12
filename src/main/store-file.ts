@@ -15,6 +15,7 @@ import {
   createEmptyStore,
   deserializeStore,
   serializeStore,
+  NO_GRANTS,
   type Store
 } from '../shared/store/types'
 import { isInstalled } from './apps-service'
@@ -126,5 +127,6 @@ export function loadStore(
 
 export function saveStore(location: StoreLocation, store: Store): void {
   mkdirSync(join(location.storePath, '..'), { recursive: true })
-  writeAtomic(location.storePath, serializeStore(store))
+  // unikeys' own file, inside its own container: nothing to be granted.
+  writeAtomic(location.storePath, serializeStore(store), NO_GRANTS)
 }
