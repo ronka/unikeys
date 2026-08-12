@@ -190,23 +190,23 @@ export interface LoadResult {
  * second grant from evicting the first.
  */
 export type GrantOutcome =
-  | { ok: true; grant: string; directory: string }
+  | {
+      ok: true
+      grant: string
+      directory: string
+      /**
+       * The override to store, or `null` to keep using the standard location.
+       *
+       * Decided here rather than in the renderer because it turns on whether the
+       * chosen folder *is* the standard one, which only the main process knows.
+       * Leaving it `null` in that case is not a tidiness point: an override
+       * naming `.../JetBrains` would be taken literally, and glob expansion —
+       * the thing that finds `WebStorm2024.3` — would never run.
+       */
+      configPath: string | null
+    }
   | { ok: false; cancelled: true }
   | { ok: false; cancelled: false; error: string }
-
-/**
- * A config location the user pointed at by hand, and the permission that came
- * with it.
- *
- * The two travel together because in a sandboxed build a path on its own is
- * useless: choosing a file through an open panel grants access until the app
- * quits, and unikeys would forget it by the next launch. Outside the sandbox
- * `grant` is always `null` and the path is the whole answer, exactly as before.
- */
-export interface ChosenConfig {
-  path: string
-  grant: string | null
-}
 
 // ---------------------------------------------------------------------------
 // Saving
@@ -352,16 +352,21 @@ export interface UnikeysApi {
   /**
    * Opens a file picker so a non-standard install does not block the user.
    *
-   * In a sandboxed build this asks for a *directory* and returns a lasting
-   * grant alongside the path. Both differences are forced: a file chosen
-   * through an open panel is reachable only until unikeys quits, and a
-   * file-scoped grant could not cover the sibling temp file `writeAtomic`
-   * creates — so unikeys would read the config once and never save it.
+   * The dmg build only. A sandboxed build has `requestGrant` instead, which is
+   * the same question asked once rather than twice — see there.
    */
-  chooseConfigPath(app: AppId): Promise<ChosenConfig | null>
+  chooseConfigPath(app: AppId): Promise<string | null>
   /**
-   * Asks the user to grant this app's config directory, returning the bookmark
-   * to persist in the store.
+   * Asks the user for this app's config folder, returning the bookmark to
+   * persist and the override to store with it.
+   *
+   * The sandboxed build's *only* way of pointing unikeys at a config, and that
+   * is why it returns both. Under sandbox, choosing a location and granting
+   * access are not two decisions the user could answer differently: the panel
+   * that names the folder is the panel that grants it, and a path with no grant
+   * behind it is a path unikeys cannot open. Offering "grant access" and
+   * "choose config" separately asked one question twice, and the second answer
+   * silently replaced the first.
    *
    * Its own call rather than something the read path does on demand, and that
    * is a load-bearing decision: a picker is asynchronous, and prompting from

@@ -127,6 +127,19 @@ to `src/shared/ipc.ts`, and a "Grant access…" action on the Apps page in the r
 - [x] `AppStatus` exposes a grant-needed state distinct from `config-not-found`
 - [ ] Apps page shows "Grant access…" for ungranted apps and the picker flow completes from the UI
       — written and typechecked, but never run; no tick until someone clicks it
+- [x] One button, not two. First run of the UI showed "Grant access" and "Choose config"
+      side by side on every card. Under sandbox they were the same interaction — a
+      directory picker returning a bookmark — asked twice, and the second answer replaced
+      the first. `chooseConfigPath` is now the dmg build's picker only; a sandboxed build
+      reaches every config through `requestGrant`, which returns the override to store
+      alongside the grant. Obsidian keeps the button despite having no `grantPath`: with
+      no second button left, it is the only way to name a vault.
+- [x] A directory override resolves to the right filename for every format. The sandboxed
+      picker can only return folders, and `configFileIn` derived the filename from a table
+      that listed Obsidian alone — so picking the correct `.../Cursor/User` reported
+      "a directory with no keymap file in it. Create a custom keymap in Cursor first",
+      the JetBrains message, on nine of thirteen apps. It now shares `configFilename` with
+      the grant landmark check, which already computed exactly this.
 - [x] Existing non-mas (dmg) build behavior is unchanged — grants only engage in sandboxed builds.
       Observed, not inferred: the packaged `dist/mac-universal/unikeys.app` was launched and
       driven. `load()` returns `sandboxed: false`, `AppConfig` carries the new `grants: {}`,

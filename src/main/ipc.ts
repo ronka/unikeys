@@ -15,7 +15,6 @@ import { APPS, isAppId } from '../shared/apps'
 import {
   IPC,
   isThemeSource,
-  type ChosenConfig,
   type GrantOutcome,
   type HistoryResult,
   type ImportResult,
@@ -29,6 +28,7 @@ import {
   createBackupSession,
   grantDirectory,
   grantMismatch,
+  sameDirectory,
   type BackupSession
 } from './config-files'
 import { isSandboxed, isSimulatedSandbox, SIMULATED_GRANT } from './grants'
@@ -103,35 +103,23 @@ export function registerIpcHandlers(): void {
     return ensureHistory().append(entry, { id: randomUUID(), at: Date.now() })
   })
 
-  ipcMain.handle(
-    IPC.chooseConfigPath,
-    async (_event, appId: unknown): Promise<ChosenConfig | null> => {
-      if (!isAppId(appId)) return null
-      const sandboxed = isSandboxed()
+  ipcMain.handle(IPC.chooseConfigPath, async (_event, appId: unknown): Promise<string | null> => {
+    if (!isAppId(appId)) return null
+    // The dmg build's picker, and only its. A sandboxed build reaches every
+    // config through `requestGrant`, which asks for the folder and the
+    // permission in one panel — so this handler no longer has a sandbox case to
+    // carry, and a path with no grant behind it can no longer be stored.
+    if (isSandboxed()) return null
 
-      const result = await dialog.showOpenDialog({
-        title: 'Choose config file',
-        properties: sandboxed
-          ? // Directory-only under sandbox. Naming the file itself would be the
-            // friendlier panel, but the grant that came back would not cover the
-            // temp file `writeAtomic` puts beside it — so unikeys would read the
-            // config and then fail every save, which is worse than asking for
-            // the folder. `configFileIn` and `resolveKeymapFile` already turn a
-            // directory into the right file for the formats that need it.
-            ['openDirectory', 'showHiddenFiles']
-          : // JetBrains keymaps live in a directory whose filename the user
-            // chose, so both a file and a directory are legitimate answers.
-            ['openFile', 'openDirectory', 'showHiddenFiles'],
-        securityScopedBookmarks: sandboxed
-      })
-      if (result.canceled || result.filePaths.length === 0) return null
-
-      return {
-        path: result.filePaths[0],
-        grant: result.bookmarks?.[0] ?? (isSimulatedSandbox() ? SIMULATED_GRANT : null)
-      }
-    }
-  )
+    const result = await dialog.showOpenDialog({
+      title: 'Choose config file',
+      // JetBrains keymaps live in a directory whose filename the user chose, so
+      // both a file and a directory are legitimate answers.
+      properties: ['openFile', 'openDirectory', 'showHiddenFiles']
+    })
+    if (result.canceled || result.filePaths.length === 0) return null
+    return result.filePaths[0]
+  })
 
   ipcMain.handle(
     IPC.requestGrant,
@@ -200,7 +188,13 @@ export function registerIpcHandlers(): void {
         }
       }
 
-      return { ok: true, grant: bookmark, directory }
+      // An override only when they picked somewhere other than the standard
+      // location. Storing the standard directory as an override would have it
+      // taken literally — and for the JetBrains three that means never running
+      // the glob that finds the versioned folder.
+      const configPath = standard !== null && sameDirectory(directory, standard) ? null : directory
+
+      return { ok: true, grant: bookmark, directory, configPath }
     }
   )
 

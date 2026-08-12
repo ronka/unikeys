@@ -218,6 +218,44 @@ describe('a config symlinked out of the granted folder', () => {
   })
 })
 
+describe('the folder the sandboxed picker hands back', () => {
+  // Under sandbox the panel asks for a directory and nothing else, because a
+  // file-scoped grant could not cover the temp file `writeAtomic` puts beside
+  // its target. So *every* app's config path arrives as a folder, and the
+  // filename has to be derived. It used to be looked up in a table that knew
+  // only about Obsidian, which meant picking the correct `.../Cursor/User` fell
+  // through to the JetBrains branch and reported a VSCode-family folder as
+  // holding no keymap `.xml`.
+  const cases = [
+    { app: 'cursor', file: 'keybindings.json' },
+    { app: 'vscode', file: 'keybindings.json' },
+    { app: 'zed', file: 'keymap.json' },
+    { app: 'ghostty', file: 'config' },
+    { app: 'warp', file: 'keybindings.yaml' },
+    { app: 'obsidian', file: 'hotkeys.json' }
+  ] as const
+
+  for (const { app, file } of cases) {
+    it(`resolves a directory to ${app}'s ${file}`, () => {
+      const dir = temp(`dir-${app}`)
+      expect(writeTarget(app, at(dir))).toEqual({ ok: true, path: join(dir, file) })
+
+      writeFileSync(join(dir, file), file.endsWith('.yaml') ? 'keybindings: []' : '{}')
+      expect(readConfig(app, at(dir))).toMatchObject({ ok: true, path: join(dir, file) })
+    })
+  }
+
+  it('still refuses to invent a filename for a JetBrains keymap', () => {
+    // The one app where the name is not knowable: a keymap is called whatever
+    // the user called it, so an empty folder is an error rather than a path.
+    const dir = temp('dir-webstorm')
+    expect(writeTarget('webstorm', at(dir)).ok).toBe(false)
+
+    writeFileSync(join(dir, 'Mine.xml'), '<keymap/>')
+    expect(writeTarget('webstorm', at(dir))).toEqual({ ok: true, path: join(dir, 'Mine.xml') })
+  })
+})
+
 describe('reading without a grant', () => {
   it('is a state of its own, not "config not found"', () => {
     // The distinction is the point: "unikeys looked and found nothing" sends

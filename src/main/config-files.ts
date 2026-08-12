@@ -161,7 +161,7 @@ export function grantMismatch(
   // into. Redeemed through the brand-new bookmark, because without it the
   // sandbox answers `false` for every folder alike and unikeys would reject the
   // user's correct choice as confidently as an incorrect one.
-  const landmark = configLandmark(app)
+  const landmark = configFilename(app)
   if (landmark !== null) {
     if (withGrants(grants, () => existsSync(join(directory, landmark)))) return null
     return (
@@ -172,7 +172,7 @@ export function grantMismatch(
 
   // No landmark: a globbed config path, where the grant has to sit at a
   // particular structural level and there is no filename that proves a folder
-  // is it (see `configLandmark`). What that rules out is a folder *below* the
+  // is it (see `configFilename`). What that rules out is a folder *below* the
   // one unikeys asked for — granting `.../JetBrains/WebStorm2024.3` when
   // `expandGlob` has to list `.../JetBrains` is the trap, and it is a trap
   // precisely because the grant works here and then makes every read report
@@ -196,13 +196,18 @@ export function grantMismatch(
 }
 
 /**
- * The filename that tells you an app's config directory is the right one.
+ * The filename an app's config has inside its directory, when it is knowable in
+ * advance.
  *
  * The last segment of the standard path, or the fixed name a format keeps
  * inside a directory when there is no standard path at all — which is what
  * makes an Obsidian vault checkable despite unikeys never being able to guess
- * where it is. `null` when neither exists, in which case a grant is judged on
- * its path alone.
+ * where it is. `null` when neither exists.
+ *
+ * Two callers, and they want the same answer for the same reason: `configFileIn`
+ * turns a directory the user picked into the file to read or write, and
+ * `grantMismatch` uses it as the landmark that says a chosen folder is the right
+ * one. Both are asking "what is this app's config called in here?".
  *
  * Deliberately `null` for a globbed path, and this is the subtle one. JetBrains
  * keymaps live at `.../JetBrains/WebStorm2024.3/keymaps`, so the landmark is
@@ -214,10 +219,15 @@ export function grantMismatch(
  * escape by re-granting. Where the path is globbed the grant level is
  * structural, and equality is the only sound test.
  */
-function configLandmark(app: AppId): string | null {
+export function configFilename(app: AppId): string | null {
   const standard = APPS[app].configPaths[0]
   if (standard !== undefined) return standard.includes('*') ? null : basename(standard)
   return DIRECTORY_FILENAMES[APPS[app].format] ?? null
+}
+
+/** Whether two paths name the same directory, symlinks and `/tmp` spellings aside. */
+export function sameDirectory(a: string, b: string): boolean {
+  return resolveOrSelf(a) === resolveOrSelf(b)
 }
 
 function resolveOrSelf(path: string): string {
@@ -291,13 +301,14 @@ export function candidatePaths(app: AppId): string[] {
 }
 
 /**
- * The fixed filename a format keeps inside a directory, when it has one.
+ * The fixed filename a format keeps inside a directory, for a format with no
+ * standard path to read the name off.
  *
  * Obsidian's hotkeys live at `<vault>/.obsidian/hotkeys.json`, and `.obsidian`
  * is the directory a user browsing to their vault will land on and select — the
- * file inside it may not even exist yet. Resolving the directory to the file is
- * the same courtesy `resolveKeymapFile` extends to a JetBrains `keymaps`
- * directory, and the difference is only that the name here is known in advance.
+ * file inside it may not even exist yet. Every other format has a standard path
+ * whose last segment is the same answer, so this table holds only the apps that
+ * have none.
  *
  * Keyed by format rather than by app, so nothing above the adapter registry
  * hardcodes a particular application.
@@ -306,10 +317,20 @@ const DIRECTORY_FILENAMES: Partial<Record<FormatId, string>> = {
   'obsidian-hotkeys': 'hotkeys.json'
 }
 
-/** The file a directory path names for this app, or `null` if it names none. */
+/**
+ * The file a directory path names for this app, or `null` if it names none.
+ *
+ * Derived from the standard path rather than from a table of formats. The table
+ * alone knew only about Obsidian, so a user who picked `.../Cursor/User` — the
+ * only thing the sandboxed picker lets them pick, since it asks for folders —
+ * got no filename here, fell through to `resolveKeymapFile`, and was told their
+ * VSCode-family config directory held no keymap `.xml`. Every app whose config
+ * has a fixed name now resolves; the globbed ones still return `null`, because
+ * a JetBrains keymap is named by whoever created it.
+ */
 export function configFileIn(app: AppId, directory: string): string | null {
-  const filename = DIRECTORY_FILENAMES[APPS[app].format]
-  return filename === undefined ? null : join(directory, filename)
+  const filename = configFilename(app)
+  return filename === null ? null : join(directory, filename)
 }
 
 /**

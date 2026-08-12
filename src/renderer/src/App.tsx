@@ -394,16 +394,8 @@ function App(): React.JSX.Element {
             dispatch({ type: 'setAppEnabled', app, enabled })
           }}
           onChoosePath={(app) => {
-            void window.unikeys.chooseConfigPath(app).then((chosen) => {
-              if (!chosen) return
-              dispatch({ type: 'setAppConfigPath', app, path: chosen.path })
-              // The grant arrives with the path in a sandboxed build, from the
-              // same panel — pointing unikeys somewhere new and letting it in
-              // are one decision, and asking twice for one answer is the kind
-              // of thing that makes a sandboxed app feel broken.
-              if (chosen.grant) {
-                dispatch({ type: 'grantApp', app, directory: chosen.path, grant: chosen.grant })
-              }
+            void window.unikeys.chooseConfigPath(app).then((path) => {
+              if (path) dispatch({ type: 'setAppConfigPath', app, path })
             })
           }}
           onClearPath={(app) => {
@@ -431,6 +423,11 @@ function App(): React.JSX.Element {
                     directory: outcome.directory,
                     grant: outcome.grant
                   })
+                  // The same panel answered both halves, so both are recorded:
+                  // under sandbox this is the only way a config location gets
+                  // set, and main decided whether the folder they picked counts
+                  // as an override at all.
+                  dispatch({ type: 'setAppConfigPath', app, path: outcome.configPath })
                   setGrantErrors((previous) => ({ ...previous, [app]: undefined }))
                   return
                 }

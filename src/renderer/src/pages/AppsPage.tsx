@@ -196,18 +196,23 @@ function AppRow({
 }): React.JSX.Element {
   const app = status.app
   const tone = healthTone(status.health)
-  // Offered whenever the build can grant at all, not only when a grant is
-  // missing: a user who has moved their config wants to re-point unikeys at it
-  // without having to break the current grant first to make the button appear.
-  // `grantPath` is absent outside the sandbox and for an app with nothing to
-  // ask for yet, which is exactly when the button should not exist.
-  const canGrant = sandboxed && status.grantPath !== undefined
+  // Offered whenever the build is sandboxed, not only when a grant is missing:
+  // a user who has moved their config wants to re-point unikeys at it without
+  // having to break the current grant first to make the button appear.
+  //
+  // Not gated on `grantPath` either, though it once was. Absent `grantPath` is
+  // Obsidian — an app with no standard folder to open at — and since this
+  // button is now the only way a sandboxed build can be pointed anywhere, that
+  // is precisely the app that must not lose it. The picker simply opens
+  // wherever macOS last left it, which is the honest place to start when
+  // unikeys genuinely cannot guess which vault they mean.
+  const canGrant = sandboxed
   const needsGrant = status.health === 'grant-required'
   // Labelled by whether a grant exists, not by whether one is being asked for.
   // Keying it on health called the button "Change access" on an app that had
   // never been granted anything — every turned-off app on a first run — which
   // claims a permission the user has not given.
-  const grantLabel = Object.keys(config.grants).length === 0 ? 'Grant access…' : 'Change access'
+  const grantLabel = Object.keys(config.grants).length === 0 ? 'Grant access…' : 'Change folder…'
 
   return (
     <li
@@ -280,10 +285,17 @@ function AppRow({
         </div>
 
         <div className="flex shrink-0 items-center gap-1 group-data-[enabled=false]:opacity-55">
-          {canGrant && (
+          {canGrant ? (
+            // One button, because under sandbox there is only one thing to ask.
+            // Choosing where a config lives and letting unikeys in are answered
+            // by the same panel and cannot differ: a folder the user names but
+            // does not grant is a folder unikeys cannot open. Offering "Grant
+            // access" and "Choose config" side by side asked one question twice
+            // and let the second answer quietly replace the first.
+            //
             // The primary action while access is missing, because it is the one
             // thing standing between the user and a working column — and a
-            // quiet one once granted, since re-granting is the rare case.
+            // quiet one once granted, since re-pointing is the rare case.
             <Button
               size="xs"
               variant={needsGrant ? 'default' : 'ghost'}
@@ -292,16 +304,17 @@ function AppRow({
               <FolderKey />
               {grantLabel}
             </Button>
+          ) : (
+            <Button size="xs" variant="ghost" onClick={() => onChoosePath(app)}>
+              <FolderOpen />
+              Choose config
+            </Button>
           )}
           {config.configPath && (
             <Button size="xs" variant="ghost" onClick={() => onClearPath(app)}>
               Reset location
             </Button>
           )}
-          <Button size="xs" variant="ghost" onClick={() => onChoosePath(app)}>
-            <FolderOpen />
-            Choose config
-          </Button>
         </div>
       </div>
     </li>
