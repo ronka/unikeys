@@ -99,6 +99,14 @@ export interface Store {
   apps: Record<AppId, AppConfig>
   chords: ChordTable
   firstRunCompleted: boolean
+  /**
+   * Whether the onboarding wizard has been finished (or skipped). Separate from
+   * `firstRunCompleted`, which the every-launch import sets as a side effect —
+   * quitting mid-wizard leaves that `true` on disk, and this field is what lets
+   * the wizard still reappear on the next launch. Additive on purpose, like
+   * `grants`: no schema bump, so stores travel between builds either way.
+   */
+  onboardingCompleted: boolean
 }
 
 export function createEmptyStore(): Store {
@@ -108,7 +116,8 @@ export function createEmptyStore(): Store {
       APP_IDS.map((id) => [id, { enabled: true, configPath: null, grants: {} } satisfies AppConfig])
     ) as Record<AppId, AppConfig>,
     chords: {},
-    firstRunCompleted: false
+    firstRunCompleted: false,
+    onboardingCompleted: false
   }
 }
 
@@ -171,7 +180,16 @@ export function deserializeStore(text: string): DeserializeOutcome {
     schemaVersion: STORE_SCHEMA_VERSION,
     apps: { ...base.apps },
     chords: isRecord(data.chords) ? (data.chords as ChordTable) : {},
-    firstRunCompleted: data.firstRunCompleted === true
+    firstRunCompleted: data.firstRunCompleted === true,
+    // A store written before onboarding existed has no key, but a completed
+    // first run means the user has already been through setup — treating them
+    // as onboarded is what keeps the wizard from greeting existing users on
+    // upgrade. Builds that know the field always write it, so an explicit
+    // `false` (quit mid-wizard) survives even though `firstRunCompleted` is
+    // already `true` by then.
+    onboardingCompleted:
+      data.onboardingCompleted === true ||
+      (data.onboardingCompleted === undefined && data.firstRunCompleted === true)
   }
 
   if (isRecord(data.apps)) {

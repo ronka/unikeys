@@ -748,4 +748,25 @@ describe('import and app configuration', () => {
 
     expect(grant('fresh').store.apps.zed.grants).toEqual({ '/same/folder': 'fresh' })
   })
+
+  it('toggles onboarding completion without touching anything else', () => {
+    const state = run(createTableState(storeWith({ 'file.save': { vscode: imported('cmd+s') } })), {
+      type: 'setChord',
+      actionId: 'file.save',
+      app: 'webstorm',
+      chord: save
+    })
+
+    const done = run(state, { type: 'setOnboardingCompleted', completed: true })
+    expect(done.store.onboardingCompleted).toBe(true)
+    expect(done.pending).toEqual(state.pending)
+    expect(done.store.chords).toEqual(state.store.chords)
+    expect(done.store.apps).toEqual(state.store.apps)
+
+    // Settings replays the wizard by un-completing, so the toggle must go both
+    // ways.
+    const replay = run(done, { type: 'setOnboardingCompleted', completed: false })
+    expect(replay.store.onboardingCompleted).toBe(false)
+    expect(state.store.onboardingCompleted).toBe(false)
+  })
 })

@@ -4,7 +4,13 @@ import { X } from 'lucide-react'
 import { CATALOGUE, actionById } from '@shared/catalogue'
 import { type AppId } from '@shared/apps'
 import { parseCanonical, type Chord } from '@shared/chord'
-import { isHealthProblem, type AppStatus, type ImportResult, type WriteResult } from '@shared/ipc'
+import {
+  isHealthProblem,
+  type AppStatus,
+  type GrantOutcome,
+  type ImportResult,
+  type WriteResult
+} from '@shared/ipc'
 import { buildSaveEntry } from '@shared/history/entry'
 import { describeRevert, planRevert } from '@shared/history/revert'
 import type { HistoryEntry, NewHistoryEntry } from '@shared/history/types'
@@ -16,10 +22,11 @@ import {
   matchCandidates,
   pendingChanges,
   plannedCopy,
+  type ImportedBinding,
   type MatchCandidate
 } from '@shared/table/reducer'
 import { savedCells } from '@shared/table/save-outcome'
-import { isCellUnseen } from '@shared/store/types'
+import { isCellUnseen, type Store } from '@shared/store/types'
 import { buildTableView, summarizeImport } from '@shared/table/view'
 import { type EditTarget } from './components/KeysTable'
 import {
@@ -30,6 +37,7 @@ import {
   WriteReport
 } from './components/Panels'
 import { AppShell, type View } from './components/AppShell'
+import { OnboardingWizard } from './components/OnboardingWizard'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { AppsPage } from './pages/AppsPage'
@@ -43,9 +51,32 @@ import { SettingsPage } from './pages/SettingsPage'
  * the pending review — is a step inside the save rather than a destination, and
  * reads better next to the button than behind a nav item.
  *
- * One value for all three, so only ever one of them is on screen.
+ * One value for all of them, so only ever one of them is on screen.
  */
-type Overlay = 'none' | 'pending' | 'summary' | 'write-report'
+type Overlay = 'none' | 'pending' | 'summary' | 'write-report' | 'onboarding'
+
+/**
+ * What an import is allowed to change, judged against the given store: only
+ * cells it has no entry for at all. Shared by the startup import and the
+ * wizard's re-import, so the backfill rule cannot fork — and a chord unikeys
+ * cannot parse is dropped rather than stored as a value nothing downstream
+ * could render or write.
+ */
+function mapImported(imported: ImportResult, store: Store): ImportedBinding[] {
+  return imported.chords.flatMap((entry) => {
+    if (!isCellUnseen(store, entry.actionId, entry.app)) return []
+    const chord = entry.chord === null ? null : parseCanonical(entry.chord)
+    if (entry.chord !== null && chord === null) return []
+    return [
+      {
+        actionId: entry.actionId,
+        app: entry.app,
+        chord,
+        origin: entry.origin === 'default' ? ('default' as const) : ('imported' as const)
+      }
+    ]
+  })
+}
 
 function App(): React.JSX.Element {
   // The catalogue is static shipped data, so the renderer imports it directly
@@ -125,6 +156,10 @@ function App(): React.JSX.Element {
           })
 
         const firstRun = !result.store.firstRunCompleted
+        // Read off the raw load, before any dispatch: the import below forces
+        // `firstRunCompleted` on, so only this moment can tell a genuinely
+        // un-onboarded store apart from one mid-way through its first launch.
+        const needsOnboarding = !result.store.onboardingCompleted
 
         // Import runs on every launch, and writes only into cells the store has
         // no entry for. That one rule covers everything that would otherwise
@@ -139,27 +174,17 @@ function App(): React.JSX.Element {
         dispatch({
           type: 'importBindings',
           payload: {
-            bindings: imported.chords.flatMap((entry) => {
-              if (!isCellUnseen(result.store, entry.actionId, entry.app)) return []
-              const chord = entry.chord === null ? null : parseCanonical(entry.chord)
-              // A chord unikeys cannot parse is dropped rather than stored as
-              // a value nothing downstream could render or write.
-              if (entry.chord !== null && chord === null) return []
-              return [
-                {
-                  actionId: entry.actionId,
-                  app: entry.app,
-                  chord,
-                  origin: entry.origin === 'default' ? ('default' as const) : ('imported' as const)
-                }
-              ]
-            }),
+            bindings: mapImported(imported, result.store),
             markFirstRunCompleted: true
           }
         })
-        // The summary reports on the whole table, which only tells the truth
-        // on a real first run.
-        if (firstRun) {
+        if (needsOnboarding) {
+          setImportResult(imported)
+          setOverlay('onboarding')
+        } else if (firstRun) {
+          // The summary reports on the whole table, which only tells the truth
+          // on a real first run. Reachable without onboarding only through a
+          // hand-edited store, but that is exactly the state it still covers.
           setImportResult(imported)
           setOverlay('summary')
         }
@@ -231,6 +256,69 @@ function App(): React.JSX.Element {
         : { type: 'setChord', actionId: target.actionId, app: target.app, chord }
     )
     setEditing(null)
+  }
+
+  // Shared by the Apps page and the onboarding wizard, so the wizard's grant
+  // button and the card's cannot drift apart. Returns the outcome because the
+  // wizard advances or stays on it; the Apps page ignores the return value.
+  const handleGrant = async (app: AppId, at?: string): Promise<GrantOutcome> => {
+    try {
+      const outcome = await window.unikeys.requestGrant(app, at)
+      if (outcome.ok) {
+        // Storing the bookmark changes `state.store.apps`, which the refresh
+        // effect watches — so the card re-reads itself and the "needs access"
+        // state clears without anything asking it to.
+        dispatch({ type: 'grantApp', app, directory: outcome.directory, grant: outcome.grant })
+        // The same panel answered both halves, so both are recorded: under
+        // sandbox this is the only way a config location gets set, and main
+        // decided whether the folder they picked counts as an override at all.
+        dispatch({ type: 'setAppConfigPath', app, path: outcome.configPath })
+        setGrantErrors((previous) => ({ ...previous, [app]: undefined }))
+      } else {
+        // A cancelled picker is the user deciding not to, so it clears the
+        // previous complaint rather than adding one.
+        setGrantErrors((previous) => ({
+          ...previous,
+          [app]: outcome.cancelled ? undefined : outcome.error
+        }))
+      }
+      return outcome
+    } catch (cause) {
+      const message = (cause as Error).message
+      setGrantErrors((previous) => ({ ...previous, [app]: message }))
+      return { ok: false, cancelled: false, error: message }
+    }
+  }
+
+  const handleChoosePath = async (app: AppId): Promise<string | null> => {
+    const path = await window.unikeys.chooseConfigPath(app)
+    if (path) dispatch({ type: 'setAppConfigPath', app, path })
+    return path
+  }
+
+  // The wizard's payoff: read again now that grants are in place, so the
+  // results step shows the keys actually arriving. Judged against the *current*
+  // store, so a cell the user has set or cleared — or that the startup import
+  // already filled — is untouched; and no `markFirstRunCompleted`, because the
+  // startup import owns that flag.
+  const handleOnboardingReimport = async (): Promise<void> => {
+    const imported = await window.unikeys.importBindings(state.store)
+    setStatuses(imported.statuses)
+    dispatch({
+      type: 'importBindings',
+      payload: { bindings: mapImported(imported, state.store) }
+    })
+    setImportResult(imported)
+  }
+
+  // Shared by the Apps page and the onboarding wizard, so both places an app
+  // can be switched off agree about what that does to the filter.
+  const handleToggleApp = (app: AppId, enabled: boolean): void => {
+    // Disabling the filtered app drops its column, so the filter goes with it.
+    // Clearing the state — rather than falling back at render — keeps the app
+    // from silently springing back to a filter the user never reselected.
+    if (!enabled && appFilter === app) setAppFilter(null)
+    dispatch({ type: 'setAppEnabled', app, enabled })
   }
 
   const handleMatchRow = (actionId: string): void => {
@@ -385,19 +473,8 @@ function App(): React.JSX.Element {
         <AppsPage
           statuses={statuses}
           store={state.store}
-          onToggle={(app, enabled) => {
-            // Disabling the filtered app drops its column, so the filter
-            // goes with it. Clearing the state — rather than falling back
-            // at render — keeps the app from silently springing back to a
-            // filter the user never reselected.
-            if (!enabled && appFilter === app) setAppFilter(null)
-            dispatch({ type: 'setAppEnabled', app, enabled })
-          }}
-          onChoosePath={(app) => {
-            void window.unikeys.chooseConfigPath(app).then((path) => {
-              if (path) dispatch({ type: 'setAppConfigPath', app, path })
-            })
-          }}
+          onToggle={handleToggleApp}
+          onChoosePath={(app) => void handleChoosePath(app)}
           onClearPath={(app) => {
             // Only the path. The grants are kept, because resetting the location
             // sends unikeys back to the standard one — which for the setup that
@@ -409,39 +486,7 @@ function App(): React.JSX.Element {
           }}
           sandboxed={sandboxed}
           grantErrors={grantErrors}
-          onGrant={(app, at) => {
-            void window.unikeys
-              .requestGrant(app, at)
-              .then((outcome) => {
-                if (outcome.ok) {
-                  // Storing the bookmark changes `state.store.apps`, which the
-                  // effect above watches — so the card re-reads itself and the
-                  // "needs access" state clears without anything asking it to.
-                  dispatch({
-                    type: 'grantApp',
-                    app,
-                    directory: outcome.directory,
-                    grant: outcome.grant
-                  })
-                  // The same panel answered both halves, so both are recorded:
-                  // under sandbox this is the only way a config location gets
-                  // set, and main decided whether the folder they picked counts
-                  // as an override at all.
-                  dispatch({ type: 'setAppConfigPath', app, path: outcome.configPath })
-                  setGrantErrors((previous) => ({ ...previous, [app]: undefined }))
-                  return
-                }
-                // A cancelled picker is the user deciding not to, so it clears
-                // the previous complaint rather than adding one.
-                setGrantErrors((previous) => ({
-                  ...previous,
-                  [app]: outcome.cancelled ? undefined : outcome.error
-                }))
-              })
-              .catch((cause: Error) => {
-                setGrantErrors((previous) => ({ ...previous, [app]: cause.message }))
-              })
-          }}
+          onGrant={(app, at) => void handleGrant(app, at)}
         />
       )}
 
@@ -449,6 +494,12 @@ function App(): React.JSX.Element {
         <SettingsPage
           backupDirectory={backupDirectory}
           onRevealBackups={() => void window.unikeys.revealBackups()}
+          onReplayOnboarding={() => {
+            // Un-completing first means a quit mid-replay brings the wizard
+            // back, same as a genuine first run.
+            dispatch({ type: 'setOnboardingCompleted', completed: false })
+            setOverlay('onboarding')
+          }}
         />
       )}
 
@@ -468,6 +519,27 @@ function App(): React.JSX.Element {
             setOverlay('none')
           }}
           onClose={() => setOverlay('none')}
+        />
+      )}
+
+      {overlay === 'onboarding' && (
+        <OnboardingWizard
+          statuses={statuses}
+          store={state.store}
+          sandboxed={sandboxed}
+          summary={summarizeImport(state, CATALOGUE)}
+          result={importResult}
+          onSetAppEnabled={handleToggleApp}
+          onGrant={handleGrant}
+          onChoosePath={handleChoosePath}
+          onReimport={handleOnboardingReimport}
+          onComplete={() => {
+            dispatch({ type: 'setOnboardingCompleted', completed: true })
+            setOverlay('none')
+          }}
+          // Dismissing leaves the store untouched, so the wizard comes back on
+          // the next launch — quitting mid-setup is not finishing it.
+          onDismiss={() => setOverlay('none')}
         />
       )}
 

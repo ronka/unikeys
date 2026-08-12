@@ -118,6 +118,12 @@ export type TableAction =
    * accumulating a second one.
    */
   | { type: 'grantApp'; app: AppId; directory: string; grant: string }
+  /**
+   * Marks the onboarding wizard finished — or, from Settings, un-finished, so
+   * it can be replayed. Persistence is the store persist effect's business,
+   * like every other store patch.
+   */
+  | { type: 'setOnboardingCompleted'; completed: boolean }
 
 // ---------------------------------------------------------------------------
 // Reading state
@@ -420,6 +426,12 @@ export function tableReducer(
       return withAppConfig(state, action.app, {
         grants: { ...state.store.apps[action.app].grants, [action.directory]: action.grant }
       })
+
+    case 'setOnboardingCompleted':
+      return {
+        ...state,
+        store: { ...state.store, onboardingCompleted: action.completed }
+      }
 
     default:
       return state

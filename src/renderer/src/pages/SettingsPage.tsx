@@ -9,6 +9,7 @@ import { PageHeader } from './PageHeader'
 interface Props {
   backupDirectory: string
   onRevealBackups: () => void
+  onReplayOnboarding: () => void
 }
 
 const THEME_LABELS: Record<ThemeSource, string> = {
@@ -17,7 +18,11 @@ const THEME_LABELS: Record<ThemeSource, string> = {
   system: 'System'
 }
 
-export function SettingsPage({ backupDirectory, onRevealBackups }: Props): React.JSX.Element {
+export function SettingsPage({
+  backupDirectory,
+  onRevealBackups,
+  onReplayOnboarding
+}: Props): React.JSX.Element {
   // Seeded from storage rather than held in App: nothing outside this control
   // reads it, because the appearance itself is applied by main.
   const [theme, setThemeState] = useState<ThemeSource>(storedTheme)
@@ -53,6 +58,15 @@ export function SettingsPage({ backupDirectory, onRevealBackups }: Props): React
             <p className="text-muted-foreground font-mono text-xs break-all">{backupDirectory}</p>
             <Button size="sm" variant="outline" className="mt-3" onClick={onRevealBackups}>
               Open backups folder
+            </Button>
+          </Section>
+
+          <Section
+            title="Onboarding"
+            description="Walk through picking your apps and granting access again."
+          >
+            <Button size="sm" variant="outline" onClick={onReplayOnboarding}>
+              Replay onboarding
             </Button>
           </Section>
         </div>

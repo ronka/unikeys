@@ -55,4 +55,35 @@ describe('deserializeStore', () => {
     const outcome = deserializeStore(JSON.stringify({ schemaVersion: 99, apps: {} }))
     expect(outcome.ok).toBe(false)
   })
+
+  describe('onboardingCompleted', () => {
+    const read = (document: object): boolean => {
+      const outcome = deserializeStore(JSON.stringify({ schemaVersion: 1, ...document }))
+      if (!outcome.ok) throw new Error(outcome.error)
+      return outcome.store.onboardingCompleted
+    }
+
+    it('starts false on a fresh store', () => {
+      expect(createEmptyStore().onboardingCompleted).toBe(false)
+    })
+
+    it('treats a legacy store with a completed first run as already onboarded', () => {
+      // The upgrade path: existing users must not be greeted by the wizard.
+      expect(read({ firstRunCompleted: true })).toBe(true)
+    })
+
+    it('keeps an explicit false even though the first run completed', () => {
+      // Quit mid-wizard: the every-launch import has already set
+      // `firstRunCompleted`, and only the explicit key brings the wizard back.
+      expect(read({ firstRunCompleted: true, onboardingCompleted: false })).toBe(false)
+    })
+
+    it('round-trips both values', () => {
+      expect(read({ onboardingCompleted: true })).toBe(true)
+      const store = { ...createEmptyStore(), onboardingCompleted: true }
+      const outcome = deserializeStore(serializeStore(store))
+      if (!outcome.ok) throw new Error(outcome.error)
+      expect(outcome.store.onboardingCompleted).toBe(true)
+    })
+  })
 })

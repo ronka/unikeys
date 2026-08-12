@@ -10,7 +10,13 @@ export default defineConfig(
   // in, eslint lints every file twice and reports the second copy against the
   // wrong rules, because the shadcn exemption below is anchored at `src/` and
   // does not match a nested `.claude/worktrees/<agent>/src/`.
-  { ignores: ['**/node_modules', '**/dist', '**/out', '.claude'] },
+  //
+  // `app-store-screenshots` and `.agents` are the app-store-screenshots
+  // skill's scratch project and template — a Next.js app with its own build
+  // output, not part of the Electron app and already git-ignored.
+  {
+    ignores: ['**/node_modules', '**/dist', '**/out', '.claude', 'app-store-screenshots', '.agents']
+  },
   tseslint.configs.recommended,
   eslintPluginReact.configs.flat.recommended,
   eslintPluginReact.configs.flat['jsx-runtime'],

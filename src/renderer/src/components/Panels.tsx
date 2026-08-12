@@ -43,8 +43,11 @@ import {
  * The caller decides existence, so `onOpenChange` only ever fires for a
  * dismissal (Escape, the close button, a click outside) and maps straight onto
  * `onClose`.
+ *
+ * Exported for the onboarding wizard, which must render inside this one dialog
+ * rather than stacking a second Radix dialog on top.
  */
-function Modal({
+export function Modal({
   title,
   description,
   onClose,
@@ -231,6 +234,24 @@ export function ImportSummaryPanel({
       onClose={onClose}
       footer={<Button onClick={onClose}>Show me the table</Button>}
     >
+      <ImportSummaryBody summary={summary} result={result} />
+    </Modal>
+  )
+}
+
+/**
+ * The summary's content without its dialog, so the onboarding wizard can show
+ * the same numbers as its final step without stacking a second Radix dialog.
+ */
+export function ImportSummaryBody({
+  summary,
+  result
+}: {
+  summary: ImportSummary
+  result: ImportResult
+}): React.JSX.Element {
+  return (
+    <>
       <div className="grid grid-cols-3 gap-3">
         <Stat value={summary.actionsFound} label="actions" />
         <Stat value={result.appsRead} label="apps read" />
@@ -249,7 +270,7 @@ export function ImportSummaryPanel({
           </ul>
         </div>
       )}
-    </Modal>
+    </>
   )
 }
 
