@@ -1,0 +1,712 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy — unikeys</title>
+    <meta
+      name="description"
+      content="What unikeys reads, what it writes, and the short list of things it reports. The app sends nothing unless you say yes; your config files never leave your Mac."
+    />
+    <link rel="canonical" href="https://ronka.github.io/unikeys/privacy.html" />
+    <link rel="icon" href="./img/app-icon.png" />
+    <link rel="apple-touch-icon" href="./img/app-icon.png" />
+    <meta name="theme-color" content="#101114" />
+    <meta name="robots" content="index, follow" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&family=Space+Grotesk:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      /* Tokens copied from index.html rather than shared through a stylesheet.
+         Two legal pages are not worth a build step, and a copy that drifts by a
+         shade is a smaller problem than a page that renders unstyled. */
+      :root {
+        --ground: #101114;
+        --surface: #16171b;
+        --panel: #1e2026;
+        --line: #272930;
+        --line-soft: #1f2127;
+        --text: #e7e9ee;
+        --muted: #8b8f9a;
+        --dim: #5f636e;
+        --blue: #7ba7f8;
+        --purple: #a78bfa;
+        --gold: #f2c24b;
+        --green: #78db89;
+
+        --display: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+        --body: 'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
+        --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+        --gut: clamp(20px, 5vw, 64px);
+        --max: 1200px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        background: var(--ground);
+        color: var(--text);
+        font-family: var(--body);
+        font-size: 17px;
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+        overflow-x: hidden;
+      }
+      a {
+        color: inherit;
+      }
+      img {
+        max-width: 100%;
+        height: auto;
+        display: block;
+      }
+      :focus-visible {
+        outline: 2px solid var(--blue);
+        outline-offset: 3px;
+        border-radius: 4px;
+      }
+
+      .wrap {
+        max-width: var(--max);
+        margin: 0 auto;
+        padding: 0 var(--gut);
+      }
+
+      .eyebrow {
+        font-family: var(--mono);
+        font-size: 11.5px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--dim);
+        margin: 0 0 18px;
+      }
+
+      h1,
+      h2,
+      h3 {
+        font-family: var(--display);
+        font-weight: 700;
+        letter-spacing: -0.025em;
+        line-height: 1.08;
+        margin: 0;
+      }
+
+      /* ---- top bar ---- */
+      .bar {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        background: color-mix(in srgb, var(--ground) 88%, transparent);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid var(--line-soft);
+      }
+      .bar-in {
+        max-width: var(--max);
+        margin: 0 auto;
+        padding: 12px var(--gut);
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      .mark {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-family: var(--display);
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        text-decoration: none;
+        font-size: 17px;
+      }
+      .mark img {
+        width: 24px;
+        height: 24px;
+        border-radius: 6px;
+      }
+      .bar nav {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 22px;
+        font-family: var(--mono);
+        font-size: 13px;
+      }
+      .bar nav a {
+        color: var(--muted);
+        text-decoration: none;
+      }
+      .bar nav a:hover {
+        color: var(--text);
+      }
+      .bar nav a[aria-current='page'] {
+        color: var(--text);
+      }
+
+      /* ---- legal prose ---- */
+      .doc {
+        padding-top: clamp(44px, 7vw, 76px);
+        padding-bottom: clamp(48px, 8vw, 96px);
+        max-width: 76ch;
+      }
+      .doc h1 {
+        font-size: clamp(38px, 6vw, 60px);
+      }
+      .doc .lede {
+        color: var(--muted);
+        font-size: clamp(17px, 1.9vw, 19px);
+        margin: 24px 0 0;
+      }
+      .doc .lede strong {
+        color: var(--text);
+        font-weight: 500;
+      }
+      .stamp {
+        font-family: var(--mono);
+        font-size: 12.5px;
+        color: var(--dim);
+        margin: 22px 0 0;
+      }
+      .doc section {
+        margin-top: clamp(40px, 6vw, 60px);
+      }
+      .doc h2 {
+        font-size: clamp(23px, 3vw, 29px);
+        margin-bottom: 6px;
+      }
+      .doc h3 {
+        font-family: var(--body);
+        font-weight: 500;
+        font-size: 17px;
+        letter-spacing: 0;
+        color: var(--text);
+        margin: 28px 0 0;
+      }
+      .doc p {
+        color: var(--muted);
+        margin: 16px 0 0;
+      }
+      .doc p strong,
+      .doc li strong {
+        color: var(--text);
+        font-weight: 500;
+      }
+      .doc ul {
+        color: var(--muted);
+        margin: 14px 0 0;
+        padding-left: 20px;
+      }
+      .doc li {
+        margin: 8px 0;
+      }
+      .doc a {
+        color: var(--blue);
+        text-decoration-color: color-mix(in srgb, var(--blue) 40%, transparent);
+        text-underline-offset: 3px;
+      }
+      .doc a:hover {
+        text-decoration-color: var(--blue);
+      }
+      code {
+        font-family: var(--mono);
+        overflow-wrap: anywhere;
+        font-size: 0.88em;
+        color: var(--text);
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        padding: 1px 5px;
+      }
+
+      .callout {
+        margin: 26px 0 0;
+        padding: 16px 18px;
+        border-left: 2px solid var(--green);
+        background: color-mix(in srgb, var(--green) 5%, transparent);
+        font-size: 15.5px;
+      }
+      .callout.warn {
+        border-left-color: var(--gold);
+        background: color-mix(in srgb, var(--gold) 5%, transparent);
+      }
+      .callout p:first-child {
+        margin-top: 0;
+      }
+
+      /* Event table. Scrolls inside itself so a narrow phone never scrolls the
+         page sideways. */
+      .table-scroll {
+        overflow-x: auto;
+        margin-top: 20px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--surface);
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        min-width: 560px;
+        font-size: 14.5px;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 11px 16px;
+        border-bottom: 1px solid var(--line-soft);
+        vertical-align: top;
+      }
+      tr:last-child td {
+        border-bottom: 0;
+      }
+      th {
+        font-family: var(--mono);
+        font-size: 11.5px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--dim);
+        font-weight: 400;
+      }
+      td:first-child {
+        font-family: var(--mono);
+        font-size: 13px;
+        color: var(--text);
+        white-space: nowrap;
+      }
+      td:last-child {
+        color: var(--muted);
+      }
+
+      footer {
+        border-top: 1px solid var(--line-soft);
+        padding: 30px 0 60px;
+        font-family: var(--mono);
+        font-size: 12.5px;
+        color: var(--dim);
+      }
+      footer .wrap {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 24px;
+      }
+      footer a {
+        color: var(--muted);
+        text-decoration: none;
+      }
+      footer a:hover {
+        color: var(--text);
+      }
+      footer .right {
+        margin-left: auto;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+        * {
+          transition-duration: 0.01ms !important;
+          animation-duration: 0.01ms !important;
+        }
+      }
+    </style>
+
+    <!--
+      Same PostHog project as the landing page (554415). Carried onto this page
+      deliberately: the privacy page describes site analytics that run on the
+      privacy page too, and a page that quietly excluded itself would be
+      describing a site the reader is not on.
+    -->
+    <script>
+      !(function (t, e) {
+        var o, n, p, r
+        e.__SV ||
+          ((window.posthog = e),
+          (e._i = []),
+          (e.init = function (i, s, a) {
+            function g(t, e) {
+              var o = e.split('.')
+              ;(2 == o.length && ((t = t[o[0]]), (e = o[1])),
+                (t[e] = function () {
+                  t.push([e].concat(Array.prototype.slice.call(arguments, 0)))
+                }))
+            }
+            ;(((p = t.createElement('script')).type = 'text/javascript'),
+              (p.crossOrigin = 'anonymous'),
+              (p.async = !0),
+              (p.src = s.api_host + '/static/array.js'),
+              (r = t.getElementsByTagName('script')[0]).parentNode.insertBefore(p, r))
+            var u = e
+            for (
+              void 0 !== a ? (u = e[a] = []) : (a = 'posthog'),
+                u.people = u.people || [],
+                u.toString = function (t) {
+                  var e = 'posthog'
+                  return ('posthog' !== a && (e += '.' + a), t || (e += ' (stub)'), e)
+                },
+                u.people.toString = function () {
+                  return u.toString(1) + '.people (stub)'
+                },
+                o =
+                  'init capture register register_once register_for_session unregister unregister_for_session getFeatureFlag getFeatureFlagPayload isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException loadToolbar get_property getSessionProperty createPersonProfile opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing debug'.split(
+                    ' '
+                  ),
+                n = 0;
+              n < o.length;
+              n++
+            )
+              g(u, o[n])
+            e._i.push([i, s, a])
+          }),
+          (e.__SV = 1))
+      })(document, window.posthog || [])
+      posthog.init('phc_pUKGXqQXsFSsUeG3qRZrjjzrVP2RF4SF8LfmgyPPvqQs', {
+        api_host: 'https://us.i.posthog.com',
+        defaults: '2025-05-24'
+      })
+    </script>
+  </head>
+
+  <body>
+    <header class="bar">
+      <div class="bar-in">
+        <a class="mark" href="./"><img src="./img/app-icon.png" alt="" />unikeys</a>
+        <nav>
+          <a href="./">Home</a>
+          <a href="./privacy.html" aria-current="page">Privacy</a>
+          <a href="./terms.html">Terms</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <div class="wrap">
+        <article class="doc">
+          <p class="eyebrow">Privacy</p>
+          <h1>What leaves your Mac</h1>
+          <p class="lede">
+            <strong>Your keybindings never do.</strong> unikeys reads and writes config files
+            entirely on your own machine. It has no account, no server of its own, and no sync. The
+            only thing it can send anywhere is a short list of counts about how the app itself is
+            used — and only if you answered yes when it asked.
+          </p>
+          <p class="stamp">Last updated 12 August 2026</p>
+
+          <section>
+            <h2>The app</h2>
+            <p>
+              unikeys is a macOS app that edits the keyboard-shortcut config files of editors and
+              terminals you already have installed. Everything it touches stays in your own file
+              system:
+            </p>
+            <ul>
+              <li>
+                <strong>Config files</strong> are read from, and written to, the locations those
+                apps already use. unikeys asks you to pick each folder it reads, through macOS's own
+                folder picker, and in the App Store build macOS itself enforces that — it can reach
+                nothing you have not handed it.
+              </li>
+              <li>
+                <strong>Backups</strong> of each file are copied, before the first write of a
+                session, into <code>~/Library/Application Support/unikeys/backups</code>.
+              </li>
+              <li>
+                <strong>Your settings</strong> — which apps are enabled, your chord choices, granted
+                folders — live in a single JSON file at
+                <code>~/Library/Application Support/unikeys/unikeys-store.json</code>.
+              </li>
+            </ul>
+            <p>
+              There is no sign-up, no login, and no payment. unikeys does not upload, index, or
+              transmit the contents of any config file, any folder name, or any shortcut you type.
+            </p>
+            <div class="callout">
+              <p>
+                Deleting the app and the
+                <code>~/Library/Application Support/unikeys</code> folder removes everything unikeys
+                has stored about you, including its backups and its analytics identifier.
+              </p>
+            </div>
+          </section>
+
+          <section>
+            <h2>Usage analytics in the app — opt-in</h2>
+            <p>
+              On first run, unikeys asks whether it may report anonymous usage. Until you answer,
+              nothing is sent, and a declined or unanswered question both end in the same silence.
+              You can change the answer at any time in
+              <strong>Settings → Anonymous usage</strong>.
+            </p>
+            <p>
+              When it is on, events go to <strong>PostHog</strong> (PostHog Inc., United States),
+              which we use as our analytics processor. Three things are true of every event:
+            </p>
+            <ul>
+              <li>
+                <strong>The identifier is a random UUID</strong> minted on first run and stored only
+                in your local settings file. It is not your hardware UUID, hostname, username,
+                email, or anything else derived from you or your machine.
+              </li>
+              <li>
+                <strong>Your IP address is replaced</strong> before the event is sent. unikeys
+                attaches a placeholder (<code>0.0.0.0</code>) so that PostHog's ingestion cannot
+                fill in the address your request arrived from. No location is derived, coarse or
+                otherwise.
+              </li>
+              <li>
+                <strong>The payload is a fixed allowlist.</strong> Each event may carry only the
+                properties listed below; anything else is stripped in code before sending, not by
+                policy.
+              </li>
+            </ul>
+
+            <h3>Every event unikeys can send</h3>
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Event</th>
+                    <th scope="col">What it carries</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>app_launched</td>
+                    <td>How many apps are enabled (a number).</td>
+                  </tr>
+                  <tr>
+                    <td>onboarding_started</td>
+                    <td>Nothing.</td>
+                  </tr>
+                  <tr>
+                    <td>onboarding_step_completed</td>
+                    <td>Which of the four setup steps finished.</td>
+                  </tr>
+                  <tr>
+                    <td>onboarding_completed</td>
+                    <td>How many apps were selected, and how many were granted access.</td>
+                  </tr>
+                  <tr>
+                    <td>onboarding_dismissed</td>
+                    <td>Which step it was abandoned at.</td>
+                  </tr>
+                  <tr>
+                    <td>grant_outcome</td>
+                    <td>
+                      Which supported app a folder was requested for, and whether it was granted,
+                      cancelled, or failed. Never the path, and never the error text.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>bindings_imported</td>
+                    <td>
+                      Counts only: apps read, apps failed, actions found, rows where apps disagree.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>row_matched</td>
+                    <td>
+                      The catalogue id of the action you matched — an identifier unikeys itself
+                      ships, such as <code>edit.format-document</code> — and whether it needed you
+                      to pick a winner. Never the chord.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>save_completed</td>
+                    <td>
+                      Counts only: apps written, apps failed, bindings written, skipped, and
+                      dropped.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>save_reverted</td>
+                    <td>How many apps were restored from backup.</td>
+                  </tr>
+                  <tr>
+                    <td>app_toggled</td>
+                    <td>Which supported app was switched on or off.</td>
+                  </tr>
+                  <tr>
+                    <td>analytics_opt_in / analytics_opt_out</td>
+                    <td>Nothing beyond the fact that you changed your mind.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p>
+              Alongside those, each event carries the release channel (App Store or direct
+              download), the unikeys version, your <strong>major</strong> macOS version
+              (<code>26</code>, not <code>26.1.2</code>), and whether the build is sandboxed.
+            </p>
+
+            <h3>What is never sent, under any circumstance</h3>
+            <ul>
+              <li>
+                File paths of any kind, including config paths, backup paths, and anything from your
+                home directory
+              </li>
+              <li>The contents of a config file, or any fragment of one</li>
+              <li>Obsidian vault names, or any other folder name</li>
+              <li>Chords you authored, or any keystroke capture</li>
+              <li>Your machine name, username, macOS serial, or IP address</li>
+              <li>Error messages from the file layer — they name paths as a matter of course</li>
+            </ul>
+            <p>
+              This is enforced in the source, in <code>src/shared/analytics.ts</code>, which defines
+              the closed list above and drops anything not on it. You are welcome to
+              <a href="https://github.com/ronka/unikeys">read it yourself</a>.
+            </p>
+            <div class="callout">
+              <p>
+                <strong>The Mac App Store build sends nothing at all.</strong> It ships without the
+                network entitlement, so it cannot reach PostHog even if analytics is switched on.
+              </p>
+            </div>
+            <p>
+              Development builds are also excluded, so that working on unikeys does not pollute the
+              data it is changed on the strength of.
+            </p>
+          </section>
+
+          <section>
+            <h2>This website</h2>
+            <p>
+              The unikeys site — including this page — is a set of static files served by
+              <strong>GitHub Pages</strong>, and it uses the same PostHog project for visitor
+              analytics. Web analytics is separate from the app's, and it is <strong>not</strong>
+              opt-in. What runs here:
+            </p>
+            <ul>
+              <li>
+                <strong>Page views and clicks.</strong> PostHog's autocapture records page views and
+                interactions with the page's own elements, plus explicit events when you click a
+                download or an outbound link. The DOM here contains nothing but public marketing
+                copy.
+              </li>
+              <li>
+                <strong>Session replay.</strong> Sessions on this site are recorded so that layout
+                and navigation problems can be diagnosed. All form inputs are masked, and recordings
+                are deleted after 30 days.
+              </li>
+              <li>
+                <strong>Approximate location.</strong> Unlike the app, the site does not overwrite
+                your IP address. PostHog records it on ingestion and derives a coarse country/region
+                from it.
+              </li>
+              <li>
+                <strong>Console messages, performance timings, and heatmap data</strong> for the
+                pages you visit.
+              </li>
+              <li>
+                <strong>Cookies and local storage.</strong> PostHog sets a first-party cookie to
+                recognise a returning browser. No advertising or cross-site tracking cookies are
+                set.
+              </li>
+            </ul>
+            <p>
+              Site analytics events are retained for 12 months. Requests go directly to
+              <code>us.i.posthog.com</code>; blocking that host — with a content blocker, or by
+              disabling JavaScript — stops all of the above, and the site works fine without it.
+            </p>
+          </section>
+
+          <section>
+            <h2>Who else sees any of this</h2>
+            <p>
+              Two companies are involved, and neither of them because the data was sold to them:
+            </p>
+            <ul>
+              <li>
+                <strong>PostHog Inc.</strong> (United States) processes the analytics described
+                above on our behalf.
+              </li>
+              <li>
+                <strong>GitHub, Inc.</strong> serves this website and hosts the app downloads, and
+                so handles the ordinary server logs any web host does.
+              </li>
+            </ul>
+            <p>
+              Nothing is sold, rented, or shared for advertising. There is no ad network, no data
+              broker, and no third-party tracker on this site beyond the two named above. Data may
+              be disclosed if the law compels it.
+            </p>
+          </section>
+
+          <section>
+            <h2>Your choices</h2>
+            <ul>
+              <li>
+                <strong>In the app:</strong> Settings → Anonymous usage turns reporting off.
+                Reporting stops immediately, the client is torn down, and nothing further is queued
+                or sent.
+              </li>
+              <li>
+                <strong>Delete everything the app stores:</strong> remove
+                <code>~/Library/Application Support/unikeys</code>. The analytics identifier lives
+                in <code>unikeys-store.json</code> and goes with it.
+              </li>
+              <li>
+                <strong>On the site:</strong> block <code>us.i.posthog.com</code>, or browse with
+                JavaScript disabled.
+              </li>
+            </ul>
+            <p>
+              If you are in the EU, UK, or a comparable jurisdiction and want to exercise a right of
+              access, correction, or erasure, email
+              <a href="mailto:ronkamail@gmail.com">ronkamail@gmail.com</a>. Please include the
+              <code>distinctId</code> value from your <code>unikeys-store.json</code> — because the
+              data is deliberately not linked to a person, that identifier is the only way to locate
+              an installation's events, and without it there is nothing to search on.
+            </p>
+          </section>
+
+          <section>
+            <h2>Children</h2>
+            <p>
+              unikeys is a developer tool and is not directed at children under 13, and we do not
+              knowingly collect anything from them.
+            </p>
+          </section>
+
+          <section>
+            <h2>Changes</h2>
+            <p>
+              If what unikeys collects changes, this page changes with it and the date at the top
+              moves. Because the app's collection is defined by the allowlist in the source, the
+              history of that file is a second, harder-to-fudge record of the same thing.
+            </p>
+          </section>
+
+          <section>
+            <h2>Contact</h2>
+            <p>
+              unikeys is built by <a href="https://github.com/ronka">ronka</a>, an individual
+              developer. Questions, corrections, and requests:
+              <a href="mailto:ronkamail@gmail.com">ronkamail@gmail.com</a>, or open an issue at
+              <a href="https://github.com/ronka/unikeys/issues">github.com/ronka/unikeys/issues</a>.
+            </p>
+          </section>
+        </article>
+      </div>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        <span>unikeys — macOS</span>
+        <a href="./">Home</a>
+        <a href="./terms.html">Terms</a>
+        <a href="https://github.com/ronka/unikeys">Source</a>
+        <span class="right">Built by <a href="https://github.com/ronka">ronka</a></span>
+      </div>
+    </footer>
+  </body>
+</html>

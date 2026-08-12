@@ -234,7 +234,10 @@
         display: inline-flex;
         align-items: center;
         gap: 10px;
-        transition: transform 0.12s ease, background 0.15s ease, border-color 0.15s ease;
+        transition:
+          transform 0.12s ease,
+          background 0.15s ease,
+          border-color 0.15s ease;
       }
       .btn-primary {
         background: var(--blue);
@@ -597,6 +600,69 @@
         }
       }
     </style>
+
+    <!--
+      PostHog, project "unikeys" (554415). The token is a project *write* key,
+      not a secret — it is meant to ship in client code, and there is no build
+      step on GitHub Pages that could substitute one anyway.
+
+      Ingestion goes direct to us.i.posthog.com: GitHub Pages cannot reverse
+      proxy, so a share of traffic is lost to ad blockers. Treat the counts here
+      as a floor and trust the ratios rather than the absolute numbers.
+
+      Autocapture is left on. This is a static marketing page — the only thing
+      in its DOM is copy that is already public. The desktop app deliberately
+      does NOT use posthog-js for exactly the opposite reason; see
+      src/main/analytics.ts.
+    -->
+    <script>
+      !(function (t, e) {
+        var o, n, p, r
+        e.__SV ||
+          ((window.posthog = e),
+          (e._i = []),
+          (e.init = function (i, s, a) {
+            function g(t, e) {
+              var o = e.split('.')
+              ;(2 == o.length && ((t = t[o[0]]), (e = o[1])),
+                (t[e] = function () {
+                  t.push([e].concat(Array.prototype.slice.call(arguments, 0)))
+                }))
+            }
+            ;(((p = t.createElement('script')).type = 'text/javascript'),
+              (p.crossOrigin = 'anonymous'),
+              (p.async = !0),
+              (p.src = s.api_host + '/static/array.js'),
+              (r = t.getElementsByTagName('script')[0]).parentNode.insertBefore(p, r))
+            var u = e
+            for (
+              void 0 !== a ? (u = e[a] = []) : (a = 'posthog'),
+                u.people = u.people || [],
+                u.toString = function (t) {
+                  var e = 'posthog'
+                  return ('posthog' !== a && (e += '.' + a), t || (e += ' (stub)'), e)
+                },
+                u.people.toString = function () {
+                  return u.toString(1) + '.people (stub)'
+                },
+                o =
+                  'init capture register register_once register_for_session unregister unregister_for_session getFeatureFlag getFeatureFlagPayload isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException loadToolbar get_property getSessionProperty createPersonProfile opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing debug'.split(
+                    ' '
+                  ),
+                n = 0;
+              n < o.length;
+              n++
+            )
+              g(u, o[n])
+            e._i.push([i, s, a])
+          }),
+          (e.__SV = 1))
+      })(document, window.posthog || [])
+      posthog.init('phc_pUKGXqQXsFSsUeG3qRZrjjzrVP2RF4SF8LfmgyPPvqQs', {
+        api_host: 'https://us.i.posthog.com',
+        defaults: '2025-05-24'
+      })
+    </script>
   </head>
 
   <body>
@@ -622,8 +688,8 @@
         <h1>Every shortcut,<br />side by side.</h1>
         <p class="lede">
           Your editor, your other editor, your terminal and your notes all disagree about
-          <span style="font-family: var(--chord)">⇧⌘P</span>. unikeys reads the real keybinding files
-          on your Mac, lays every action out as a row and every app as a column, and
+          <span style="font-family: var(--chord)">⇧⌘P</span>. unikeys reads the real keybinding
+          files on your Mac, lays every action out as a row and every app as a column, and
           <strong>settles a whole row with one press</strong>.
         </p>
 
@@ -768,9 +834,9 @@
             <p class="eyebrow">Backed up, then written</p>
             <h2>Every save<br />is reversible.</h2>
             <p>
-              Each save is kept with what every binding was before it. Reverting loads the old values
-              back as pending changes, so you get to read the undo before it happens too. Every file
-              is backed up before its first write in a session.
+              Each save is kept with what every binding was before it. Reverting loads the old
+              values back as pending changes, so you get to read the undo before it happens too.
+              Every file is backed up before its first write in a session.
             </p>
           </div>
           <div class="shot">
@@ -865,7 +931,8 @@
             Honest about version 1.0: most of the format adapters were built from each app's
             documented config format rather than tested against a live install — iTerm2 and
             Antigravity are the exceptions so far. Read the pending list before your first save. The
-            <a href="https://github.com/ronka/unikeys#outstanding-most-fixtures-are-authored-not-captured"
+            <a
+              href="https://github.com/ronka/unikeys#outstanding-most-fixtures-are-authored-not-captured"
               >README says exactly which is which</a
             >.
           </p>
@@ -879,9 +946,74 @@
         <a href="https://github.com/ronka/unikeys">Source</a>
         <a href="https://github.com/ronka/unikeys/issues">Issues</a>
         <a href="https://github.com/ronka/unikeys/releases">Releases</a>
+        <a href="./privacy.html">Privacy</a>
+        <a href="./terms.html">Terms</a>
         <span class="right">Built by <a href="https://github.com/ronka">ronka</a></span>
       </div>
     </footer>
+
+    <script>
+      // Outbound click tracking.
+      //
+      // Every call to action on this page leaves the origin — the DMG lives on
+      // GitHub Releases — so autocapture alone records the click but nothing
+      // that survives the navigation. These fire explicitly, with
+      // `send_instantly` so the request is not still queued when the page goes
+      // away.
+      //
+      // One delegated listener rather than a handler per link, and the two
+      // categories are told apart by the href itself rather than by a data
+      // attribute on each anchor. That matters for the download links: the
+      // version appears in the URL, so bumping the three hrefs on a release
+      // (see the comment by the nav link) also bumps what this reports. There
+      // is no second place to remember.
+      ;(function () {
+        // Which part of the page the link sits in. Derived from the landmark
+        // that contains it, so a link moved between sections reports its new
+        // home without anyone editing this list.
+        function locationOf(anchor) {
+          if (anchor.closest('header')) return 'nav'
+          if (anchor.closest('footer')) return 'footer'
+          if (anchor.closest('.hero')) return 'hero'
+          if (anchor.closest('.download')) return 'download'
+          if (anchor.closest('.apps')) return 'apps'
+          return 'body'
+        }
+
+        document.addEventListener('click', function (event) {
+          const anchor = event.target.closest && event.target.closest('a[href]')
+          if (!anchor) return
+
+          const raw = anchor.getAttribute('href')
+          if (!raw || raw.startsWith('#')) return
+
+          let url
+          try {
+            url = new URL(anchor.href)
+          } catch {
+            return
+          }
+          if (url.hostname === window.location.hostname) return
+
+          const where = locationOf(anchor)
+          const release = url.pathname.match(/\/releases\/download\/([^/]+)\//)
+
+          if (release) {
+            posthog.capture(
+              'download_clicked',
+              { location: where, version: release[1] },
+              { send_instantly: true }
+            )
+          } else {
+            posthog.capture(
+              'outbound_clicked',
+              { location: where, href: anchor.href },
+              { send_instantly: true }
+            )
+          }
+        })
+      })()
+    </script>
 
     <script>
       // The hero table. Chords are the real ones unikeys ships as defaults.
@@ -890,33 +1022,45 @@
         {
           name: 'Command Palette',
           id: 'navigate.command-palette',
-          cells: { vscode: '⇧⌘P', cursor: '⇧⌘P', antigravity: '⇧⌘P', webstorm: '⇧⌘A', ghostty: null },
-          agreed: '⇧⌘P',
+          cells: {
+            vscode: '⇧⌘P',
+            cursor: '⇧⌘P',
+            antigravity: '⇧⌘P',
+            webstorm: '⇧⌘A',
+            ghostty: null
+          },
+          agreed: '⇧⌘P'
         },
         {
           name: 'Go to Line',
           id: 'navigate.goto-line',
           cells: { vscode: '⌃G', cursor: '⌃G', antigravity: '⌃G', webstorm: '⌘L', ghostty: null },
-          agreed: '⌃G',
+          agreed: '⌃G'
         },
         {
           name: 'Format Document',
           id: 'edit.format-document',
-          cells: { vscode: '⌥⇧F', cursor: '⌥⇧F', antigravity: '⌥⇧F', webstorm: '⌥⌘L', ghostty: null },
-          agreed: '⌥⇧F',
+          cells: {
+            vscode: '⌥⇧F',
+            cursor: '⌥⇧F',
+            antigravity: '⌥⇧F',
+            webstorm: '⌥⌘L',
+            ghostty: null
+          },
+          agreed: '⌥⇧F'
         },
         {
           name: 'Rename Symbol',
           id: 'edit.rename-symbol',
           cells: { vscode: 'F2', cursor: 'F2', antigravity: 'F2', webstorm: '⇧F6', ghostty: null },
-          agreed: 'F2',
+          agreed: 'F2'
         },
         {
           name: 'Toggle Line Comment',
           id: 'edit.comment-line',
           cells: { vscode: '⌘/', cursor: '⌘/', antigravity: '⌘/', webstorm: '⌘/', ghostty: null },
-          agreed: '⌘/',
-        },
+          agreed: '⌘/'
+        }
       ]
 
       const tbody = document.getElementById('rows')
@@ -937,8 +1081,7 @@
 
           const head = document.createElement('td')
           head.className = 'act'
-          head.innerHTML =
-            '<div class="name"></div><div class="id"></div>'
+          head.innerHTML = '<div class="name"></div><div class="id"></div>'
           head.querySelector('.name').textContent = row.name
           head.querySelector('.id').textContent = row.id
           tr.appendChild(head)
@@ -952,7 +1095,9 @@
             } else {
               td.className = 'cell'
               // The odd one out gets the app's own "diverging" gold.
-              const others = APPS.filter((a) => a !== app).map((a) => row.cells[a]).filter(Boolean)
+              const others = APPS.filter((a) => a !== app)
+                .map((a) => row.cells[a])
+                .filter(Boolean)
               if (!row.matched && others.length && !others.includes(chord)) td.classList.add('odd')
               td.textContent = chord
             }
@@ -974,6 +1119,12 @@
             })
             row.matched = true
             row.staged = APPS.filter((a) => row.cells[a] !== null).length
+            // `row.id` is a shipped catalogue id, not anything the visitor
+            // authored, so it is safe to send verbatim.
+            posthog.capture('demo_match_clicked', {
+              action_id: row.id,
+              matched_count: ROWS.filter((r) => r.matched).length
+            })
             render()
           })
           act.appendChild(btn)
@@ -984,10 +1135,25 @@
         updateHead()
       }
 
+      // "Matched every row" is the strongest signal on this page that someone
+      // understood what unikeys does. Fired once per run rather than on every
+      // render, because `render()` is called for its own reasons — and cleared
+      // by Reset, so a visitor who plays through twice is counted twice.
+      let announcedAllMatched = false
+
       function updateHead() {
         const open = ROWS.filter((r) => !r.matched && diverges(r)).length
+        // The `some(matched)` guard keeps this off the initial render: it fires
+        // for a table the visitor settled, never for one that happened to agree.
+        if (open === 0 && !announcedAllMatched && ROWS.some((r) => r.matched)) {
+          announcedAllMatched = true
+          posthog.capture('demo_all_matched')
+        }
         countEl.innerHTML =
-          ROWS.length + ' rows · <strong>' + (open ? open + ' diverging' : 'all matched') + '</strong>'
+          ROWS.length +
+          ' rows · <strong>' +
+          (open ? open + ' diverging' : 'all matched') +
+          '</strong>'
         countEl.classList.toggle('settled', open === 0)
         const pending = ROWS.filter((r) => r.matched).reduce((n, r) => n + (r.staged || 0), 0)
         chipEl.textContent = pending ? pending + ' pending' : 'no pending changes'
@@ -1001,6 +1167,8 @@
           row.matched = false
           row.staged = 0
         })
+        announcedAllMatched = false
+        posthog.capture('demo_reset_clicked')
         render()
       })
 

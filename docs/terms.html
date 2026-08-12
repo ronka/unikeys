@@ -1,0 +1,536 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Terms — unikeys</title>
+    <meta
+      name="description"
+      content="The terms for using unikeys: free, no account, provided as-is. It edits your config files, keeps a backup of each one, and shows you every change before it writes."
+    />
+    <link rel="canonical" href="https://ronka.github.io/unikeys/terms.html" />
+    <link rel="icon" href="./img/app-icon.png" />
+    <link rel="apple-touch-icon" href="./img/app-icon.png" />
+    <meta name="theme-color" content="#101114" />
+    <meta name="robots" content="index, follow" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&family=Space+Grotesk:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      /* Tokens copied from index.html — see the note in privacy.html. */
+      :root {
+        --ground: #101114;
+        --surface: #16171b;
+        --panel: #1e2026;
+        --line: #272930;
+        --line-soft: #1f2127;
+        --text: #e7e9ee;
+        --muted: #8b8f9a;
+        --dim: #5f636e;
+        --blue: #7ba7f8;
+        --purple: #a78bfa;
+        --gold: #f2c24b;
+        --green: #78db89;
+
+        --display: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+        --body: 'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
+        --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+        --gut: clamp(20px, 5vw, 64px);
+        --max: 1200px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        background: var(--ground);
+        color: var(--text);
+        font-family: var(--body);
+        font-size: 17px;
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+        overflow-x: hidden;
+      }
+      a {
+        color: inherit;
+      }
+      img {
+        max-width: 100%;
+        height: auto;
+        display: block;
+      }
+      :focus-visible {
+        outline: 2px solid var(--blue);
+        outline-offset: 3px;
+        border-radius: 4px;
+      }
+
+      .wrap {
+        max-width: var(--max);
+        margin: 0 auto;
+        padding: 0 var(--gut);
+      }
+
+      .eyebrow {
+        font-family: var(--mono);
+        font-size: 11.5px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--dim);
+        margin: 0 0 18px;
+      }
+
+      h1,
+      h2,
+      h3 {
+        font-family: var(--display);
+        font-weight: 700;
+        letter-spacing: -0.025em;
+        line-height: 1.08;
+        margin: 0;
+      }
+
+      /* ---- top bar ---- */
+      .bar {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        background: color-mix(in srgb, var(--ground) 88%, transparent);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid var(--line-soft);
+      }
+      .bar-in {
+        max-width: var(--max);
+        margin: 0 auto;
+        padding: 12px var(--gut);
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      .mark {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-family: var(--display);
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        text-decoration: none;
+        font-size: 17px;
+      }
+      .mark img {
+        width: 24px;
+        height: 24px;
+        border-radius: 6px;
+      }
+      .bar nav {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 22px;
+        font-family: var(--mono);
+        font-size: 13px;
+      }
+      .bar nav a {
+        color: var(--muted);
+        text-decoration: none;
+      }
+      .bar nav a:hover {
+        color: var(--text);
+      }
+      .bar nav a[aria-current='page'] {
+        color: var(--text);
+      }
+
+      /* ---- legal prose ---- */
+      .doc {
+        padding-top: clamp(44px, 7vw, 76px);
+        padding-bottom: clamp(48px, 8vw, 96px);
+        max-width: 76ch;
+      }
+      .doc h1 {
+        font-size: clamp(38px, 6vw, 60px);
+      }
+      .doc .lede {
+        color: var(--muted);
+        font-size: clamp(17px, 1.9vw, 19px);
+        margin: 24px 0 0;
+      }
+      .doc .lede strong {
+        color: var(--text);
+        font-weight: 500;
+      }
+      .stamp {
+        font-family: var(--mono);
+        font-size: 12.5px;
+        color: var(--dim);
+        margin: 22px 0 0;
+      }
+      .doc section {
+        margin-top: clamp(40px, 6vw, 60px);
+      }
+      .doc h2 {
+        font-size: clamp(23px, 3vw, 29px);
+        margin-bottom: 6px;
+      }
+      .doc h3 {
+        font-family: var(--body);
+        font-weight: 500;
+        font-size: 17px;
+        letter-spacing: 0;
+        color: var(--text);
+        margin: 28px 0 0;
+      }
+      .doc p {
+        color: var(--muted);
+        margin: 16px 0 0;
+      }
+      .doc p strong,
+      .doc li strong {
+        color: var(--text);
+        font-weight: 500;
+      }
+      .doc ul {
+        color: var(--muted);
+        margin: 14px 0 0;
+        padding-left: 20px;
+      }
+      .doc li {
+        margin: 8px 0;
+      }
+      .doc a {
+        color: var(--blue);
+        text-decoration-color: color-mix(in srgb, var(--blue) 40%, transparent);
+        text-underline-offset: 3px;
+      }
+      .doc a:hover {
+        text-decoration-color: var(--blue);
+      }
+      code {
+        font-family: var(--mono);
+        overflow-wrap: anywhere;
+        font-size: 0.88em;
+        color: var(--text);
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        padding: 1px 5px;
+      }
+
+      .callout {
+        margin: 26px 0 0;
+        padding: 16px 18px;
+        border-left: 2px solid var(--gold);
+        background: color-mix(in srgb, var(--gold) 5%, transparent);
+        font-size: 15.5px;
+      }
+      .callout p:first-child {
+        margin-top: 0;
+      }
+
+      footer {
+        border-top: 1px solid var(--line-soft);
+        padding: 30px 0 60px;
+        font-family: var(--mono);
+        font-size: 12.5px;
+        color: var(--dim);
+      }
+      footer .wrap {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 24px;
+      }
+      footer a {
+        color: var(--muted);
+        text-decoration: none;
+      }
+      footer a:hover {
+        color: var(--text);
+      }
+      footer .right {
+        margin-left: auto;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+        * {
+          transition-duration: 0.01ms !important;
+          animation-duration: 0.01ms !important;
+        }
+      }
+    </style>
+
+    <!-- Same PostHog project as the rest of the site. See privacy.html. -->
+    <script>
+      !(function (t, e) {
+        var o, n, p, r
+        e.__SV ||
+          ((window.posthog = e),
+          (e._i = []),
+          (e.init = function (i, s, a) {
+            function g(t, e) {
+              var o = e.split('.')
+              ;(2 == o.length && ((t = t[o[0]]), (e = o[1])),
+                (t[e] = function () {
+                  t.push([e].concat(Array.prototype.slice.call(arguments, 0)))
+                }))
+            }
+            ;(((p = t.createElement('script')).type = 'text/javascript'),
+              (p.crossOrigin = 'anonymous'),
+              (p.async = !0),
+              (p.src = s.api_host + '/static/array.js'),
+              (r = t.getElementsByTagName('script')[0]).parentNode.insertBefore(p, r))
+            var u = e
+            for (
+              void 0 !== a ? (u = e[a] = []) : (a = 'posthog'),
+                u.people = u.people || [],
+                u.toString = function (t) {
+                  var e = 'posthog'
+                  return ('posthog' !== a && (e += '.' + a), t || (e += ' (stub)'), e)
+                },
+                u.people.toString = function () {
+                  return u.toString(1) + '.people (stub)'
+                },
+                o =
+                  'init capture register register_once register_for_session unregister unregister_for_session getFeatureFlag getFeatureFlagPayload isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException loadToolbar get_property getSessionProperty createPersonProfile opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing debug'.split(
+                    ' '
+                  ),
+                n = 0;
+              n < o.length;
+              n++
+            )
+              g(u, o[n])
+            e._i.push([i, s, a])
+          }),
+          (e.__SV = 1))
+      })(document, window.posthog || [])
+      posthog.init('phc_pUKGXqQXsFSsUeG3qRZrjjzrVP2RF4SF8LfmgyPPvqQs', {
+        api_host: 'https://us.i.posthog.com',
+        defaults: '2025-05-24'
+      })
+    </script>
+  </head>
+
+  <body>
+    <header class="bar">
+      <div class="bar-in">
+        <a class="mark" href="./"><img src="./img/app-icon.png" alt="" />unikeys</a>
+        <nav>
+          <a href="./">Home</a>
+          <a href="./privacy.html">Privacy</a>
+          <a href="./terms.html" aria-current="page">Terms</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <div class="wrap">
+        <article class="doc">
+          <p class="eyebrow">Terms of use</p>
+          <h1>The deal, in plain terms</h1>
+          <p class="lede">
+            <strong>unikeys is free, has no account, and is provided as-is.</strong> It edits config
+            files that belong to you, on a machine that belongs to you. These terms say what you can
+            expect from it, and what it expects from you.
+          </p>
+          <p class="stamp">Last updated 12 August 2026</p>
+
+          <section>
+            <h2>1. Agreement</h2>
+            <p>
+              By downloading, installing, or using unikeys (the "app"), or by using this website,
+              you agree to these terms. If you do not agree, do not use them. unikeys is made by an
+              individual developer, <a href="https://github.com/ronka">ronka</a> ("we", "us"), not
+              by a company.
+            </p>
+          </section>
+
+          <section>
+            <h2>2. What unikeys is</h2>
+            <p>
+              unikeys shows the keyboard shortcuts of the editors and terminals you have installed
+              in one table, lets you align them, and writes the result back into each app's own
+              config file. It is a local tool: no account, no server, no sync. See the
+              <a href="./privacy.html">privacy page</a> for exactly what data is involved.
+            </p>
+          </section>
+
+          <section>
+            <h2>3. What it costs</h2>
+            <p>
+              Nothing. unikeys is free to download and use, on as many of your own Macs as you like.
+              There is no trial, no subscription, and no payment of any kind — which also means
+              there is no paid support obligation, and no service level to promise you.
+            </p>
+          </section>
+
+          <section>
+            <h2>4. It writes to your files — your part of the bargain</h2>
+            <p>
+              This is the part that matters most. unikeys modifies real config files belonging to
+              other applications. It is built to be careful about it: every pending change is listed
+              before it saves, each file is copied into
+              <code>~/Library/Application Support/unikeys/backups</code> before the first write of a
+              session, and a save can be reverted from those backups. But careful is not the same as
+              infallible.
+            </p>
+            <p>By using unikeys, you accept that:</p>
+            <ul>
+              <li>
+                <strong>You review the pending changes before you save.</strong> The list exists to
+                be read, not clicked past.
+              </li>
+              <li>
+                <strong>You are responsible for your own backups.</strong> unikeys' backups are a
+                convenience, not a backup system. Keep your configs in version control or Time
+                Machine, as you would anyway.
+              </li>
+              <li>
+                <strong>Config formats change.</strong> The apps unikeys writes to are updated by
+                other people on their own schedule. A format change can make a write wrong in a way
+                unikeys cannot anticipate.
+              </li>
+              <li>
+                <strong>Some app fixtures are authored rather than captured</strong> from a real
+                install, and are therefore likelier to be inaccurate. Which is which is documented
+                in the
+                <a
+                  href="https://github.com/ronka/unikeys#outstanding-most-fixtures-are-authored-not-captured"
+                  >project README</a
+                >; read it before your first save.
+              </li>
+            </ul>
+            <div class="callout">
+              <p>
+                If a write goes wrong, tell us — open an issue at
+                <a href="https://github.com/ronka/unikeys/issues">github.com/ronka/unikeys/issues</a
+                >. A reproducible report is the fastest way a bad fixture gets fixed for everyone.
+              </p>
+            </div>
+          </section>
+
+          <section>
+            <h2>5. Acceptable use</h2>
+            <p>You agree not to:</p>
+            <ul>
+              <li>
+                Use unikeys to modify files on a machine, or belonging to a person, you are not
+                authorised to modify.
+              </li>
+              <li>
+                Distribute a modified build of unikeys under the unikeys name or icon, in a way that
+                implies it is the original.
+              </li>
+              <li>
+                Use unikeys where its failure could cause harm to people, property, or systems.
+              </li>
+            </ul>
+          </section>
+
+          <section>
+            <h2>6. Source code and intellectual property</h2>
+            <p>
+              The unikeys source is published at
+              <a href="https://github.com/ronka/unikeys">github.com/ronka/unikeys</a>. Whatever
+              licence terms that repository states govern the source code; these terms do not grant
+              you any additional rights in it. Being able to read the code is not, on its own,
+              permission to redistribute or relicense it.
+            </p>
+            <p>
+              The unikeys name, icon, and this website's design remain ours. All other product names
+              are the property of their owners.
+            </p>
+          </section>
+
+          <section>
+            <h2>7. No affiliation with the apps it supports</h2>
+            <p>
+              unikeys is an independent tool. It is not affiliated with, endorsed by, or sponsored
+              by Microsoft, Anysphere, Amazon, Google, Zed Industries, JetBrains, Warp, Obsidian,
+              Apple, or the maintainers of Ghostty, cmux, or iTerm2. Product names — VS Code,
+              Cursor, Kiro, Antigravity, Zed, WebStorm, IntelliJ IDEA, PyCharm, Ghostty, cmux,
+              iTerm2, Warp, Obsidian — are used only to say which apps unikeys can read and write,
+              and belong to their respective owners.
+            </p>
+          </section>
+
+          <section>
+            <h2>8. No warranty</h2>
+            <p>
+              unikeys and this website are provided <strong>"as is" and "as available"</strong>,
+              without warranty of any kind, express or implied, including any implied warranty of
+              merchantability, fitness for a particular purpose, or non-infringement. We do not
+              warrant that the app will be uninterrupted, error-free, or that it will write every
+              config file correctly.
+            </p>
+          </section>
+
+          <section>
+            <h2>9. Limitation of liability</h2>
+            <p>
+              To the fullest extent permitted by law, we are not liable for any indirect,
+              incidental, special, consequential, or punitive damages, or for any loss of data,
+              configuration, or time, arising out of your use of unikeys — including a config file
+              that is damaged or lost. Since unikeys is provided free of charge, our total liability
+              to you for any claim is limited to zero.
+            </p>
+            <p>
+              Some jurisdictions do not allow the exclusion of certain warranties or liabilities, so
+              parts of sections 8 and 9 may not apply to you. Nothing here limits liability that
+              cannot lawfully be limited.
+            </p>
+          </section>
+
+          <section>
+            <h2>10. Availability and changes</h2>
+            <p>
+              unikeys is developed in spare time. We may change, suspend, or discontinue it — or any
+              part of this website — at any time, without notice and without obligation to provide
+              updates or continued support. Builds already downloaded keep working; nothing here
+              reaches into your machine to stop them.
+            </p>
+          </section>
+
+          <section>
+            <h2>11. Changes to these terms</h2>
+            <p>
+              These terms may be updated. The date at the top of the page moves when they are, and
+              the change history is public in the repository. Continuing to use unikeys after a
+              change means you accept the revised terms.
+            </p>
+          </section>
+
+          <section>
+            <h2>12. Contact</h2>
+            <p>
+              Questions about these terms:
+              <a href="mailto:ronkamail@gmail.com">ronkamail@gmail.com</a>, or open an issue at
+              <a href="https://github.com/ronka/unikeys/issues">github.com/ronka/unikeys/issues</a>.
+            </p>
+          </section>
+        </article>
+      </div>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        <span>unikeys — macOS</span>
+        <a href="./">Home</a>
+        <a href="./privacy.html">Privacy</a>
+        <a href="https://github.com/ronka/unikeys">Source</a>
+        <span class="right">Built by <a href="https://github.com/ronka">ronka</a></span>
+      </div>
+    </footer>
+  </body>
+</html>
