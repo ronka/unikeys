@@ -1,13 +1,17 @@
 # Releasing unikeys for macOS
 
-unikeys is distributed as a **signed, notarized universal DMG** that you host yourself —
-not through the Mac App Store. The App Store requires App Sandbox, and a sandboxed app
-cannot read or write the config files unikeys exists to edit
-(`~/Library/Application Support/Code/User/keybindings.json`, `~/.config/ghostty/config`,
-JetBrains keymap directories, Obsidian vaults). Developer ID is the only distribution
-route on which the app actually works.
+unikeys ships through two channels, from one codebase:
 
-Bundle identifier: `com.ronkaa.unikeys`.
+- a **signed, notarized universal DMG** you host yourself — `npm run release:mac`
+- the **Mac App Store**, via TestFlight — `npm run submit:testflight`
+
+The App Store requires App Sandbox, which is why the second one took work: a sandboxed
+app cannot open `~/Library/Application Support/Code/User/keybindings.json` or a JetBrains
+keymap directory on its own say-so. It reaches them through folders the user hands over
+in a macOS open panel, which `src/main/grants.ts` turns into security-scoped bookmarks
+that survive a quit. The DMG build has no sandbox and takes none of those paths.
+
+Bundle identifier: `com.ronkaa.unikeys`. Team ID: `9F9UG2CY8U`.
 
 ## One-time setup
 
@@ -92,11 +96,67 @@ and staples the ticket. Output is `dist/unikeys-<version>.dmg`, universal (x86_6
 arm64). Expect several minutes — the universal build packages both architectures and
 notarization is a network round-trip.
 
-## Verifying the result
+## Submitting to TestFlight and the App Store
+
+```bash
+npm run submit:testflight
+```
+
+Builds the sandboxed universal `.pkg`, validates it against App Store Connect, uploads
+it, and prints what to expect next. `npm run check:testflight` does everything except
+the upload — use it whenever you have changed the build configuration, because an
+uploaded build cannot be deleted, only expired, and a bad one sits in TestFlight beside
+the good one.
+
+### One-time setup
+
+1. **Apple Distribution** certificate (signs the app) and **3rd Party Mac Developer
+   Installer** (signs the `.pkg`). Both via Xcode → Settings → Accounts → Manage
+   Certificates. `security find-identity -v` should list both.
+2. A **Mac App Store** provisioning profile for `com.ronkaa.unikeys`, saved as
+   `build/embedded.provisionprofile`. Not in the repo — it carries the team's
+   identifiers.
+3. An app-specific password from appleid.apple.com → Sign-In and Security, stored in the
+   keychain under the Apple ID it belongs to:
+
+   ```bash
+   security add-generic-password -s AC_PASSWORD -a you@example.com -w
+   ```
+
+   The script reads both the password and the Apple ID from that one entry, so nothing
+   about your account lives in this repository. `APPLE_ID` and
+   `APPLE_APP_SPECIFIC_PASSWORD` override it if you prefer environment variables.
+
+### Build numbers
+
+App Store Connect refuses an upload whose `CFBundleVersion` is not above the last one,
+so the script passes `--config.buildVersion=$(git rev-list --count HEAD)` and checks the
+built `Info.plist` actually carries it. That means **a TestFlight build needs no version
+bump** — `package.json`'s version is the marketing version and changes when you want it
+to, not because Apple counted.
+
+The commit count only rises while history does. After a squash or a rebase it can come
+back lower, and a lower build number is a rejection whose message does not say so. Then:
+
+```bash
+BUILD_NUMBER=<something higher> npm run submit:testflight
+```
+
+### After it lands
+
+Processing takes 5–30 minutes. Then install from TestFlight and check the thing no local
+run can tell you: whether the sandbox lets the app reach a real config. The Apps page
+should read your keybindings, or ask for
+`/Users/<you>/Library/Application Support/Code/User` — a path with `Containers` in it
+means the app is looking inside its own container again (see `realHome` in
+`src/main/grants.ts`). Neither `npm run dev` nor the DMG build can surface that class of
+bug: only a signed sandboxed build has a rewritten `HOME`.
+
+## Verifying the DMG
 
 ### First, launch it
 
-The hardened runtime is only applied to a *signed* build, so an unsigned smoke build
+The hardened runtime is only applied to a _signed_ build, so an unsigned smoke build
 tells you nothing about whether the real one starts. Hardened runtime plus a rejected
 entitlement is the classic "notarized fine, dies on launch" failure, and
 `build/entitlements.mac.plist` carries `allow-unsigned-executable-memory` and
