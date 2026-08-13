@@ -142,6 +142,12 @@ back lower, and a lower build number is a rejection whose message does not say s
 BUILD_NUMBER=<something higher> npm run submit:testflight
 ```
 
+The switch to plain integers is one-way. Builds 1.0.0 and 1.1.0–1.1.1 were submitted
+carrying the marketing version as `CFBundleVersion`, and 61 sorts above all of them — but
+a `.pkg` from bare `npm run build:mas` carries the marketing version again, which is now
+_lower_ than everything submitted, and is rejected with the same message that names no
+number. **`submit:testflight` is the upload path.** `build:mas` is for building only.
+
 ### After it lands
 
 Processing takes 5–30 minutes. Then install from TestFlight and check the thing no local
