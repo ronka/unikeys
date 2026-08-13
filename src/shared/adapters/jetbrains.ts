@@ -816,6 +816,9 @@ const MACOS_DEFAULTS: ReadonlyArray<readonly [string, string]> = [
   ['EditorSelectWord', 'alt+up'],
   ['EditorUnSelectWord', 'alt+down'],
   ['EditorDuplicate', 'cmd+d'],
+  // EditorCloneCaretAbove / EditorCloneCaretBelow are deliberately absent: the
+  // macOS keymap reaches them by double-tapping ⌥ and then an arrow, which is
+  // not a chord this model can express, so they have no default to show.
   ['EditorDeleteLine', 'cmd+backspace'],
   ['MoveLineUp', 'alt+shift+up'],
   ['MoveLineDown', 'alt+shift+down'],

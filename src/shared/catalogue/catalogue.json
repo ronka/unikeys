@@ -162,6 +162,38 @@
       }
     },
     {
+      "id": "edit.clone-caret-above",
+      "name": "Clone Caret Above",
+      "category": "editing",
+      "commands": {
+        "vscode": "editor.action.insertCursorAbove",
+        "cursor": "editor.action.insertCursorAbove",
+        "kiro": "editor.action.insertCursorAbove",
+        "antigravity": "editor.action.insertCursorAbove",
+        "zed": "editor::AddSelectionAbove",
+        "webstorm": "EditorCloneCaretAbove",
+        "intellij": "EditorCloneCaretAbove",
+        "pycharm": "EditorCloneCaretAbove",
+        "warp": "editor_view:add_cursor_above"
+      }
+    },
+    {
+      "id": "edit.clone-caret-below",
+      "name": "Clone Caret Below",
+      "category": "editing",
+      "commands": {
+        "vscode": "editor.action.insertCursorBelow",
+        "cursor": "editor.action.insertCursorBelow",
+        "kiro": "editor.action.insertCursorBelow",
+        "antigravity": "editor.action.insertCursorBelow",
+        "zed": "editor::AddSelectionBelow",
+        "webstorm": "EditorCloneCaretBelow",
+        "intellij": "EditorCloneCaretBelow",
+        "pycharm": "EditorCloneCaretBelow",
+        "warp": "editor_view:add_cursor_below"
+      }
+    },
+    {
       "id": "navigate.command-palette",
       "name": "Command Palette",
       "category": "navigation",

@@ -37,9 +37,11 @@ Capture procedure, for whoever gets to a Mac with Zed first:
 1. Rebind a few actions in Zed, unbind one, and add a two-keystroke sequence, then
    copy `~/.config/zed/keymap.json` (scrubbed of anything personal).
 2. Run `zed: open default keymap` from the command palette and use it to check
-   `DEFAULT_KEYS` and the catalogue's `zed` action names line by line. The four
+   `DEFAULT_KEYS` and the catalogue's `zed` action names line by line. The
    action names authored with least confidence are
-   `workspace::ActivatePaneLeft`/`Right`/`Up`/`Down` and `pane::DeploySearch`.
+   `workspace::ActivatePaneLeft`/`Right`/`Up`/`Down`, `pane::DeploySearch`, and
+   `editor::AddSelectionAbove`/`Below` — the last two carry no default chord
+   here for the same reason, so check the name and the chord together.
 3. Bind one action in your own block and the same action through unikeys, and
    confirm which chord actually fires.
 
