@@ -9,12 +9,11 @@
 
 import { existsSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import { chmodSync, copyFileSync, mkdirSync, realpathSync, unlinkSync } from 'node:fs'
-import { homedir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 
 import { APPS, type AppId, type FormatId } from '../shared/apps'
 import type { ConfigLocation, Grants } from '../shared/store/types'
-import { isSandboxed, withGrants } from './grants'
+import { isSandboxed, realHome, withGrants } from './grants'
 
 /**
  * Named separately because a caller that has already ruled out success still
@@ -65,7 +64,7 @@ export function grantDirectory(app: AppId, location: ConfigLocation): string | n
   }
 
   const relative = APPS[app].grantPath
-  return relative === null ? null : join(homedir(), relative)
+  return relative === null ? null : join(realHome(), relative)
 }
 
 /**
@@ -285,7 +284,7 @@ function resolveConfigPath(app: AppId, override: string | null): string | null {
   if (override) return existsSync(override) ? override : null
 
   for (const relative of APPS[app].configPaths) {
-    const candidate = join(homedir(), relative)
+    const candidate = join(realHome(), relative)
     const expanded = expandGlob(candidate)
     if (expanded) return expanded
   }
@@ -297,7 +296,7 @@ function resolveConfigPath(app: AppId, override: string | null): string | null {
  * can say where it looked rather than just that it failed.
  */
 export function candidatePaths(app: AppId): string[] {
-  return APPS[app].configPaths.map((relative) => join(homedir(), relative))
+  return APPS[app].configPaths.map((relative) => join(realHome(), relative))
 }
 
 /**

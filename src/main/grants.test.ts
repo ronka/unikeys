@@ -16,7 +16,7 @@
  */
 
 import { mkdirSync, mkdtempSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs'
-import { homedir, tmpdir } from 'node:os'
+import { homedir, tmpdir, userInfo } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 
@@ -28,7 +28,7 @@ import {
   symlinkEscape,
   writeTarget
 } from './config-files'
-import { isSandboxed } from './grants'
+import { isSandboxed, outsideContainer } from './grants'
 
 function pretendSandboxed(): void {
   Object.defineProperty(process, 'mas', { value: true, configurable: true })
@@ -75,6 +75,34 @@ describe('which directory gets granted', () => {
     const dir = temp('override')
     writeFileSync(join(dir, 'keybindings.json'), '[]')
     expect(grantDirectory('vscode', at(join(dir, 'keybindings.json')))).toBe(dir)
+  })
+
+  it('is under the real home, not the container the sandbox renames it to', () => {
+    // App Sandbox rewrites `HOME` to the app's container, so a standard path
+    // built from `os.homedir()` comes out as
+    // `~/Library/Containers/com.ronkaa.unikeys/Data/Library/Application Support/Code/User`
+    // — a folder inside unikeys' own container that VSCode has never written to.
+    // The picker then opens at a path that does not exist and the refusal names
+    // somewhere the user has never been.
+    const home = process.env.HOME
+    process.env.HOME = join(home ?? '', 'Library/Containers/com.ronkaa.unikeys/Data')
+    pretendSandboxed()
+    try {
+      expect(grantDirectory('vscode', NOWHERE)).toBe(
+        join(userInfo().homedir, 'Library/Application Support/Code/User')
+      )
+      expect(grantDirectory('vscode', NOWHERE)).not.toContain('Containers')
+    } finally {
+      process.env.HOME = home
+    }
+  })
+
+  it('recovers the real home from a container path when the passwd lookup cannot', () => {
+    // The backstop under `realHome`, and the only place it can be exercised: a
+    // container-shaped `HOME` exists only in a signed store build, so nothing
+    // else reaches this line before the certificates do.
+    expect(outsideContainer('/Users/x/Library/Containers/com.ronkaa.unikeys/Data')).toBe('/Users/x')
+    expect(outsideContainer('/Users/x')).toBe('/Users/x')
   })
 
   it('is nothing for an app with no standard location', () => {

@@ -12,6 +12,8 @@
  * here touches Electron until a sandboxed build actually calls it.
  */
 
+import { homedir, userInfo } from 'node:os'
+
 import type { Grants } from '../shared/store/types'
 
 /**
@@ -76,6 +78,65 @@ function detectUnpackaged(): boolean {
     // No Electron at all — the unit tests. Nothing to simulate for.
     return false
   }
+}
+
+/**
+ * The user's actual home directory, not the sandbox's idea of it.
+ *
+ * App Sandbox rewrites `HOME` to the app's container, so `os.homedir()` inside a
+ * Mac App Store build answers
+ * `~/Library/Containers/com.ronkaa.unikeys/Data` — and every standard config
+ * path built on it points at a folder inside unikeys' own container that no
+ * editor has ever written to. That is not a permissions problem the user can
+ * fix: the picker opened at a path that does not exist, and the message naming
+ * it named somewhere they have never been.
+ *
+ * `userInfo()` reads the passwd database rather than the environment, which is
+ * the same answer `NSHomeDirectoryForUser(NSUserName())` gives and the one Apple
+ * documents for exactly this. Knowing the real path grants nothing — the folder
+ * is still unreachable until the user hands it over through the panel — it just
+ * makes the path unikeys asks about the one the config is in.
+ *
+ * Only substituted under sandbox, so the dmg build keeps honouring a `HOME` its
+ * user set on purpose.
+ *
+ * Not memoised, deliberately. The lookup is a local passwd read and the callers
+ * are a status refresh's worth of path joins, so caching bought nothing — and a
+ * cached answer that outlives a test's `HOME` is a test that keeps passing after
+ * the fix it guards has been reverted.
+ */
+export function realHome(): string {
+  return isSandboxed() ? readPasswdHome() : homedir()
+}
+
+function readPasswdHome(): string {
+  try {
+    return outsideContainer(userInfo().homedir || homedir())
+  } catch {
+    // The passwd lookup goes out to a directory service and can fail. The
+    // environment's answer, with the container trimmed back off, is the same
+    // path by a different route rather than a crash on startup.
+    return outsideContainer(homedir())
+  }
+}
+
+/**
+ * A home directory with the container suffix removed, if it has one.
+ *
+ * The backstop for `userInfo()`, and never expected to fire: a container path is
+ * always `<home>/Library/Containers/<bundle id>/Data`, so the real home is
+ * recoverable from it by string alone. Kept because the whole of this module is
+ * unreachable outside a signed Mac App Store build — if the passwd lookup ever
+ * does answer with the container, the alternative to this line is a build that
+ * cannot see a single config and a week of certificates to find out.
+ *
+ * Exported for the test that covers it, which is the only thing that can: no
+ * development run has a container-shaped `HOME`, so this line cannot be reached
+ * outside a signed store build by any other means.
+ */
+export function outsideContainer(home: string): string {
+  const container = home.indexOf('/Library/Containers/')
+  return container === -1 ? home : home.slice(0, container)
 }
 
 /** Releases a grant. Always safe to call, including when nothing was granted. */

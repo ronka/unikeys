@@ -8,7 +8,6 @@
  */
 
 import { existsSync } from 'node:fs'
-import { homedir } from 'node:os'
 import { join } from 'node:path'
 
 import { adapterFor } from '../shared/adapters'
@@ -38,7 +37,7 @@ import {
   writeAtomic,
   writeTarget
 } from './config-files'
-import { isSandboxed } from './grants'
+import { isSandboxed, realHome } from './grants'
 
 // ---------------------------------------------------------------------------
 // Detection
@@ -87,7 +86,7 @@ export function isConfigurable(app: AppId, location: ConfigLocation): boolean {
 }
 
 function expandHome(path: string): string {
-  return path.startsWith('~/') ? join(homedir(), path.slice(2)) : path
+  return path.startsWith('~/') ? join(realHome(), path.slice(2)) : path
 }
 
 // ---------------------------------------------------------------------------
