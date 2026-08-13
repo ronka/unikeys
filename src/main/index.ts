@@ -3,6 +3,7 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { registerIpcHandlers } from './ipc'
+import { installApplicationMenu } from './menu'
 import { hasPendingAnalytics, shutdownAnalytics } from './analytics'
 
 function createWindow(): void {
@@ -17,7 +18,6 @@ function createWindow(): void {
     // which is not a thing a desktop window should ever do.
     minWidth: 960,
     show: false,
-    autoHideMenuBar: true,
     // The traffic lights sit over the renderer's own top strip instead of a
     // native title bar, so the window chrome and the sidebar read as one
     // surface. `.drag-region` in main.css is what keeps the window movable.
@@ -60,6 +60,26 @@ function createWindow(): void {
   }
 }
 
+/**
+ * Brings the one window forward, creating it only if there is none.
+ *
+ * Every route back to the window goes through here — the Window menu, the dock
+ * icon, and a second launch — because they must all mean the same thing.
+ * Pointing any of them at `createWindow` directly opens a second window, and
+ * two windows disagreeing about the store is the state the single-instance lock
+ * below exists to prevent.
+ */
+function showMainWindow(): void {
+  const existing = BrowserWindow.getAllWindows()[0]
+  if (existing === undefined) {
+    createWindow()
+    return
+  }
+  if (existing.isMinimized()) existing.restore()
+  existing.show()
+  existing.focus()
+}
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
@@ -68,6 +88,11 @@ function createWindow(): void {
 if (!app.requestSingleInstanceLock()) {
   app.quit()
 }
+
+// Launching unikeys again while it is running is someone asking for its window,
+// so give them the one that exists. Without this the second process quits
+// silently and nothing at all appears to happen.
+app.on('second-instance', showMainWindow)
 
 app.whenReady().then(() => {
   // Set app user model id for windows
@@ -88,13 +113,15 @@ app.whenReady().then(() => {
 
   registerIpcHandlers()
 
+  // Before the window, so the menu bar is never briefly Electron's default one.
+  installApplicationMenu(showMainWindow)
+
   createWindow()
 
-  app.on('activate', function () {
-    // On macOS it's common to re-create a window in the app when the
-    // dock icon is clicked and there are no other windows open.
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
-  })
+  // On macOS it is common to re-create a window when the dock icon is clicked
+  // and there are none open — and the same call focuses the window when there
+  // is one, which is what clicking the dock icon should do either way.
+  app.on('activate', showMainWindow)
 })
 
 // Quit when all windows are closed, except on macOS. There, it's common
