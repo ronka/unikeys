@@ -12,7 +12,7 @@ import { chmodSync, copyFileSync, mkdirSync, realpathSync, unlinkSync } from 'no
 import { basename, dirname, join } from 'node:path'
 
 import { APPS, type AppId, type FormatId } from '../shared/apps'
-import type { ConfigLocation, Grants } from '../shared/store/types'
+import type { BackupsLocation, ConfigLocation, Grants } from '../shared/store/types'
 import { isSandboxed, realHome, withGrants } from './grants'
 
 /**
@@ -518,6 +518,23 @@ function readGrantedConfig(app: AppId, location: ConfigLocation): ReadOutcome {
 // ---------------------------------------------------------------------------
 
 /**
+ * Where this session's backups go, or `null` when there is nowhere to put them.
+ *
+ * The one decision the 2.4.5(i) rejection turned on, so it lives in one
+ * function. Under sandbox the answer is only ever the folder the user chose —
+ * there is deliberately **no** fallback to `userData`, because `userData` is
+ * the container, and copies of the user's own files are precisely what may not
+ * go there. An absent choice therefore means no backup at all, reported to the
+ * user, rather than a backup somewhere they cannot reach.
+ *
+ * Outside the sandbox nothing changed: `userData` is
+ * `~/Library/Application Support/unikeys`, an ordinary folder anyone can open.
+ */
+export function backupsDirectory(backups: BackupsLocation, userDataDir: string): string | null {
+  return isSandboxed() ? backups.directory : join(userDataDir, 'backups')
+}
+
+/**
  * Tracks which files have already been backed up, so a file is copied once per
  * session rather than once per save — a session's first backup is the one that
  * captures the pre-unikeys state, which is what makes a bad write recoverable.
@@ -526,36 +543,46 @@ export class BackupSession {
   private readonly backedUp = new Set<string>()
 
   constructor(
-    readonly directory: string,
+    /** `null` when no folder has been chosen, in which case nothing is copied. */
+    readonly directory: string | null,
+    private readonly destinationGrants: Grants,
     private readonly timestamp: string
   ) {}
 
   /**
-   * Returns the backup path, or `null` if this file was already backed up.
+   * Returns the backup path, or `null` if nothing was copied — either because
+   * this file was already backed up this session, or because there is nowhere
+   * to copy it to.
    *
    * `label` disambiguates the filename. VSCode and Cursor both keep a file
    * called `keybindings.json`, so naming backups after the basename alone would
    * have Cursor's backup silently overwrite VSCode's — destroying the only copy
    * of the state the user needs to recover.
    *
-   * `grants` are redeemed for the copy itself. The backup's *destination* is
-   * inside unikeys' own container and never needs one; the source is the app's
-   * config and always does. Redeemed here rather than by the caller so that
+   * `sourceGrants` are the app's, and they are redeemed together with the
+   * destination's rather than one after the other: a single `copyFileSync`
+   * straddles both folders, and under sandbox each end needs its own bookmark
+   * open for the duration. Redeemed here rather than by the caller so that
    * `apps-service.ts` — which calls this and `writeAtomic` back to back — stays
    * free of any notion of a bookmark.
    */
-  ensureBackup(path: string, label: string, grants: Grants): string | null {
+  ensureBackup(path: string, label: string, sourceGrants: Grants): string | null {
+    const directory = this.directory
+    // No folder chosen: the save goes ahead without a copy, and the write
+    // report says so. The alternative — writing it into the container anyway —
+    // is the thing this whole change exists to stop.
+    if (directory === null) return null
     if (this.backedUp.has(path)) return null
 
-    return withGrants(grants, () => {
+    return withGrants({ ...this.destinationGrants, ...sourceGrants }, () => {
       if (!existsSync(path)) {
         // Nothing to back up; unikeys is about to create this file.
         this.backedUp.add(path)
         return null
       }
 
-      mkdirSync(this.directory, { recursive: true })
-      const target = join(this.directory, `${this.timestamp}-${label}-${basename(path)}`)
+      mkdirSync(directory, { recursive: true })
+      const target = join(directory, `${this.timestamp}-${label}-${basename(path)}`)
       copyFileSync(path, target)
       this.backedUp.add(path)
       return target
@@ -567,9 +594,13 @@ export class BackupSession {
  * `now` is passed in rather than read here so the caller owns the clock and this
  * module stays trivially exercisable.
  */
-export function createBackupSession(directory: string, now: Date): BackupSession {
+export function createBackupSession(
+  directory: string | null,
+  destinationGrants: Grants,
+  now: Date
+): BackupSession {
   const timestamp = now.toISOString().replace(/[:.]/g, '-')
-  return new BackupSession(directory, timestamp)
+  return new BackupSession(directory, destinationGrants, timestamp)
 }
 
 // ---------------------------------------------------------------------------

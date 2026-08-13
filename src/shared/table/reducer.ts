@@ -125,6 +125,15 @@ export type TableAction =
    */
   | { type: 'setOnboardingCompleted'; completed: boolean }
   /**
+   * Records the folder the user just chose for backups, and the bookmark that
+   * opens it.
+   *
+   * Replaces rather than accumulates, unlike `grantApp`: there is one backups
+   * folder, and keeping the bookmark for a folder no longer in use would leave
+   * unikeys holding a permission it has no reason to redeem.
+   */
+  | { type: 'setBackupsLocation'; directory: string; grant: string }
+  /**
    * Records the consent answer in the working copy.
    *
    * Unlike every other store patch here, this one is *not* persisted by the
@@ -440,6 +449,15 @@ export function tableReducer(
       return {
         ...state,
         store: { ...state.store, onboardingCompleted: action.completed }
+      }
+
+    case 'setBackupsLocation':
+      return {
+        ...state,
+        store: {
+          ...state.store,
+          backups: { directory: action.directory, grants: { [action.directory]: action.grant } }
+        }
       }
 
     case 'setAnalyticsEnabled':

@@ -362,6 +362,58 @@ export function PendingChangesPrompt({
   )
 }
 
+/**
+ * Asked once, at the first save that would take a backup with nowhere to put
+ * one.
+ *
+ * Not part of onboarding, deliberately: the wizard already asks for thirteen
+ * folder grants, and a fourteenth question about a folder that does not matter
+ * yet is asked at the wrong moment. Here it is the moment — the user is about
+ * to change their config files, which is the only time the copy is worth
+ * anything.
+ *
+ * Declining is a real answer, and the consequence is spelled out rather than
+ * left for the button label to imply. A sandboxed unikeys has no third option:
+ * it may write into a folder the user picks or into its own container, and the
+ * container is not somewhere the user could ever find a backup again.
+ */
+export function ChooseBackupsPrompt({
+  onChoose,
+  onSkip,
+  onClose
+}: {
+  onChoose: () => void
+  onSkip: () => void
+  onClose: () => void
+}): React.JSX.Element {
+  return (
+    <Modal
+      title="Where should backups go?"
+      onClose={onClose}
+      footer={
+        <>
+          <Button variant="outline" onClick={onSkip}>
+            Save without backups
+          </Button>
+          <Button onClick={onChoose}>Choose folder…</Button>
+        </>
+      }
+    >
+      <div className="space-y-3 text-sm">
+        <p>
+          Before unikeys changes one of your keybinding files it copies the original, so a bad save
+          can always be undone. Pick a folder for those copies — somewhere you can find them, like a
+          folder in Documents.
+        </p>
+        <p className="text-muted-foreground">
+          You can save without them, but this save will not be undoable from within unikeys. You can
+          choose a folder later in Settings.
+        </p>
+      </div>
+    </Modal>
+  )
+}
+
 function describeChord(canonical: string | null): string {
   if (canonical === null) return 'not bound'
   const chord = parseCanonical(canonical)
@@ -478,9 +530,16 @@ export function WriteReport({
           </section>
         )}
 
-        <p className="text-muted-foreground text-xs">
-          Backups live in <code className="font-mono break-all">{result.backupDirectory}</code>
-        </p>
+        {result.backupDirectory === null ? (
+          <p className="text-muted-foreground text-xs">
+            No backups folder is set, so nothing was copied before these files were changed. Choose
+            one in Settings.
+          </p>
+        ) : (
+          <p className="text-muted-foreground text-xs">
+            Backups live in <code className="font-mono break-all">{result.backupDirectory}</code>
+          </p>
+        )}
       </div>
     </Modal>
   )

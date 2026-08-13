@@ -163,9 +163,14 @@ export interface LoadResult {
   store: Store
   catalogue: Catalogue
   statuses: AppStatus[]
-  /** Where session backups are written, surfaced so the user can restore one. */
-  backupDirectory: string
-  storePath: string
+  /**
+   * Where session backups are written, surfaced so the user can restore one.
+   *
+   * `null` when there is nowhere to write them — a sandboxed build whose user
+   * has not chosen a folder yet. Never a path inside unikeys' container: that
+   * is the whole of the 2.4.5(i) fix.
+   */
+  backupDirectory: string | null
   /**
    * Whether this build runs under App Sandbox, and so whether the user is ever
    * asked to grant a folder. One flag for the whole session rather than a field
@@ -208,6 +213,18 @@ export type GrantOutcome =
        */
       configPath: string | null
     }
+  | { ok: false; cancelled: true }
+  | { ok: false; cancelled: false; error: string }
+
+/**
+ * What came back from asking the user where backups should go.
+ *
+ * `GrantOutcome` without `configPath`: this folder is not any app's config
+ * location, it is where copies of every app's config are kept. The same
+ * cancelled-versus-refused distinction applies for the same reason.
+ */
+export type BackupsChoice =
+  | { ok: true; directory: string; grant: string }
   | { ok: false; cancelled: true }
   | { ok: false; cancelled: false; error: string }
 
@@ -275,7 +292,8 @@ export interface WriteResult {
   failed: FailedApp[]
   skipped: SkippedBinding[]
   dropped: DroppedBinding[]
-  backupDirectory: string
+  /** `null` when this save took no backups, because there was nowhere to put them. */
+  backupDirectory: string | null
 }
 
 // ---------------------------------------------------------------------------
@@ -302,6 +320,7 @@ export const IPC = {
   appendHistory: 'unikeys:append-history',
   chooseConfigPath: 'unikeys:choose-config-path',
   requestGrant: 'unikeys:request-grant',
+  chooseBackupsFolder: 'unikeys:choose-backups-folder',
   revealBackups: 'unikeys:reveal-backups',
   setThemeSource: 'unikeys:set-theme-source',
   track: 'unikeys:track',
@@ -386,7 +405,21 @@ export interface UnikeysApi {
    * when the config turned out to be a link into one.
    */
   requestGrant(app: AppId, at?: string): Promise<GrantOutcome>
-  revealBackups(): Promise<void>
+  /**
+   * Asks the user where backups should be kept, returning the folder and the
+   * bookmark that opens it.
+   *
+   * The same shape as `requestGrant` and for the same reason: under sandbox,
+   * naming a folder and being allowed into it are one decision, taken in one
+   * panel. A no-op outside the sandbox, where the dmg build keeps its backups
+   * beside its own state and has nothing to ask for.
+   */
+  chooseBackupsFolder(): Promise<BackupsChoice>
+  /**
+   * Opens the backups folder in Finder. Does nothing when none has been chosen
+   * — there is deliberately no fallback folder to reveal.
+   */
+  revealBackups(store: Store): Promise<void>
   /**
    * Sets the appearance for the whole window, native chrome included.
    *

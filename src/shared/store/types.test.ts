@@ -92,6 +92,46 @@ describe('deserializeStore', () => {
     })
   })
 
+  describe('backups', () => {
+    const read = (document: object): ReturnType<typeof createEmptyStore>['backups'] => {
+      const outcome = deserializeStore(JSON.stringify({ schemaVersion: 1, ...document }))
+      if (!outcome.ok) throw new Error(outcome.error)
+      return outcome.store.backups
+    }
+
+    it('starts with nowhere chosen', () => {
+      expect(createEmptyStore().backups).toEqual({ directory: null, grants: {} })
+    })
+
+    it('is absent from a store written before the field existed', () => {
+      // The 1.1.1 upgrade path. "Not chosen" is the honest state: the user is
+      // asked at their next save, rather than being quietly backed up into a
+      // container folder they could never open.
+      expect(read({ firstRunCompleted: true })).toEqual({ directory: null, grants: {} })
+    })
+
+    it('round-trips the folder and its bookmark', () => {
+      const store = {
+        ...createEmptyStore(),
+        backups: { directory: '/Users/someone/Documents/unikeys', grants: { x: 'bookmark' } }
+      }
+      const outcome = deserializeStore(serializeStore(store))
+      if (!outcome.ok) throw new Error(outcome.error)
+      expect(outcome.store.backups).toEqual(store.backups)
+    })
+
+    it('degrades a malformed value to nowhere rather than trusting it', () => {
+      // Trusting a hand-edited value would be unikeys copying the user's files
+      // somewhere nobody named. Asking again is the recoverable failure.
+      expect(read({ backups: { directory: 42, grants: 'nope' } })).toEqual({
+        directory: null,
+        grants: {}
+      })
+      expect(read({ backups: { directory: '' } })).toEqual({ directory: null, grants: {} })
+      expect(read({ backups: 'somewhere' })).toEqual({ directory: null, grants: {} })
+    })
+  })
+
   describe('analytics', () => {
     function read(document: unknown): ReturnType<typeof createEmptyStore>['analytics'] {
       const outcome = deserializeStore(JSON.stringify(document))

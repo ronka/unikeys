@@ -2,9 +2,10 @@
  * Persistence of unikeys' own state.
  *
  * The store is a single JSON document in Electron's `userData` directory,
- * carrying a schema version so future migrations are possible. Backups of the
- * user's app configs live alongside it, which is what makes "where are my
- * backups" answerable with one path.
+ * carrying a schema version so future migrations are possible. unikeys' own
+ * state and its save log are what live there — a container is for exactly that.
+ * Backups of the user's config files are not: they go to a folder the user
+ * picks, which the store merely remembers.
  */
 
 import { existsSync, mkdirSync, readFileSync } from 'node:fs'
@@ -23,14 +24,21 @@ import { writeAtomic } from './config-files'
 
 export interface StoreLocation {
   storePath: string
-  backupDirectory: string
 }
 
+/**
+ * Deliberately no `backupDirectory` here any more.
+ *
+ * It used to be `join(userDataDir, 'backups')`, which under the Mac App Store
+ * build is inside unikeys' container — and copies of the user's own config
+ * files are user data, which App Store Review Guideline 2.4.5(i) says does not
+ * belong there. unikeys 1.1.1 was rejected for exactly that. Removing the field
+ * rather than merely stopping using it is the point: there is now no value in
+ * the program from which a container backup path can be derived by accident.
+ * See `backupsDirectory` in `config-files.ts` for where they go instead.
+ */
 export function storeLocation(userDataDir: string): StoreLocation {
-  return {
-    storePath: join(userDataDir, 'unikeys-store.json'),
-    backupDirectory: join(userDataDir, 'backups')
-  }
+  return { storePath: join(userDataDir, 'unikeys-store.json') }
 }
 
 export interface LoadStoreOutcome {

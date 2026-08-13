@@ -8,6 +8,7 @@
 
 import { app as electronApp, dialog, ipcMain, nativeTheme, shell } from 'electron'
 import { mkdirSync } from 'node:fs'
+import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 
 import { CATALOGUE } from '../shared/catalogue'
@@ -17,6 +18,7 @@ import { capture, configureAnalytics, setEnabled } from './analytics'
 import {
   IPC,
   isThemeSource,
+  type BackupsChoice,
   type GrantOutcome,
   type HistoryResult,
   type ImportResult,
@@ -25,15 +27,22 @@ import {
   type WriteResult
 } from '../shared/ipc'
 import type { HistoryEntry, NewHistoryEntry } from '../shared/history/types'
-import { NO_GRANTS, STANDARD_LOCATION, type Store } from '../shared/store/types'
 import {
+  NO_BACKUPS_LOCATION,
+  NO_GRANTS,
+  STANDARD_LOCATION,
+  type BackupsLocation,
+  type Store
+} from '../shared/store/types'
+import {
+  backupsDirectory,
   createBackupSession,
   grantDirectory,
   grantMismatch,
   sameDirectory,
   type BackupSession
 } from './config-files'
-import { isSandboxed, isSimulatedSandbox, SIMULATED_GRANT } from './grants'
+import { isSandboxed, isSimulatedSandbox, realHome, SIMULATED_GRANT, withGrants } from './grants'
 import { appStatuses, importFromApps, writeToApps } from './apps-service'
 import { createHistoryLog, type HistoryLog } from './history-file'
 import { loadStore, saveStore, storeLocation, type StoreLocation } from './store-file'
@@ -56,9 +65,37 @@ function ensureHistory(): HistoryLog {
   return history
 }
 
-function ensureBackups(): BackupSession {
-  if (backups === null) backups = createBackupSession(ensureLocation().backupDirectory, new Date())
+/**
+ * The session's backup handle, rebuilt whenever the destination changes.
+ *
+ * The once-per-session rule is about the *files* being copied, not about the
+ * folder they land in — so a user who picks a folder mid-session, or moves to a
+ * different one, gets a fresh session and a fresh copy of everything into it.
+ * Anything else would silently leave the new folder empty for configs already
+ * backed up into the old one.
+ */
+function ensureBackups(backupsLocation: BackupsLocation): BackupSession {
+  const directory = backupsDirectory(backupsLocation, electronApp.getPath('userData'))
+  if (backups === null || backups.directory !== directory) {
+    backups = createBackupSession(directory, backupsLocation.grants, new Date())
+  }
   return backups
+}
+
+/**
+ * A store's backups location, read defensively.
+ *
+ * The store arrives from the renderer, and `backupsDirectory` under sandbox
+ * answers with whatever `directory` it is handed. A store that predates the
+ * field, or a renderer that has not hydrated, must therefore land on "nowhere
+ * to put backups" rather than on `undefined` reaching the file layer.
+ */
+function backupsOf(store: Store): BackupsLocation {
+  const location: BackupsLocation | undefined = store?.backups
+  if (typeof location?.directory !== 'string' || location.directory.length === 0) {
+    return NO_BACKUPS_LOCATION
+  }
+  return { directory: location.directory, grants: location.grants ?? NO_GRANTS }
 }
 
 export function registerIpcHandlers(): void {
@@ -85,8 +122,7 @@ export function registerIpcHandlers(): void {
       store,
       catalogue: CATALOGUE,
       statuses,
-      backupDirectory: loc.backupDirectory,
-      storePath: loc.storePath,
+      backupDirectory: backupsDirectory(backupsOf(store), electronApp.getPath('userData')),
       sandboxed: isSandboxed()
     }
   })
@@ -102,7 +138,7 @@ export function registerIpcHandlers(): void {
   })
 
   ipcMain.handle(IPC.write, (_event, request: WriteRequest, store: Store): WriteResult => {
-    return writeToApps(request, store, CATALOGUE, ensureBackups())
+    return writeToApps(request, store, CATALOGUE, ensureBackups(backupsOf(store)))
   })
 
   ipcMain.handle(IPC.loadHistory, (): HistoryResult => ensureHistory().load())
@@ -208,10 +244,68 @@ export function registerIpcHandlers(): void {
     }
   )
 
-  ipcMain.handle(IPC.revealBackups, (): void => {
-    const directory = ensureLocation().backupDirectory
-    mkdirSync(directory, { recursive: true })
-    shell.openPath(directory)
+  ipcMain.handle(IPC.chooseBackupsFolder, async (): Promise<BackupsChoice> => {
+    // Nothing to choose outside the sandbox: the dmg build keeps backups beside
+    // unikeys' own state, in a folder anyone can open, and the renderer never
+    // offers the action. Refused rather than answered, like `chooseConfigPath`
+    // refuses in the other direction — a stored folder that build would then
+    // ignore is worse than no folder at all.
+    if (!isSandboxed()) return { ok: false, cancelled: true }
+
+    const result = await dialog.showOpenDialog({
+      title: 'Choose where unikeys keeps backups',
+      message:
+        'Before unikeys changes a keybinding file it copies the original here, so a bad save ' +
+        'can always be undone.',
+      buttonLabel: 'Use This Folder',
+      // A folder, and one the user can create on the spot — "unikeys Backups"
+      // inside Documents is the shape of answer this is asking for.
+      properties: ['openDirectory', 'createDirectory'],
+      // `realHome()`, never `app.getPath('documents')` and never `homedir()`.
+      // Under sandbox both of those answer with the container, so the panel
+      // would open inside the very folder this whole change exists to stop
+      // unikeys writing to. See the docstring on `realHome`.
+      defaultPath: join(realHome(), 'Documents'),
+      // What makes the folder reachable after a quit. Ignored by non-mas
+      // builds, which is why the simulation substitutes one below.
+      securityScopedBookmarks: true
+    })
+
+    if (result.canceled || result.filePaths.length === 0) return { ok: false, cancelled: true }
+
+    const directory = result.filePaths[0]
+    // A non-mas build hands back no bookmarks however the panel is configured,
+    // so the simulation supplies one — as `requestGrant` does, and for the same
+    // reason: otherwise the flow stops at the step being demonstrated.
+    const bookmark = result.bookmarks?.[0] ?? (isSimulatedSandbox() ? SIMULATED_GRANT : undefined)
+
+    if (!bookmark) {
+      return {
+        ok: false,
+        cancelled: false,
+        error:
+          'macOS did not return a lasting permission for that folder, so unikeys would lose ' +
+          'access to it as soon as it quits. Try choosing it again.'
+      }
+    }
+
+    return { ok: true, directory, grant: bookmark }
+  })
+
+  ipcMain.handle(IPC.revealBackups, (_event, store: Store): void => {
+    const location = backupsOf(store)
+    const directory = backupsDirectory(location, electronApp.getPath('userData'))
+    // No folder chosen: there is nothing to reveal, and there is deliberately
+    // no fallback folder to reveal instead. The renderer only offers the button
+    // when there is one, so this is the belt to that braces.
+    if (directory === null) return
+    withGrants(location.grants, () => {
+      // Created on demand: a folder chosen before the first save has nothing in
+      // it yet, and opening a Finder window on a path that does not exist fails
+      // silently.
+      mkdirSync(directory, { recursive: true })
+      void shell.openPath(directory)
+    })
   })
 
   ipcMain.handle(IPC.setThemeSource, (_event, source: unknown): void => {

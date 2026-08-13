@@ -770,6 +770,40 @@ describe('import and app configuration', () => {
     expect(state.store.onboardingCompleted).toBe(false)
   })
 
+  it('records the backups folder, replacing the previous one', () => {
+    const state = run(createTableState(storeWith({ 'file.save': { vscode: imported('cmd+s') } })), {
+      type: 'setChord',
+      actionId: 'file.save',
+      app: 'webstorm',
+      chord: save
+    })
+
+    const chosen = run(state, {
+      type: 'setBackupsLocation',
+      directory: '/Users/someone/Documents/unikeys',
+      grant: 'first'
+    })
+    expect(chosen.store.backups).toEqual({
+      directory: '/Users/someone/Documents/unikeys',
+      grants: { '/Users/someone/Documents/unikeys': 'first' }
+    })
+    expect(chosen.pending).toEqual(state.pending)
+    expect(chosen.store.chords).toEqual(state.store.chords)
+
+    // Unlike an app's grants, which accumulate because one app can need two
+    // folders at once, there is one backups folder — so moving to another must
+    // not leave unikeys holding a bookmark it has no reason to redeem.
+    const moved = run(chosen, {
+      type: 'setBackupsLocation',
+      directory: '/Users/someone/Desktop/keys',
+      grant: 'second'
+    })
+    expect(moved.store.backups).toEqual({
+      directory: '/Users/someone/Desktop/keys',
+      grants: { '/Users/someone/Desktop/keys': 'second' }
+    })
+  })
+
   it('records the analytics answer without touching anything else', () => {
     const state = run(createTableState(storeWith({ 'file.save': { vscode: imported('cmd+s') } })), {
       type: 'setChord',

@@ -26,10 +26,11 @@ import {
   type MatchCandidate
 } from '@shared/table/reducer'
 import { savedCells } from '@shared/table/save-outcome'
-import { isCellUnseen, type Store } from '@shared/store/types'
+import { isCellUnseen, type BackupsLocation, type Store } from '@shared/store/types'
 import { buildTableView, summarizeImport } from '@shared/table/view'
 import { type EditTarget } from './components/KeysTable'
 import {
+  ChooseBackupsPrompt,
   CopyBindingsPrompt,
   ImportSummaryPanel,
   MatchRowPrompt,
@@ -53,7 +54,20 @@ import { SettingsPage } from './pages/SettingsPage'
  *
  * One value for all of them, so only ever one of them is on screen.
  */
-type Overlay = 'none' | 'pending' | 'summary' | 'write-report' | 'onboarding'
+type Overlay = 'none' | 'pending' | 'choose-backups' | 'summary' | 'write-report' | 'onboarding'
+
+/**
+ * Waits for the current dialog to have finished unmounting.
+ *
+ * Two Radix dialogs must never swap places inside one commit — the outgoing
+ * one's body lock survives the incoming one, and the page is left unscrollable.
+ * Every existing hand-off gets this for free by closing before an `await`; the
+ * backups prompt is the one that opens straight off a click on another dialog,
+ * so it has to wait for a turn of the event loop on purpose.
+ */
+function afterCurrentDialog(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0))
+}
 
 /**
  * What an import is allowed to change, judged against the given store: only
@@ -85,7 +99,13 @@ function App(): React.JSX.Element {
   const [state, dispatch] = useReducer(reducer, undefined, () => createTableState())
 
   const [statuses, setStatuses] = useState<AppStatus[]>([])
-  const [backupDirectory, setBackupDirectory] = useState('')
+  /**
+   * Where backups go, or `null` when there is nowhere. Main decides it — the
+   * chosen folder under sandbox, one beside unikeys' own state otherwise — so
+   * the renderer holds the answer rather than working it out from `sandboxed`
+   * and the store.
+   */
+  const [backupDirectory, setBackupDirectory] = useState<string | null>(null)
   /**
    * Whether this build runs under App Sandbox, and so whether granting a folder
    * is a thing the user can be asked to do at all. Defaults to `false` so the
@@ -137,6 +157,17 @@ function App(): React.JSX.Element {
    * below fires once the state carrying the rest arrives.
    */
   const pendingImportReport = useRef<{ apps_read: number; apps_failed: number } | null>(null)
+
+  /**
+   * Whether the user has already said to go ahead without a backups folder.
+   *
+   * A ref, and deliberately not persisted. Asking before every save is worse
+   * than not asking at all, so one refusal settles the session — but a
+   * permanent "never ask again" would turn a single click made in a hurry into
+   * a machine that quietly never takes a backup again. The next launch asks
+   * once more, and Settings is where someone who changed their mind goes.
+   */
+  const declinedBackups = useRef(false)
 
   useEffect(() => {
     // StrictMode double-invokes effects, and a second startup landing after the
@@ -426,9 +457,60 @@ function App(): React.JSX.Element {
       )
   }
 
+  /**
+   * Asks where backups should go, and records the answer.
+   *
+   * Returns the chosen location, or `null` if there is still none — the save
+   * that prompted the question continues on a location and waits on `null`,
+   * because cancelling the panel is not the same as deciding to go without.
+   *
+   * Returning it rather than only dispatching it is what makes the save that
+   * follows correct: the dispatch reaches `state.store` on the *next* render,
+   * and the handler about to run is this render's. Handing the location to
+   * `runSave` directly is the difference between the first save after choosing
+   * taking a backup and silently not.
+   */
+  const handleChooseBackupsFolder = async (): Promise<BackupsLocation | null> => {
+    try {
+      const outcome = await window.unikeys.chooseBackupsFolder()
+      if (!outcome.ok) {
+        // Cancelling is a decision, not a failure, so it says nothing.
+        if (!outcome.cancelled) setError(outcome.error)
+        return null
+      }
+      dispatch({ type: 'setBackupsLocation', directory: outcome.directory, grant: outcome.grant })
+      setBackupDirectory(outcome.directory)
+      // Choosing one answers the question this session declined, so the prompt
+      // is allowed to matter again if the folder is ever cleared.
+      declinedBackups.current = false
+      return { directory: outcome.directory, grants: { [outcome.directory]: outcome.grant } }
+    } catch (cause) {
+      setError(`Could not set the backups folder: ${(cause as Error).message}`)
+      return null
+    }
+  }
+
   const handleSave = async (): Promise<void> => {
     if (changes.length === 0) return
 
+    // The one moment a backups folder is worth asking about: files are about to
+    // change. Asked once per session — see `declinedBackups`.
+    if (backupDirectory === null && !declinedBackups.current) {
+      await afterCurrentDialog()
+      setOverlay('choose-backups')
+      return
+    }
+
+    await runSave(state.store)
+  }
+
+  /**
+   * The save itself, once the backups question is settled.
+   *
+   * Takes the store rather than reading `state.store`, so the answer to that
+   * question can be handed in by the caller that just obtained it.
+   */
+  const runSave = async (store: Store): Promise<void> => {
     setSaving(true)
     setError(null)
     // Captured now: an edit the user makes while the write is in flight is not
@@ -443,7 +525,7 @@ function App(): React.JSX.Element {
     }))
 
     try {
-      const result = await window.unikeys.write({ bindings: sent }, state.store)
+      const result = await window.unikeys.write({ bindings: sent }, store)
       const entry = buildSaveEntry(recorded, { ok: true, result })
       setWriteResult(result)
       // Read off the entry itself, so the cells the table folds away are by
@@ -595,9 +677,11 @@ function App(): React.JSX.Element {
       {page === 'settings' && (
         <SettingsPage
           backupDirectory={backupDirectory}
+          sandboxed={sandboxed}
           analyticsEnabled={state.store.analytics.enabled}
           onSetAnalytics={handleSetAnalytics}
-          onRevealBackups={() => void window.unikeys.revealBackups()}
+          onChooseBackupsFolder={() => void handleChooseBackupsFolder()}
+          onRevealBackups={() => void window.unikeys.revealBackups(state.store)}
           onReplayOnboarding={() => {
             // Un-completing first means a quit mid-replay brings the wizard
             // back, same as a genuine first run.
@@ -622,6 +706,32 @@ function App(): React.JSX.Element {
             dispatch({ type: 'discardPending' })
             setOverlay('none')
           }}
+          onClose={() => setOverlay('none')}
+        />
+      )}
+
+      {overlay === 'choose-backups' && (
+        <ChooseBackupsPrompt
+          onChoose={() => {
+            void (async () => {
+              const chosen = await handleChooseBackupsFolder()
+              // A cancelled panel leaves the prompt up: the question has not
+              // been answered, and closing it would answer it for them.
+              if (chosen === null) return
+              setOverlay('none')
+              // The chosen folder goes straight into the store this save uses.
+              // `state.store` here is the render the click came from, which the
+              // dispatch above has not reached yet — see `handleChooseBackupsFolder`.
+              void runSave({ ...state.store, backups: chosen })
+            })()
+          }}
+          onSkip={() => {
+            declinedBackups.current = true
+            setOverlay('none')
+            void runSave(state.store)
+          }}
+          // Dismissing is not "save without backups" — it abandons the save,
+          // and the pending changes are still there to try again.
           onClose={() => setOverlay('none')}
         />
       )}

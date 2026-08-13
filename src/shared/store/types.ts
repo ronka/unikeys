@@ -52,6 +52,28 @@ export type Grants = Record<string, string>
 /** No permissions at all: the dmg build, and any path inside unikeys' own container. */
 export const NO_GRANTS: Grants = {}
 
+/**
+ * Where copies of the user's config files go before unikeys changes them.
+ *
+ * A folder the user picked, with the bookmark that opens it — because a backup
+ * is the user's own data, and a sandboxed app's container is explicitly not
+ * where user data belongs (App Store Review Guideline 2.4.5(i), which unikeys
+ * 1.1.1 was rejected under for writing backups there).
+ *
+ * `directory: null` means nothing has been chosen. Under sandbox that is the
+ * state every install starts in, and it means unikeys saves without taking a
+ * backup and says so — never that it falls back to somewhere the user cannot
+ * reach. Outside the sandbox the question is never asked and this stays `null`:
+ * the dmg build keeps its backups under `userData`, which is an ordinary
+ * `~/Library/Application Support` path.
+ */
+export interface BackupsLocation {
+  directory: string | null
+  grants: Grants
+}
+
+export const NO_BACKUPS_LOCATION: BackupsLocation = { directory: null, grants: NO_GRANTS }
+
 export interface AppConfig {
   enabled: boolean
   /**
@@ -107,6 +129,12 @@ export interface Store {
    * `grants`: no schema bump, so stores travel between builds either way.
    */
   onboardingCompleted: boolean
+  /**
+   * Where backups go. Additive on purpose, like `grants`: no schema bump, so a
+   * store still travels between the dmg and App Store builds in both
+   * directions — the dmg build reads the key and ignores it.
+   */
+  backups: BackupsLocation
   analytics: AnalyticsConfig
 }
 
@@ -138,6 +166,7 @@ export function createEmptyStore(): Store {
     chords: {},
     firstRunCompleted: false,
     onboardingCompleted: false,
+    backups: { directory: null, grants: {} },
     analytics: { distinctId: newDistinctId(), enabled: null }
   }
 }
@@ -231,6 +260,10 @@ export function deserializeStore(text: string): DeserializeOutcome {
     onboardingCompleted:
       data.onboardingCompleted === true ||
       (data.onboardingCompleted === undefined && data.firstRunCompleted === true),
+    // A document written before the field existed has no backups folder, which
+    // is the same state as never having chosen one — so an upgrading user is
+    // asked at their next save rather than silently left without backups.
+    backups: readBackupsLocation(data.backups),
     // Absent means "never asked", not "declined" — but the two behave
     // identically until the wizard asks, so an upgrading user is silent either
     // way. `base` already carries a freshly minted id, which is what a document
@@ -287,6 +320,23 @@ function readAnalytics(value: unknown, fallbackId: string): AnalyticsConfig {
  * a time, and a bookmark that survives but no longer opens is already handled —
  * it reports as stale and the same picker fixes it.
  */
+/**
+ * Reads the backups folder a document carries.
+ *
+ * Anything that is not a non-empty string directory degrades to "not chosen",
+ * and the grants are filtered by the same rule as an app's. Degrading rather
+ * than rejecting matters here in one direction only: the failure it produces is
+ * unikeys asking for the folder again, which is recoverable — while trusting a
+ * malformed value would be unikeys writing copies of the user's files somewhere
+ * nobody named.
+ */
+function readBackupsLocation(value: unknown): BackupsLocation {
+  if (!isRecord(value)) return { directory: null, grants: {} }
+  const directory =
+    typeof value.directory === 'string' && value.directory.length > 0 ? value.directory : null
+  return { directory, grants: readGrants(value.grants) }
+}
+
 function readGrants(value: unknown): Grants {
   if (!isRecord(value)) return {}
   return Object.fromEntries(

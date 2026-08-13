@@ -17,7 +17,8 @@ const unikeys: UnikeysApi = {
   appendHistory: (entry) => ipcRenderer.invoke(IPC.appendHistory, entry),
   chooseConfigPath: (app) => ipcRenderer.invoke(IPC.chooseConfigPath, app),
   requestGrant: (app, at) => ipcRenderer.invoke(IPC.requestGrant, app, at),
-  revealBackups: () => ipcRenderer.invoke(IPC.revealBackups),
+  chooseBackupsFolder: () => ipcRenderer.invoke(IPC.chooseBackupsFolder),
+  revealBackups: (store) => ipcRenderer.invoke(IPC.revealBackups, store),
   setThemeSource: (source) => ipcRenderer.invoke(IPC.setThemeSource, source),
   // Swallowed here rather than at each call site. `track` is called from save
   // handlers and wizard steps, and a rejected promise from one of those would

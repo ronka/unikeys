@@ -8,7 +8,15 @@ import { setTheme, storedTheme } from '@/lib/theme'
 import { PageHeader } from './PageHeader'
 
 interface Props {
-  backupDirectory: string
+  /** `null` when no folder has been chosen, which is where a sandboxed build starts. */
+  backupDirectory: string | null
+  /**
+   * Whether choosing a folder is a thing the user can be asked to do. Only the
+   * sandboxed build asks: the dmg build keeps backups beside unikeys' own state,
+   * in an ordinary folder anyone can open.
+   */
+  sandboxed: boolean
+  onChooseBackupsFolder: () => void
   onRevealBackups: () => void
   onReplayOnboarding: () => void
   /** `null` while the consent question has not been answered yet. */
@@ -24,6 +32,8 @@ const THEME_LABELS: Record<ThemeSource, string> = {
 
 export function SettingsPage({
   backupDirectory,
+  sandboxed,
+  onChooseBackupsFolder,
   onRevealBackups,
   onReplayOnboarding,
   analyticsEnabled,
@@ -61,10 +71,33 @@ export function SettingsPage({
             title="Backups"
             description="unikeys copies each config file before the first write of a session, so a bad write is always recoverable."
           >
-            <p className="text-muted-foreground font-mono text-xs break-all">{backupDirectory}</p>
-            <Button size="sm" variant="outline" className="mt-3" onClick={onRevealBackups}>
-              Open backups folder
-            </Button>
+            {backupDirectory === null ? (
+              <p className="text-muted-foreground text-xs">
+                unikeys has nowhere to put backups yet. Choose a folder and it will copy each file
+                before it changes it.
+              </p>
+            ) : (
+              <p className="text-muted-foreground font-mono text-xs break-all">{backupDirectory}</p>
+            )}
+            <div className="mt-3 flex gap-2">
+              {backupDirectory !== null && (
+                <Button size="sm" variant="outline" onClick={onRevealBackups}>
+                  Open backups folder
+                </Button>
+              )}
+              {/* Only the sandboxed build has a folder to choose: outside it,
+                  backups sit beside unikeys' own state and there is nothing to
+                  ask. */}
+              {sandboxed && (
+                <Button
+                  size="sm"
+                  variant={backupDirectory === null ? 'default' : 'outline'}
+                  onClick={onChooseBackupsFolder}
+                >
+                  {backupDirectory === null ? 'Choose folder…' : 'Change folder…'}
+                </Button>
+              )}
+            </div>
           </Section>
 
           <Section

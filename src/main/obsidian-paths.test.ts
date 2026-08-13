@@ -25,7 +25,13 @@ function vaultDotObsidian(): string {
 }
 
 function backups(): ReturnType<typeof createBackupSession> {
-  return createBackupSession(mkdtempSync(join(tmpdir(), 'unikeys-backups-')), new Date(0))
+  return createBackupSession(
+    mkdtempSync(join(tmpdir(), 'unikeys-backups-')),
+    // The destination needs no grant here: these tests are the dmg build, and a
+    // real temp directory is reachable without one.
+    NO_GRANTS,
+    new Date(0)
+  )
 }
 
 /** An action the shipped catalogue maps for Obsidian. */
