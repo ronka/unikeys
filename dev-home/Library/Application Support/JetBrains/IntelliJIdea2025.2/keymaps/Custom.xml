@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<keymap version="1" name="Custom" parent="Mac OS X 10.5+">
+  <action id="SaveAll">
+    <keyboard-shortcut first-keystroke="meta S" />
+  </action>
+  <action id="GotoFile">
+    <keyboard-shortcut first-keystroke="meta O" />
+  </action>
+  <action id="GotoAction">
+    <keyboard-shortcut first-keystroke="shift meta A" />
+  </action>
+  <!-- Splits disagree with WebStorm's, which is the point of having both. -->
+  <action id="SplitVertically">
+    <keyboard-shortcut first-keystroke="alt meta V" />
+  </action>
+  <action id="SplitHorizontally">
+    <keyboard-shortcut first-keystroke="alt meta H" />
+  </action>
+  <action id="ActivateTerminalToolWindow">
+    <keyboard-shortcut first-keystroke="alt F12" />
+  </action>
+  <action id="CommentByLineComment">
+    <keyboard-shortcut first-keystroke="meta SLASH" />
+  </action>
+</keymap>

@@ -1,0 +1,9 @@
+{
+  "command-palette:open": [{ "modifiers": ["Mod", "Shift"], "key": "P" }],
+  "switcher:open": [{ "modifiers": ["Mod"], "key": "O" }],
+  "global-search:open": [{ "modifiers": ["Mod", "Shift"], "key": "F" }],
+  "workspace:split-vertical": [{ "modifiers": ["Mod"], "key": "\\" }],
+  "workspace:split-horizontal": [{ "modifiers": ["Mod", "Shift"], "key": "\\" }],
+  "editor:save-file": [{ "modifiers": ["Mod"], "key": "S" }],
+  "app:go-back": []
+}

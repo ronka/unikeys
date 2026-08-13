@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<keymap version="1" name="macOS copy" parent="Mac OS X 10.5+">
+  <action id="SaveAll">
+    <keyboard-shortcut first-keystroke="meta S" />
+  </action>
+  <action id="GotoFile">
+    <keyboard-shortcut first-keystroke="shift meta O" />
+  </action>
+  <action id="GotoAction">
+    <keyboard-shortcut first-keystroke="shift meta A" />
+  </action>
+  <action id="FindInPath">
+    <keyboard-shortcut first-keystroke="shift meta F" />
+  </action>
+  <!-- Splits, on the same chords the Code column uses. -->
+  <action id="SplitVertically">
+    <keyboard-shortcut first-keystroke="meta D" />
+  </action>
+  <action id="SplitHorizontally">
+    <keyboard-shortcut first-keystroke="shift meta D" />
+  </action>
+  <!-- Two keystrokes, and an alternate binding for the same action. -->
+  <action id="ReformatCode">
+    <keyboard-shortcut first-keystroke="ctrl T" second-keystroke="ctrl R" />
+    <keyboard-shortcut first-keystroke="alt meta L" />
+  </action>
+  <!-- A mouse shortcut alongside a keystroke: unikeys must leave it alone. -->
+  <action id="GotoDeclaration">
+    <keyboard-shortcut first-keystroke="meta B" />
+    <mouse-shortcut keystroke="meta button1" />
+  </action>
+  <!-- Deliberately unbound. -->
+  <action id="ActivateTerminalToolWindow" />
+</keymap>

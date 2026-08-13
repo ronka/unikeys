@@ -1,0 +1,3 @@
+Kiro creates User/ on first launch and only writes keybindings.json once you
+change a binding. This directory is empty on purpose: it is the
+`config-not-created` state, where unikeys' first save creates the file.

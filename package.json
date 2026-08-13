@@ -14,6 +14,7 @@
     "start": "electron-vite preview",
     "dev": "UNIKEYS_SIMULATE_SANDBOX=1 electron-vite dev",
     "dev:dmg": "electron-vite dev",
+    "dev:apps": "node tools/dev-home/run.mjs",
     "build": "npm run typecheck && electron-vite build",
     "postinstall": "electron-builder install-app-deps",
     "build:unpack": "npm run build && electron-builder --dir",

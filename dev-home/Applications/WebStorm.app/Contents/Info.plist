@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- A stand-in bundle, not a real application. unikeys' install detection is
+     existsSync on the bundle path, so this is all it takes to make the column
+     appear. See ../../README.md. -->
+<plist version="1.0">
+<dict>
+	<key>CFBundleIdentifier</key>
+	<string>com.jetbrains.WebStorm</string>
+	<key>CFBundleName</key>
+	<string>WebStorm</string>
+</dict>
+</plist>

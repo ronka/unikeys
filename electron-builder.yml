@@ -16,6 +16,11 @@ files:
   # business inside a binary, let alone one submitted to the App Store.
   - '!app-store-screenshots'
   - '!{docs,plans,tools,.agents,.claude,.scratch}'
+  # The stand-in home directory `npm run dev:apps` runs against, and the working
+  # copy each run makes of it. Excluded for the reason above and one more of its
+  # own: the tree holds thirteen stand-in `.app` bundles, and nested bundles
+  # inside a submitted app.asar are something review notices.
+  - '!{dev-home,.dev-home}'
   - '!{MAC-APP-STORE.md,RELEASE.md,components.json,skills-lock.json,icon.png}'
   - '!vitest.config.ts'
   - '!**/*.test.{ts,tsx}'

@@ -54,8 +54,59 @@ export function isSandboxed(): boolean {
  */
 export function isSimulatedSandbox(): boolean {
   if (process.env.UNIKEYS_SIMULATE_SANDBOX !== '1') return false
-  if (unpackaged === null) unpackaged = detectUnpackaged()
-  return unpackaged
+  return buildKind() === 'unpackaged'
+}
+
+/**
+ * A stand-in home directory, so unikeys can be run against the config files
+ * checked into `dev-home/` instead of the ones on this machine.
+ *
+ * `realHome()` is the single place every standard config path and every
+ * `~/Applications` install check is built from, so substituting it here is the
+ * whole mechanism: thirteen apps' worth of configs and bundles appear without
+ * one of them being installed. See `dev-home/README.md` and
+ * `npm run dev:apps`, which sets this and `UNIKEYS_DEV_USER_DATA` together.
+ *
+ * `null` when unset, and — like `UNIKEYS_SIMULATE_SANDBOX` — always `null` in a
+ * packaged build, so it cannot be switched on in anything shipped.
+ */
+export function devHome(): string | null {
+  return devHomeFor(process.env.UNIKEYS_DEV_HOME, buildKind())
+}
+
+/**
+ * The decision `devHome` makes, over its two inputs rather than over the
+ * process.
+ *
+ * Split out because the half worth testing is the half that cannot be reached
+ * from a test otherwise: `buildKind()` answers `no-electron` under vitest and
+ * memoises, so there is no way to ask the real function what it does in a
+ * packaged build — which is the one answer that matters, since getting it wrong
+ * would let an environment variable move a shipped app's idea of home.
+ */
+export function devHomeFor(value: string | undefined, kind: BuildKind): string | null {
+  if (!value) return null
+  return kind === 'packaged' ? null : value
+}
+
+/**
+ * Whether Electron says this is a packaged build, or is not there to ask.
+ *
+ * Three answers rather than two because the two callers want opposite things
+ * from the third. `isSimulatedSandbox` wants `no-electron` to mean *off*: that
+ * is the unit tests, which set `process.mas` themselves and would otherwise
+ * find the simulation switched on underneath them by a stray environment
+ * variable. `devHome` wants `no-electron` to mean *allowed*, because the test
+ * that walks the checked-in tree runs in exactly that environment and a build
+ * with no Electron in it is certainly not a shipped one.
+ *
+ * Collapsing this back to a boolean is what makes one of those two wrong.
+ */
+export type BuildKind = 'packaged' | 'unpackaged' | 'no-electron'
+
+function buildKind(): BuildKind {
+  if (kind === null) kind = detectBuildKind()
+  return kind
 }
 
 /**
@@ -67,16 +118,15 @@ export function isSimulatedSandbox(): boolean {
  */
 export const SIMULATED_GRANT = 'simulated-sandbox-grant'
 
-let unpackaged: boolean | null = null
+let kind: BuildKind | null = null
 
-function detectUnpackaged(): boolean {
+function detectBuildKind(): BuildKind {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { app } = require('electron') as typeof import('electron')
-    return app.isPackaged === false
+    return app.isPackaged ? 'packaged' : 'unpackaged'
   } catch {
-    // No Electron at all — the unit tests. Nothing to simulate for.
-    return false
+    return 'no-electron'
   }
 }
 
@@ -106,7 +156,11 @@ function detectUnpackaged(): boolean {
  * the fix it guards has been reverted.
  */
 export function realHome(): string {
-  return isSandboxed() ? readPasswdHome() : homedir()
+  // Before the sandbox question, not inside its unsandboxed arm. `npm run dev`
+  // sets `UNIKEYS_SIMULATE_SANDBOX=1`, so a substitution made only where
+  // `homedir()` is returned would be skipped by the default development run —
+  // the one it exists for — and silently read the machine's real configs.
+  return devHome() ?? (isSandboxed() ? readPasswdHome() : homedir())
 }
 
 function readPasswdHome(): string {

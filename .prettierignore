@@ -8,3 +8,8 @@ tsconfig.*.json
 # Fixtures are captured (or authored) to match real config files byte-for-byte;
 # reformatting them would destroy exactly what the adapter tests exercise.
 src/shared/adapters/__fixtures__
+
+# The same rule, for the same reason: dev-home holds each app's config in that
+# app's own layout — four-space indents, no trailing newline, JSONC comments.
+# Prettier would normalise away the very things the adapters have to survive.
+dev-home

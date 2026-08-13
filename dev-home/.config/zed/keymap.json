@@ -1,0 +1,41 @@
+// Zed keymap
+//
+// For information on binding keys, see the Zed online documentation:
+// https://zed.dev/docs/key-bindings
+[
+  {
+    "context": "Workspace",
+    "bindings": {
+      "cmd-shift-p": "command_palette::Toggle",
+      "cmd-p": "file_finder::Toggle",
+      "ctrl-cmd-f": "zed::ToggleFullScreen"
+    }
+  },
+  {
+    "context": "Editor && mode == full",
+    "bindings": {
+      "cmd-s": "workspace::Save",
+      "ctrl-shift-7": "editor::ToggleComments",
+      "cmd-shift-d": "editor::DuplicateLineDown",
+      // Two-keystroke sequence.
+      "cmd-k cmd-f": "editor::Format"
+    }
+  },
+  {
+    "context": "Pane",
+    "bindings": {
+      // Zed's own defaults for these are cmd-k cmd-right / cmd-k cmd-down;
+      // this file disagrees with every other app in the tree on purpose.
+      "cmd-alt-right": "pane::SplitRight",
+      "cmd-alt-down": "pane::SplitDown"
+    }
+  },
+  {
+    "context": "Terminal",
+    "bindings": {
+      "cmd-k": "terminal::Clear",
+      // A hyphen used as the base key.
+      "cmd--": "zed::DecreaseBufferFontSize"
+    }
+  }
+]

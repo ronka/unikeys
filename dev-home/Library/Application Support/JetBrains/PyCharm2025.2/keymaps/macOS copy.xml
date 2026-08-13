@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<keymap version="1" name="macOS copy" parent="Mac OS X 10.5+">
+  <action id="SaveAll">
+    <keyboard-shortcut first-keystroke="meta S" />
+  </action>
+  <action id="GotoFile">
+    <keyboard-shortcut first-keystroke="shift meta O" />
+  </action>
+  <action id="GotoLine">
+    <keyboard-shortcut first-keystroke="meta L" />
+  </action>
+  <action id="ReformatCode">
+    <keyboard-shortcut first-keystroke="alt meta L" />
+  </action>
+  <action id="ActivateTerminalToolWindow">
+    <keyboard-shortcut first-keystroke="alt F12" />
+  </action>
+</keymap>

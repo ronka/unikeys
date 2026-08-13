@@ -1,0 +1,24 @@
+---
+# Warp keybindings
+
+# Panes. Quoted and bare keys both occur in the wild; Warp's own presets quote.
+"pane_group:add_right": cmd-d
+"pane_group:add_down": shift-cmd-d
+pane_group:navigate_left: alt-cmd-left
+pane_group:navigate_right: alt-cmd-right
+"pane_group:navigate_up": alt-cmd-up
+"pane_group:navigate_down": alt-cmd-down
+
+# Clipboard, with quoted values.
+"terminal:copy": "cmd-c"
+'terminal:paste': 'cmd-v'
+
+# Tabs and font size.
+"workspace:new_tab": cmd-t
+"workspace:activate_next_tab": ctrl-tab
+"workspace:activate_prev_tab": shift-ctrl-tab
+"workspace:decrease_font_size": cmd--
+
+# unikeys does not model Warp's `meta` modifier, so this one is reported as
+# skipped on import and left exactly as it is on save.
+"editor_view:cut_word_right": meta-d

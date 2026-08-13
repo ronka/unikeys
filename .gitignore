@@ -1,6 +1,9 @@
 node_modules
 dist
 out
+# The working copy `npm run dev:apps` makes of dev-home/, plus the userData
+# beside it. Written to by the app under test, and recreated on every run.
+.dev-home
 .claude/worktrees
 .DS_Store
 .eslintcache

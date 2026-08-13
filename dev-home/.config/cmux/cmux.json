@@ -1,0 +1,31 @@
+{
+  "$schema": "https://raw.githubusercontent.com/manaflow-ai/cmux/main/web/data/cmux.schema.json",
+  "schemaVersion": 1,
+
+  // This file uses JSON with comments (JSONC).
+  // cmux writes a template here on first launch with every setting commented
+  // out; this one has been edited, which is the state unikeys reads from.
+
+  "app": {
+    "appearance": "system"
+  },
+
+  "shortcuts": {
+    "showModifierHoldHints": true,
+    "bindings": {
+      "commandPalette": "cmd+shift+p",
+      "findInDirectory": "cmd+shift+f",
+      "splitRight": "cmd+d",
+      "splitDown": "cmd+shift+d",
+      // The template's own spelling of the arrow keys.
+      "focusLeft": "cmd+opt+←",
+      "focusRight": "cmd+opt+→",
+      // A two-keystroke chord is written as an array.
+      "newSurface": ["ctrl+b", "c"],
+      "closeTab": "cmd+w",
+      // Both of cmux's ways of saying "no shortcut".
+      "sendFeedback": "",
+      "toggleSidebar": null
+    }
+  }
+}

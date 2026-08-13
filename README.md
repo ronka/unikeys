@@ -45,6 +45,7 @@ Two consequences worth knowing:
 npm install
 npm run dev         # run the app as the App Store build behaves: sandboxed, folders granted
 npm run dev:dmg     # run the app as the dmg build behaves: no sandbox, no grants
+npm run dev:apps    # run against dev-home/, which has all thirteen apps configured
 npm test            # vitest, the pure modules
 npm run typecheck   # main, renderer and tests
 npm run lint
@@ -57,6 +58,25 @@ the default run matches it: unikeys asks you to grant each app's config folder b
 reads anything. The switch simulates unikeys' side of the sandbox — the states, the
 prompts and the refusals — and cannot simulate macOS's side, because there is no real
 sandbox in a development run. It is ignored in any packaged build.
+
+## Running against apps you do not have installed
+
+`npm run dev:apps` runs unikeys against [`dev-home/`](./dev-home/README.md) — a
+checked-in stand-in home directory holding every supported app's config at the
+exact path unikeys looks for it, plus a stand-in `.app` bundle so detection finds
+it. Thirteen populated columns, deliberately disagreeing with each other, on a
+machine with none of the apps on it.
+
+It works by substituting one function. `realHome()` is where every standard
+config path and every `~/Applications` check is built from, so `UNIKEYS_DEV_HOME`
+redirects all of them at once; `UNIKEYS_DEV_USER_DATA` gives the run its own
+store, which is correctness rather than tidiness — sharing the real store would
+either scribble thirteen apps' worth of imported chords into it or present an
+empty table. Both are inert in a packaged build.
+
+The run works on a copy, so saving does not dirty the repo, and
+`src/main/dev-home.test.ts` walks the tree through the real `readConfig` so a
+mistyped path fails the suite instead of showing up as an empty column.
 
 ## Outstanding: most fixtures are authored, not captured
 

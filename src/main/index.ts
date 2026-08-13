@@ -6,6 +6,29 @@ import { registerIpcHandlers } from './ipc'
 import { installApplicationMenu } from './menu'
 import { hasPendingAnalytics, shutdownAnalytics } from './analytics'
 
+/**
+ * A run against `dev-home/` gets its own `userData` as well as its own home.
+ *
+ * Not tidiness — correctness. `loadStore` seeds a brand-new store from
+ * `isInstalled`, and the every-launch import only writes cells that are still
+ * unseen. Pointed at the real store, a dev-home run would either scribble
+ * thirteen apps' worth of imported chords into it, or — where those cells are
+ * already filled — import nothing and present an empty table as though the
+ * fake configs had failed to parse.
+ *
+ * Set here rather than in `grants.ts`, which stays free of a top-level Electron
+ * import so the tests can exercise the file layer in plain Node. Before
+ * `whenReady`, because `ipc.ts` resolves the store, the history log and the
+ * backups folder from `getPath('userData')` on first use.
+ *
+ * Gated on the build being unpackaged, like every other development switch, so
+ * it cannot move a shipped app's container.
+ */
+const devUserData = process.env.UNIKEYS_DEV_USER_DATA
+if (devUserData && !app.isPackaged) {
+  app.setPath('userData', devUserData)
+}
+
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({

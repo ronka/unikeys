@@ -1,0 +1,44 @@
+// Place your key bindings in this file to override the defaults
+[
+  // Splits on the tmux chords rather than VSCode's own, which is the sort of
+  // divergence unikeys exists to reconcile: Cursor below binds these two to
+  // cmd+\ and cmd+shift+\ instead.
+  {
+    "key": "cmd+d",
+    "command": "workbench.action.splitEditorRight"
+  },
+  {
+    "key": "cmd+shift+d",
+    "command": "workbench.action.splitEditorDown"
+  },
+  {
+    "key": "cmd+k cmd+f",
+    "command": "editor.action.formatDocument",
+    "when": "editorHasDocumentFormattingProvider && editorTextFocus"
+  },
+  /* Block comment, and a chord left on the shipped default but written out
+     anyway — plenty of real configs restate a binding they never changed. */
+  {
+    "key": "cmd+p",
+    "command": "workbench.action.quickOpen"
+  },
+  {
+    "key": "cmd+shift+f",
+    "command": "workbench.action.findInFiles"
+  },
+  {
+    "key": "ctrl+`",
+    "command": "workbench.action.terminal.toggleTerminal"
+  },
+  // A negation entry, and a command from an extension unikeys has never heard
+  // of. Both must survive a save byte for byte.
+  {
+    "key": "cmd+shift+p",
+    "command": "-workbench.action.showCommands"
+  },
+  {
+    "key": "cmd+alt+v",
+    "command": "vim.remap",
+    "when": "editorTextFocus"
+  }
+]
