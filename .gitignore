@@ -15,3 +15,6 @@ build/embedded.provisionprofile
 # The App Store screenshot editor (Next.js) and its exported PNGs. Scaffolded
 # by the app-store-screenshots skill; not part of the Electron app's build.
 app-store-screenshots/
+# The Remotion project for the Product Hunt launch video. Scaffolded by
+# `npx create-video`; marketing material, not part of the Electron app's build.
+remotion/
