@@ -12,8 +12,8 @@ describe('createEmptyStore', () => {
 describe('deserializeStore', () => {
   /**
    * The upgrade path with no migration behind it. A store written when unikeys
-   * knew six apps has to keep loading once it knows thirteen — the new columns
-   * arrive from `createEmptyStore()`'s base, and the six the user already had
+   * knew fewer apps has to keep loading once it knows more — the new columns
+   * arrive from `createEmptyStore()`'s base, and the apps the user already had
    * keep whatever they chose.
    */
   it('adds apps the document has never heard of, keeping the choices it has', () => {

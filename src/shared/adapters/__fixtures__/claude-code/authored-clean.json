@@ -1,0 +1,19 @@
+{
+  "$schema": "https://www.schemastore.org/claude-code-keybindings.json",
+  "$docs": "https://code.claude.com/docs/en/keybindings",
+  "bindings": [
+    {
+      "context": "Chat",
+      "bindings": {
+        "ctrl+y": "chat:stash",
+        "ctrl+x ctrl+y": "chat:undo"
+      }
+    },
+    {
+      "context": "Global",
+      "bindings": {
+        "ctrl+t": null
+      }
+    }
+  ]
+}

@@ -19,6 +19,8 @@ export const APP_IDS = [
   'webstorm',
   'intellij',
   'pycharm',
+  'codex',
+  'claude-code',
   'ghostty',
   'cmux',
   'iterm2',
@@ -34,12 +36,13 @@ export type AppId = (typeof APP_IDS)[number]
  * against it — nothing enforces that, so a reordering of one wants a look at
  * the other.
  */
-export const CATEGORY_IDS = ['ide', 'terminal', 'notes'] as const
+export const CATEGORY_IDS = ['ide', 'agent', 'terminal', 'notes'] as const
 
 export type CategoryId = (typeof CATEGORY_IDS)[number]
 
 export const CATEGORY_LABELS: Record<CategoryId, string> = {
   ide: 'Editors',
+  agent: 'Agents',
   terminal: 'Terminals',
   notes: 'Notes'
 }
@@ -48,6 +51,8 @@ export type FormatId =
   | 'vscode-keybindings'
   | 'jetbrains-keymap'
   | 'zed-keymap'
+  | 'codex-keybindings'
+  | 'claude-code-keybindings'
   | 'ghostty-config'
   | 'cmux-config'
   | 'iterm2-dynamic-profile'
@@ -219,6 +224,49 @@ export const APPS: Record<AppId, AppDescriptor> = {
       '~/Applications/JetBrains Toolbox/PyCharm CE.app'
     ],
     reloadHint: 'PyCharm must be restarted before keymap changes take effect.'
+  },
+  codex: {
+    id: 'codex',
+    name: 'Codex',
+    format: 'codex-keybindings',
+    category: 'agent',
+    configPaths: ['.codex/keybindings.json'],
+    grantPath: '.codex',
+    // ChatGPT renamed its desktop bundle away from a dedicated Codex.app; the
+    // legacy paths stay so a machine not yet migrated still detects Codex.
+    installPaths: [
+      '/Applications/ChatGPT.app',
+      '~/Applications/ChatGPT.app',
+      '/Applications/Codex.app',
+      '~/Applications/Codex.app'
+    ],
+    // Static analysis of the installed bundle could not establish whether an
+    // external edit to keybindings.json needs a full app restart to refresh
+    // native menu accelerators, so this stays conservative until confirmed —
+    // see src/shared/adapters/__fixtures__/codex/README.md.
+    reloadHint: 'Restart ChatGPT for a change to keybindings.json to take effect.'
+  },
+  'claude-code': {
+    id: 'claude-code',
+    name: 'Claude Code',
+    format: 'claude-code-keybindings',
+    category: 'agent',
+    configPaths: ['.claude/keybindings.json'],
+    grantPath: '.claude',
+    // `installPaths` only calls `existsSync`, so these are installation
+    // evidence paths, not bundles — Claude Code is a terminal binary, not a
+    // macOS app bundle. `~/.claude` covers version managers and nonstandard
+    // executable installs once Claude Code has initialized its user config.
+    // Deliberately excludes `/Applications/Claude.app`: Desktop alone does not
+    // make the terminal's keybindings apply to Desktop, and this column must
+    // never be mistaken for Claude Desktop support.
+    installPaths: [
+      '/opt/homebrew/bin/claude',
+      '/usr/local/bin/claude',
+      '~/.local/bin/claude',
+      '~/.claude'
+    ],
+    reloadHint: 'Claude Code picks up keybindings.json automatically; no restart needed.'
   },
   ghostty: {
     id: 'ghostty',

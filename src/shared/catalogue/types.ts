@@ -8,7 +8,7 @@
 
 import { APP_IDS, isAppId, type AppId } from '../apps'
 
-export const CATEGORIES = ['editing', 'navigation', 'window', 'terminal'] as const
+export const CATEGORIES = ['editing', 'navigation', 'window', 'terminal', 'agent'] as const
 
 export type Category = (typeof CATEGORIES)[number]
 
@@ -16,7 +16,10 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   editing: 'Editing',
   navigation: 'Navigation',
   window: 'Window & Panes',
-  terminal: 'Terminal'
+  terminal: 'Terminal',
+  // The same word the Apps panel groups Codex and Claude Code under. Two names
+  // for one thing reads as two things.
+  agent: 'Agents'
 }
 
 /**

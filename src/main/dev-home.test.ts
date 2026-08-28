@@ -2,11 +2,11 @@
  * The checked-in `dev-home/` tree, held to the thing it claims to be: a home
  * directory in which every app unikeys supports is installed and configured.
  *
- * The claim is easy to break silently. Thirteen relative config paths and
- * thirteen bundle names are copied from `APPS` by hand, and a typo in any of
- * them shows up not as an error but as a column that reads "no config found" —
- * which is also what a genuinely broken adapter looks like. So the tree is
- * walked here rather than by eye, and app number fourteen fails this file on
+ * The claim is easy to break silently. Every relative config path and bundle
+ * name is copied from `APPS` by hand, and a typo in any of them shows up not
+ * as an error but as a column that reads "no config found" — which is also
+ * what a genuinely broken adapter looks like. So the tree is walked here
+ * rather than by eye, and the next app added to `APP_IDS` fails this file on
  * the day it is added rather than the day someone tries to demo it.
  *
  * These are real reads of real files through `readConfig`, the same function
@@ -122,7 +122,7 @@ describe('dev-home', () => {
   })
 
   it('grants every app the tree root under simulated sandbox', () => {
-    // One entry covers all thirteen because `coveredByGrant` is containment
+    // One entry covers every app because `coveredByGrant` is containment
     // based — but each app still needs its own, since grants are per app.
     for (const app of APP_IDS) {
       expect(Object.keys(SEED.apps[app].grants)).toEqual(['{{HOME}}'])

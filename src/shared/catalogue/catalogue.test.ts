@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { APP_IDS, type AppId } from '../apps'
+import { CLAUDE_CODE_ACTIONS } from '../adapters/claude-code'
 import { CMUX_ACTION_IDS } from '../adapters/cmux'
+import { CODEX_COMMAND_IDS } from '../adapters/codex'
 import { ITERM2_ACTION_IDS } from '../adapters/iterm2-capture'
 import { CATEGORIES, type CatalogueAction } from './types'
 import { ACTIONS, CATALOGUE, actionById, actionsByCategory, loadCatalogue } from './index'
@@ -15,9 +17,12 @@ describe('the shipped catalogue', () => {
     expect(CATALOGUE.version).toBe(1)
   })
 
-  it('ships roughly forty actions', () => {
+  it('ships roughly forty to fifty actions', () => {
+    // The range moved from 32-42 to cover the six deliberate Agents rows
+    // added for Codex and Claude Code, while still guarding against
+    // accidental catalogue explosion.
     expect(ACTIONS.length).toBeGreaterThanOrEqual(32)
-    expect(ACTIONS.length).toBeLessThanOrEqual(42)
+    expect(ACTIONS.length).toBeLessThanOrEqual(48)
   })
 
   it('gives every action a unique id', () => {
@@ -100,6 +105,53 @@ describe('the shipped catalogue', () => {
       expect(
         ITERM2_ACTION_IDS.has(command),
         `${action.id} maps unknown iTerm2 token "${command}"`
+      ).toBe(true)
+    }
+  })
+
+  it('only maps Codex command ids the adapter has verified', () => {
+    // Codex's keybindings.json is a private, version-pinned contract — a typo
+    // here would write a binding to a command id that does not exist.
+    for (const action of ACTIONS) {
+      const command = action.commands.codex
+      if (command === undefined) continue
+      expect(
+        CODEX_COMMAND_IDS.has(command),
+        `${action.id} maps unknown Codex id "${command}"`
+      ).toBe(true)
+    }
+  })
+
+  it('only maps Claude Code compound tokens the adapter curates', () => {
+    for (const action of ACTIONS) {
+      const command = action.commands['claude-code']
+      if (command === undefined) continue
+      expect(
+        CLAUDE_CODE_ACTIONS.has(command),
+        `${action.id} maps unknown Claude Code token "${command}"`
+      ).toBe(true)
+    }
+  })
+
+  it('covers the agent category with the six curated rows', () => {
+    const agentActions = ACTIONS.filter((a) => a.category === 'agent')
+    const ids = agentActions.map((a) => a.id).sort()
+    expect(ids).toEqual(
+      [
+        'agent.interrupt',
+        'agent.model-picker',
+        'agent.new-session',
+        'agent.newline',
+        'agent.submit',
+        'agent.toggle-transcript'
+      ].sort()
+    )
+    // Each agent row maps at least one of the two new apps -- never forcing
+    // an unrelated editor row onto Codex or Claude Code instead.
+    for (const action of agentActions) {
+      expect(
+        action.commands.codex !== undefined || action.commands['claude-code'] !== undefined,
+        `${action.id} maps neither Codex nor Claude Code`
       ).toBe(true)
     }
   })

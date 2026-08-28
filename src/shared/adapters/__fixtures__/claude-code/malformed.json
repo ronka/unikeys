@@ -1,0 +1,5 @@
+{
+  "bindings": [
+    { "context": "Chat", "bindings": { "ctrl+y": "chat:stash" }
+  ]
+}

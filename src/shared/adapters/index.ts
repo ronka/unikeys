@@ -8,7 +8,9 @@
  */
 
 import { APPS, type AppId, type FormatId } from '../apps'
+import { claudeCodeAdapter } from './claude-code'
 import { cmuxAdapter } from './cmux'
+import { codexAdapter } from './codex'
 import { ghosttyAdapter } from './ghostty'
 import { iterm2Adapter } from './iterm2'
 import { jetbrainsAdapter } from './jetbrains'
@@ -22,6 +24,8 @@ export const ADAPTERS: Record<FormatId, Adapter> = {
   'vscode-keybindings': vscodeAdapter,
   'jetbrains-keymap': jetbrainsAdapter,
   'zed-keymap': zedAdapter,
+  'codex-keybindings': codexAdapter,
+  'claude-code-keybindings': claudeCodeAdapter,
   'ghostty-config': ghosttyAdapter,
   'cmux-config': cmuxAdapter,
   'iterm2-dynamic-profile': iterm2Adapter,

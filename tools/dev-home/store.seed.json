@@ -31,6 +31,8 @@
     "webstorm": { "enabled": true, "grants": { "{{HOME}}": "simulated-sandbox-grant" } },
     "intellij": { "enabled": true, "grants": { "{{HOME}}": "simulated-sandbox-grant" } },
     "pycharm": { "enabled": true, "grants": { "{{HOME}}": "simulated-sandbox-grant" } },
+    "codex": { "enabled": true, "grants": { "{{HOME}}": "simulated-sandbox-grant" } },
+    "claude-code": { "enabled": true, "grants": { "{{HOME}}": "simulated-sandbox-grant" } },
     "ghostty": { "enabled": true, "grants": { "{{HOME}}": "simulated-sandbox-grant" } },
     "cmux": { "enabled": true, "grants": { "{{HOME}}": "simulated-sandbox-grant" } },
     "iterm2": { "enabled": true, "grants": { "{{HOME}}": "simulated-sandbox-grant" } },

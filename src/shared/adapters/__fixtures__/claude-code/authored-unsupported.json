@@ -1,0 +1,30 @@
+{
+  "$schema": "https://www.schemastore.org/claude-code-keybindings.json",
+  "$docs": "https://code.claude.com/docs/en/keybindings",
+  "bindings": [
+    {
+      "context": "Chat",
+      "bindings": {
+        "ctrl+y": "chat:stash"
+      }
+    },
+    {
+      "context": "SomeFutureContext",
+      "bindings": {
+        "ctrl+z": "future:doSomething"
+      }
+    },
+    {
+      "context": "Chat",
+      "bindings": {
+        "ctrl+u": "chat:someFutureAction"
+      }
+    },
+    {
+      "context": "Global",
+      "bindings": {
+        "ctrl+alt+z": null
+      }
+    }
+  ]
+}

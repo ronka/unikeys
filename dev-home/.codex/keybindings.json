@@ -1,0 +1,22 @@
+[
+  {
+    "command": "closeTab",
+    "key": "Cmd+W"
+  },
+  {
+    "command": "composer.openModelPicker",
+    "key": null
+  },
+  {
+    "command": "nextTab",
+    "key": "Cmd+Shift+]"
+  },
+  {
+    "command": "nextTab",
+    "key": "Cmd+Alt+]"
+  },
+  {
+    "command": "toggleThreadPin",
+    "key": "Cmd+Shift+P"
+  }
+]

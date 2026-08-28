@@ -1,0 +1,34 @@
+[
+  {
+    "command": "closeTab",
+    "key": "Cmd+W"
+  },
+  {
+    "command": "composer.openModelPicker",
+    "key": null
+  },
+  {
+    "command": "nextTab",
+    "key": "Cmd+Shift+]"
+  },
+  {
+    "command": "nextTab",
+    "key": "Cmd+Alt+]"
+  },
+  {
+    "command": "some.futureUnknownCommand",
+    "key": "Cmd+Shift+9"
+  },
+  {
+    "command": "closeTabOrWindow",
+    "key": "Cmd+Shift+W"
+  },
+  {
+    "command": "newThread",
+    "key": "Cmd+Alt+N"
+  },
+  {
+    "command": "toggleSidePanelFullWidth",
+    "key": "Cmd+Alt+M"
+  }
+]

@@ -575,16 +575,24 @@ describe('the catalogue’s Zed column', () => {
 
   it('omits the actions Zed has no sourced equivalent for', () => {
     // An absent key renders the cell as not-applicable, which is better than a
-    // binding that would never fire.
-    for (const id of [
+    // binding that would never fire. The six Agents rows are Codex/Claude
+    // Code specific and were never candidates for a Zed mapping.
+    const unmapped = [
       'terminal.reload-config',
       'terminal.new',
       'pane.focus-next',
-      'pane.focus-previous'
-    ]) {
+      'pane.focus-previous',
+      'agent.new-session',
+      'agent.submit',
+      'agent.newline',
+      'agent.interrupt',
+      'agent.model-picker',
+      'agent.toggle-transcript'
+    ]
+    for (const id of unmapped) {
       expect(commands[id]).toBeUndefined()
     }
-    expect(Object.keys(commands)).toHaveLength(ACTIONS.length - 4)
+    expect(Object.keys(commands)).toHaveLength(ACTIONS.length - unmapped.length)
   })
 
   it('agrees with the shipped defaults about the actions they both name', () => {

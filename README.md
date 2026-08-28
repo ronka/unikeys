@@ -1,7 +1,17 @@
 # unikeys
 
 One table for every keybinding across VSCode, Cursor, Kiro, Antigravity, Zed, WebStorm,
-IntelliJ IDEA, PyCharm, Ghostty, cmux, iTerm2, Warp and Obsidian.
+IntelliJ IDEA, PyCharm, Codex, Claude Code, Ghostty, cmux, iTerm2, Warp and Obsidian.
+
+The **Agents** group is Codex (the Codex workspace inside the ChatGPT desktop app,
+`~/.codex/keybindings.json` — a relocated `$CODEX_HOME` is reached by naming the file
+in Apps) and **Claude Code**, the standalone terminal interface
+(`~/.claude/keybindings.json`, [officially documented](https://code.claude.com/docs/en/keybindings)).
+unikeys does **not** support Claude Desktop's Chat, Cowork, or Code-tab shortcuts — those
+are a separate, currently undocumented surface. See
+[`src/shared/adapters/__fixtures__/codex/README.md`](./src/shared/adapters/__fixtures__/codex/README.md)
+and [`.../claude-code/README.md`](./src/shared/adapters/__fixtures__/claude-code/README.md)
+for exactly what each contract promises and how it was verified.
 
 Each **row** is an action. Each **column** is an app. Each **cell** is the chord that
 action is bound to in that app. Edit any cell, or press **Match** to give every app
@@ -45,7 +55,7 @@ Two consequences worth knowing:
 npm install
 npm run dev         # run the app as the App Store build behaves: sandboxed, folders granted
 npm run dev:dmg     # run the app as the dmg build behaves: no sandbox, no grants
-npm run dev:apps    # run against dev-home/, which has all thirteen apps configured
+npm run dev:apps    # run against dev-home/, which has all fifteen apps configured
 npm test            # vitest, the pure modules
 npm run typecheck   # main, renderer and tests
 npm run lint
@@ -64,14 +74,14 @@ sandbox in a development run. It is ignored in any packaged build.
 `npm run dev:apps` runs unikeys against [`dev-home/`](./dev-home/README.md) — a
 checked-in stand-in home directory holding every supported app's config at the
 exact path unikeys looks for it, plus a stand-in `.app` bundle so detection finds
-it. Thirteen populated columns, deliberately disagreeing with each other, on a
+it. Fifteen populated columns, deliberately disagreeing with each other, on a
 machine with none of the apps on it.
 
 It works by substituting one function. `realHome()` is where every standard
 config path and every `~/Applications` check is built from, so `UNIKEYS_DEV_HOME`
 redirects all of them at once; `UNIKEYS_DEV_USER_DATA` gives the run its own
 store, which is correctness rather than tidiness — sharing the real store would
-either scribble thirteen apps' worth of imported chords into it or present an
+either scribble fifteen apps' worth of imported chords into it or present an
 empty table. Both are inert in a packaged build.
 
 The run works on a copy, so saving does not dirty the repo, and
@@ -85,7 +95,7 @@ fixtures in `src/shared/adapters/__fixtures__/` and each adapter's shipped-defau
 table were **authored from the documented formats rather than captured from a real
 Mac**. Each fixture directory has a `README.md` saying so.
 
-**Two exceptions so far.** iTerm2's fixtures, action table and key encoding were
+**A few exceptions so far.** iTerm2's fixtures, action table and key encoding were
 captured from a real iTerm2 3.6.11 — the action integers cross-checked against the
 bindings shipped inside the app bundle, the key encoding and menu-item parameter settled
 by driving the running app, and `captured-3.6.11.json` confirmed line by line to behave
@@ -93,6 +103,18 @@ as intended in a live session. See `__fixtures__/iterm2/README.md`. And
 `__fixtures__/vscode/captured-antigravity.json` is a real `keybindings.json` taken from
 Antigravity 1.16.5 — one file, so the VSCode directory is still mostly authored; its
 own README says which is which.
+
+Codex and Claude Code sit between the two: neither has a GUI-captured fixture (Codex's
+Settings UI is a native Electron app nothing here can drive; Claude Code's `/keybindings`
+requires an interactive terminal session), but neither is a blind guess either. Codex's
+schema, command ids, defaults and legacy migration map were confirmed by statically
+reading the installed ChatGPT.app `26.820.60940` bundle, cross-checked against OpenAI's
+public Commands reference. Claude Code's is Anthropic's own documented, versioned
+contract, and the specific behaviors the plan flagged as unclear from docs alone —
+duplicate context blocks merging with a warning (last one wins), a clean file loading
+with zero warnings, and the exact reserved-shortcut error text — were confirmed against
+a real, running `claude --version 2.1.246` and then reverted, leaving the machine exactly
+as found. See `__fixtures__/codex/README.md` and `__fixtures__/claude-code/README.md`.
 
 Zed, Warp and Obsidian are not installed here either, so their adapters' fixtures,
 default tables and catalogue mappings were authored from the documented formats. Each
@@ -111,5 +133,6 @@ start empty rather than wrong, and the limitation is surfaced in the Apps panel.
 ## Not in the MVP
 
 Conflict detection, drift detection and re-import, user-defined actions, profiles,
-two-way sync, non-macOS platforms, apps beyond the thirteen, and auto-reloading the
-target apps after a write. See `.scratch/unikeys-mvp/spec.md`.
+two-way sync, non-macOS platforms, apps beyond the fifteen, Claude Desktop shortcut
+support, and auto-reloading the target apps after a write. See
+`.scratch/unikeys-mvp/spec.md`.

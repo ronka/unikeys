@@ -340,7 +340,8 @@
         "cmux": "nextSurface",
         "iterm2": "action:next-tab",
         "warp": "workspace:activate_next_tab",
-        "obsidian": "workspace:next-tab"
+        "obsidian": "workspace:next-tab",
+        "codex": "nextTab"
       }
     },
     {
@@ -360,7 +361,8 @@
         "cmux": "prevSurface",
         "iterm2": "action:previous-tab",
         "warp": "workspace:activate_prev_tab",
-        "obsidian": "workspace:previous-tab"
+        "obsidian": "workspace:previous-tab",
+        "codex": "previousTab"
       }
     },
     {
@@ -394,7 +396,8 @@
         "ghostty": "close_surface",
         "cmux": "closeTab",
         "iterm2": "menu:close",
-        "obsidian": "workspace:close"
+        "obsidian": "workspace:close",
+        "codex": "closeTab"
       }
     },
     {
@@ -624,7 +627,8 @@
         "zed": "terminal_panel::ToggleFocus",
         "webstorm": "ActivateTerminalToolWindow",
         "intellij": "ActivateTerminalToolWindow",
-        "pycharm": "ActivateTerminalToolWindow"
+        "pycharm": "ActivateTerminalToolWindow",
+        "codex": "toggleTerminal"
       }
     },
     {
@@ -664,6 +668,56 @@
       "commands": {
         "ghostty": "reload_config",
         "cmux": "reloadConfiguration"
+      }
+    },
+    {
+      "id": "agent.new-session",
+      "name": "New Session/Task",
+      "category": "agent",
+      "commands": {
+        "codex": "newTask"
+      }
+    },
+    {
+      "id": "agent.submit",
+      "name": "Submit Prompt",
+      "category": "agent",
+      "commands": {
+        "codex": "composer.submit",
+        "claude-code": "Chat|chat:submit"
+      }
+    },
+    {
+      "id": "agent.newline",
+      "name": "Insert Newline",
+      "category": "agent",
+      "commands": {
+        "claude-code": "Chat|chat:newline"
+      }
+    },
+    {
+      "id": "agent.interrupt",
+      "name": "Stop/Interrupt Response",
+      "category": "agent",
+      "commands": {
+        "claude-code": "Global|app:interrupt"
+      }
+    },
+    {
+      "id": "agent.model-picker",
+      "name": "Open Model Picker",
+      "category": "agent",
+      "commands": {
+        "codex": "composer.openModelPicker",
+        "claude-code": "Chat|chat:modelPicker"
+      }
+    },
+    {
+      "id": "agent.toggle-transcript",
+      "name": "Toggle Transcript/Activity",
+      "category": "agent",
+      "commands": {
+        "claude-code": "Global|app:toggleTranscript"
       }
     }
   ]

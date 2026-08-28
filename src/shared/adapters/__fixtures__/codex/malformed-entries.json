@@ -1,0 +1,7 @@
+[
+  { "command": "closeTab", "key": "Cmd+W" },
+  { "key": "Cmd+Shift+M" },
+  { "command": "composer.openModelPicker", "key": 42 },
+  "not-an-object",
+  { "command": "nextTab", "key": "Cmd+Shift+]" }
+]
