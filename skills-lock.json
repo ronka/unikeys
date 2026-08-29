@@ -13,6 +13,66 @@
       "skillPath": "skills/app-store-screenshots/SKILL.md",
       "computedHash": "31fe3ed0d459bf3bab2a4fa9432599a46a66a8f134131c74e4b70addae6dfde4"
     },
+    "asc-ad-hoc-distribution": {
+      "source": "rorkai/app-store-connect-cli-skills",
+      "sourceType": "github",
+      "skillPath": "skills/asc-ad-hoc-distribution/SKILL.md",
+      "computedHash": "0389eede5ba64d18e8695b59e6b6d3b1ebf06df9dc481d237f4ef7eb03663f60"
+    },
+    "asc-analytics-reports": {
+      "source": "rorkai/app-store-connect-cli-skills",
+      "sourceType": "github",
+      "skillPath": "skills/asc-analytics-reports/SKILL.md",
+      "computedHash": "a4ad1662022819a6e9903754ab21abc700f99702ca0f41fcdb46f34be25b266f"
+    },
+    "asc-cli-usage": {
+      "source": "rorkai/app-store-connect-cli-skills",
+      "sourceType": "github",
+      "skillPath": "skills/asc-cli-usage/SKILL.md",
+      "computedHash": "80836065b292a5322dc9c5856479327de3822651f15f06d5c317eb8c3c3e6f39"
+    },
+    "asc-localize-metadata": {
+      "source": "rorkai/app-store-connect-cli-skills",
+      "sourceType": "github",
+      "skillPath": "skills/asc-localize-metadata/SKILL.md",
+      "computedHash": "7ee40cae21c8ac15cc866aaa78057102d6862c7a6ca9ecbfe8e8924ce47a3a45"
+    },
+    "asc-metadata-sync": {
+      "source": "rorkai/app-store-connect-cli-skills",
+      "sourceType": "github",
+      "skillPath": "skills/asc-metadata-sync/SKILL.md",
+      "computedHash": "d663f8ca8cbd3ac413a878bd08d53070f070b7b3ecb61dfab9aec1de649fa680"
+    },
+    "asc-release-flow": {
+      "source": "rorkai/app-store-connect-cli-skills",
+      "sourceType": "github",
+      "skillPath": "skills/asc-release-flow/SKILL.md",
+      "computedHash": "43562e6aca32f704a39a28aa6c89f5d5d704dd39ce0b2027303e5abab01056ed"
+    },
+    "asc-signing-setup": {
+      "source": "rorkai/app-store-connect-cli-skills",
+      "sourceType": "github",
+      "skillPath": "skills/asc-signing-setup/SKILL.md",
+      "computedHash": "5905879f21dc892dad364603a8ffea4243a2fd7245808b353e9831255f0d632a"
+    },
+    "asc-submission-health": {
+      "source": "rorkai/app-store-connect-cli-skills",
+      "sourceType": "github",
+      "skillPath": "skills/asc-submission-health/SKILL.md",
+      "computedHash": "01f10235d7251f5d6e8a6433830a98243d8d04972182e988288598219d71c2a5"
+    },
+    "asc-subscription-localization": {
+      "source": "rorkai/app-store-connect-cli-skills",
+      "sourceType": "github",
+      "skillPath": "skills/asc-subscription-localization/SKILL.md",
+      "computedHash": "1556dc5691bdaa5a5bcd0546e00b1d412687e2cfb7d35634a00775a105d64739"
+    },
+    "asc-whats-new-writer": {
+      "source": "rorkai/app-store-connect-cli-skills",
+      "sourceType": "github",
+      "skillPath": "skills/asc-whats-new-writer/SKILL.md",
+      "computedHash": "de84772f057ca10600b3dee2aadd1cf8d5ef80aeaf293b13cda3ee08814699c1"
+    },
     "remotion-best-practices": {
       "source": "remotion-dev/skills",
       "sourceType": "github",

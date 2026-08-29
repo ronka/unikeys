@@ -12,6 +12,9 @@ out
 # regenerated from the developer portal, so it is a credential rather than
 # source — build/entitlements.mas.plist references it by path.
 build/embedded.provisionprofile
+# App Store Connect API keys (notarization, asc cli). Credentials, not source.
+*.p8
+/keys
 # The App Store screenshot editor (Next.js) and its exported PNGs. Scaffolded
 # by the app-store-screenshots skill; not part of the Electron app's build.
 app-store-screenshots/

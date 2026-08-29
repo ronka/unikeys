@@ -1,0 +1,16 @@
+{
+  "appId": "6799482231",
+  "version": "1.2.0",
+  "buildId": "81c6875c-4d08-4305-b61b-f45d02dbaf93",
+  "metadataDir": "./metadata",
+  "platform": "MAC_OS",
+  "versionId": "5c1d9eb7-39b1-4d7b-9d30-e5867ea33e85",
+  "mode": "stage",
+  "completed": {
+    "apply_metadata": true,
+    "attach_build": true,
+    "ensure_version": true,
+    "validate_readiness": true
+  },
+  "updatedAt": "2026-08-29T04:03:00Z"
+}
