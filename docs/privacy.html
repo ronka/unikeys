@@ -399,7 +399,7 @@
             only thing it can send anywhere is a short list of counts about how the app itself is
             used — and only if you answered yes when it asked.
           </p>
-          <p class="stamp">Last updated 12 August 2026</p>
+          <p class="stamp">Last updated 22 October 2026</p>
 
           <section>
             <h2>The app</h2>
@@ -536,6 +536,14 @@
                     <td>Which supported app was switched on or off.</td>
                   </tr>
                   <tr>
+                    <td>app_active_daily</td>
+                    <td>
+                      Nothing of its own. Sent at most once per calendar day while unikeys is
+                      running, so that active installs can be counted. It is not tied to your name,
+                      account or IP address.
+                    </td>
+                  </tr>
+                  <tr>
                     <td>analytics_opt_in / analytics_opt_out</td>
                     <td>Nothing beyond the fact that you changed your mind.</td>
                   </tr>
@@ -567,8 +575,8 @@
             </p>
             <div class="callout">
               <p>
-                <strong>The Mac App Store build sends nothing at all.</strong> It ships without the
-                network entitlement, so it cannot reach PostHog even if analytics is switched on.
+                <strong>The Mac App Store build behaves the same way.</strong> It sends the events
+                above only if you opted in, and nothing at all otherwise.
               </p>
             </div>
             <p>
