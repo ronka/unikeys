@@ -36,11 +36,10 @@
 import type { AppId } from './apps'
 
 /**
- * Which build is reporting. The App Store build cannot currently reach the
- * network at all — `build/entitlements.mas.plist` has no `network.client` — so
- * in practice this is always `dmg` today. It exists so that the day that
- * changes, historical data is still separable by channel rather than silently
- * merging two populations that behave nothing alike.
+ * Which build is reporting. The App Store build carries
+ * `com.apple.security.network.client` (`build/entitlements.mas.plist`), so both
+ * channels send. The property keeps the two populations separable rather than
+ * silently merging groups that behave nothing alike.
  */
 export type Channel = 'dmg' | 'mas'
 
@@ -127,6 +126,11 @@ export type AnalyticsEvent =
     }
   | { name: 'save_reverted'; properties: { apps_count: number } }
   | { name: 'app_toggled'; properties: { app: AppId; enabled: boolean } }
+  /**
+   * At most once per calendar day while the app runs. Carries nothing of its
+   * own: the app and OS versions already ride along as ambient context.
+   */
+  | { name: 'app_active_daily'; properties?: undefined }
   | { name: 'analytics_opt_in'; properties?: undefined }
   | { name: 'analytics_opt_out'; properties?: undefined }
 
@@ -162,6 +166,7 @@ export const EVENT_PROPERTIES: {
   ],
   save_reverted: ['apps_count'],
   app_toggled: ['app', 'enabled'],
+  app_active_daily: [],
   analytics_opt_in: [],
   analytics_opt_out: []
 }

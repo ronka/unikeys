@@ -20,7 +20,9 @@
  */
 
 import { app } from 'electron'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { release } from 'node:os'
+import { join } from 'node:path'
 import { PostHog } from 'posthog-node'
 
 import {
@@ -29,6 +31,7 @@ import {
   type AnalyticsEvent,
   type Channel
 } from '../shared/analytics'
+import { heartbeatDue, localDay, macosMajor } from '../shared/analytics-context'
 import { isSandboxed, isSimulatedSandbox } from './grants'
 
 const PROJECT_TOKEN = 'phc_pUKGXqQXsFSsUeG3qRZrjjzrVP2RF4SF8LfmgyPPvqQs'
@@ -72,10 +75,62 @@ function channel(): Channel {
   return process.mas === true ? 'mas' : 'dmg'
 }
 
-/** macOS major version only. `25.3.0` (Darwin) is macOS 26 — hence the +1. */
+/** macOS major version only, from Electron's own report of the running system. */
 function osVersion(): string {
-  const darwinMajor = Number.parseInt(release().split('.')[0] ?? '', 10)
-  return Number.isFinite(darwinMajor) ? String(darwinMajor + 1) : 'unknown'
+  return macosMajor(process.getSystemVersion?.(), release())
+}
+
+/** How often a long-running session re-checks whether a new day has begun. */
+const HEARTBEAT_CHECK_MS = 60 * 60 * 1000
+
+let heartbeatTimer: ReturnType<typeof setInterval> | null = null
+
+function heartbeatFile(): string {
+  return join(app.getPath('userData'), 'analytics-heartbeat.json')
+}
+
+/**
+ * A file of its own rather than a field in the store: the renderer rewrites the
+ * whole store from its own copy, and would silently drop a field it never knew.
+ */
+function lastHeartbeat(): string | null {
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(heartbeatFile(), 'utf8'))
+    const day = (parsed as { lastSent?: unknown } | null)?.lastSent
+    return typeof day === 'string' ? day : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Sends `app_active_daily` if none has gone out today. The day is recorded only
+ * after the event is queued, so a failed attempt is retried at the next check.
+ */
+function sendHeartbeatIfDue(): void {
+  if (client === null) return
+  const now = new Date()
+  if (!heartbeatDue(lastHeartbeat(), now)) return
+  capture({ name: 'app_active_daily' })
+  try {
+    writeFileSync(heartbeatFile(), JSON.stringify({ lastSent: localDay(now) }))
+  } catch {
+    // Worst case is a second heartbeat on the next launch the same day.
+  }
+}
+
+function startHeartbeat(): void {
+  sendHeartbeatIfDue()
+  if (heartbeatTimer !== null) return
+  heartbeatTimer = setInterval(sendHeartbeatIfDue, HEARTBEAT_CHECK_MS)
+  // A pending check must never be the thing keeping the process alive.
+  heartbeatTimer.unref()
+}
+
+function stopHeartbeat(): void {
+  if (heartbeatTimer === null) return
+  clearInterval(heartbeatTimer)
+  heartbeatTimer = null
 }
 
 /**
@@ -131,6 +186,7 @@ function start(): void {
       flushAt: 10,
       flushInterval: 30_000
     })
+    startHeartbeat()
   } catch (error) {
     // Analytics failing must never be visible to the user, let alone fatal.
     client = null
@@ -141,6 +197,7 @@ function start(): void {
 async function stop(): Promise<void> {
   const current = client
   client = null
+  stopHeartbeat()
   if (current === null) return
   try {
     await current.shutdown()
