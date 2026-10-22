@@ -8,10 +8,15 @@
 
 ## Status — implemented 2026-08-12
 
-Tasks 1–8 and 10 are **done and verified against the live project**. Task 9 is
-**closed** (Decision A answered "no"). Task 11 was not taken up.
+Tasks 1–8 and 10 are **done and verified against the live project**. Task 9 was
+first closed on the strength of Decision A answered "no", then **reversed**: commit
+`2f371e0` ("Ask before measuring anything, then measure very little") added
+`com.apple.security.network.client` to `build/entitlements.mas.plist`. Task 11 was not
+taken up.
 
-Decisions taken: **A — no MAS network entitlement.** **B — opt-in consent.**
+Decisions taken: **A — the MAS build gets the network entitlement** (initially "no",
+reversed in `2f371e0`; the recommendation below was not followed). **B — opt-in
+consent.**
 
 Dashboards: [landing page](https://us.posthog.com/project/554415/dashboard/1988741) ·
 [desktop app](https://us.posthog.com/project/554415/dashboard/1988742)
@@ -85,8 +90,9 @@ Connect two surfaces to one PostHog project:
 The landing page is trivial and unblocked. The app is not, and the plan is shaped around
 the two things that actually constrain it:
 
-- **The Mac App Store build cannot reach the network.** `build/entitlements.mas.plist`
-  has no `com.apple.security.network.client`. The DMG build (`entitlements.mac.plist`,
+- **The Mac App Store build could not reach the network when this was written.**
+  `build/entitlements.mas.plist` had no `com.apple.security.network.client` — it has since
+  been added in `2f371e0`, see Status. The DMG build (`entitlements.mac.plist`,
   Hardened Runtime) needs no change — Hardened Runtime does not gate outbound network.
   So **DMG analytics ship now; MAS is a separate, decision-gated task** (Task 9). If that
   decision is "no", the plan still completes — the App Store cohort is simply invisible,
@@ -104,7 +110,10 @@ These change scope. Everything in Tasks 1–8 and 10 proceeds either way.
 
 ### Decision A — does the MAS build get `com.apple.security.network.client`?
 
-**Recommendation: no, not for analytics alone.** `entitlements.mas.plist` states its own
+**Outcome: yes** — added in `2f371e0`, against the recommendation below, which is kept
+as the original reasoning.
+
+**Recommendation at the time: no, not for analytics alone.** `entitlements.mas.plist` states its own
 rule in its header: *"Nothing here is present for convenience. Every key is one the app
 stops working without."* Analytics is exactly convenience. Adding the key also drags in:
 
@@ -443,6 +452,8 @@ Emit from the existing wiring in `src/renderer/src/App.tsx`, all of which alread
 
 - **Type**: Manual + AFK
 - **Blocked by**: Decision A = yes. **If no, close this task with the reason recorded and stop.**
+- **Status**: Decision A resolved to yes; the entitlement landed in `2f371e0`. The remaining
+  acceptance criteria below were not re-verified as part of this correction.
 
 #### What to build
 
